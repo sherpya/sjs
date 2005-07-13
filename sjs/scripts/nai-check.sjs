@@ -9,13 +9,14 @@ offset = 0x45;
 
 localver = getdword(datfile, offset);
 
-tempini = gettemp() + "/" + "update.ini";
+tempini = gettemp() + "update.ini";
 
 unlink(tempini);
 
 download("ftp://ftp.nai.com/CommonUpdater/update.ini", tempini);
 
-ini = new inifile(tempini);
+ini = new parser();
+ini.loadini(tempini);
 ver = ini.getintvalue("ZIP/DATVersion");
 
 print("Local version is: " + localver + " remote " + ver);
