@@ -19,9 +19,6 @@
  */
 
 #include <sjs.h>
-#ifndef _WIN32
-#include <unistd.h>
-#endif
 
 JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
@@ -36,12 +33,12 @@ JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 JSBool GetTemp(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
    JSString *str;
-#ifdef __WIN32__
+#ifdef _WIN32
    char temp[MAX_PATH];
    GetTempPath(MAX_PATH, temp);
    str = JS_NewStringCopyZ(cx, temp);
 #else
-   str = JS_NewStringCopyZ(cx, "/tmp");
+   str = JS_NewStringCopyZ(cx, "/tmp/");
 #endif
    *rval = STRING_TO_JSVAL(str);
    return JS_TRUE;
@@ -53,11 +50,7 @@ JSBool Unlink(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
     if (argc != 1) R_FALSE;
     filename = JS_ValueToString(cx, argv[0]);
 
-#ifdef __WIN32__
-    if (!DeleteFile(JS_GetStringBytes(filename))) R_FALSE;
-#else
     if (unlink(JS_GetStringBytes(filename))) R_FALSE;
-#endif
     R_TRUE;
 }
 

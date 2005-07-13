@@ -34,6 +34,7 @@
 #define mkdir(a,b) mkdir(a)
 #else
 #define XP_UNIX
+#include <unistd.h>
 #define HMODULE void *
 #endif
 

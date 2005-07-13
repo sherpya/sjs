@@ -6,7 +6,6 @@
 	ProjectGUID="{FC4C2F9E-42DC-4CE0-AD10-D4DA7E476EAF}"
 	RootNamespace="korax"
 	Keyword="Win32Proj"
-	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
