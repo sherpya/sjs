@@ -1,22 +1,22 @@
 /*
- * Sherpya JavaScript Shell
- * Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- */
+* Sherpya JavaScript Shell
+* Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Library General Public
+* License as published by the Free Software Foundation; either
+* version 2 of the License, or (at your option) any later version.
+*
+* This library is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+* Library General Public License for more details.
+*
+* You should have received a copy of the GNU Library General Public
+* License along with this library; if not, write to the
+* Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+* Boston, MA 02111-1307, USA.
+*/
 
 #include <sjs.h>
 
@@ -29,11 +29,11 @@ static int32 code = 0;
 /* ------------------- JS Functions ------------------- */
 static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
 {
-	JSString *name;
-	if (argc != 1) R_FALSE;
-	name = JS_ValueToString(cx, argv[0]);
-	*rval = BOOLEAN_TO_JSVAL(initPlugin(JS_GetStringBytes(name), cx, obj));
-	return JS_TRUE;
+    JSString *name;
+    if (argc != 1) R_FALSE;
+    name = JS_ValueToString(cx, argv[0]);
+    *rval = BOOLEAN_TO_JSVAL(initPlugin(JS_GetStringBytes(name), cx, obj));
+    return JS_TRUE;
 }
 static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
 {
@@ -48,9 +48,9 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     script = JS_CompileFile(cx, obj, JS_GetStringBytes(filename));
     if (script)
     {
-       JS_ExecuteScript(cx, obj, script, &result);
-       JS_DestroyScript(cx, script);
-       R_TRUE;
+        JS_ExecuteScript(cx, obj, script, &result);
+        JS_DestroyScript(cx, script);
+        R_TRUE;
     }
     R_FALSE;
 }
@@ -80,9 +80,9 @@ static JSBool Verbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 static void ErrorReporter(JSContext *cx, const char *message, JSErrorReport *report)
 {
     if (!report)
-      printf("%s\n", message);
+        printf("%s\n", message);
     else
-      printf("%s:%d %s\n", report->filename, report->lineno, message);
+        printf("%s:%d %s\n", report->filename, report->lineno, message);
 }
 
 int main(int argc, char *argv[])
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
     {
         /* sjs.cpp */
         { "include",    Include,    1, 0, 0 },
-		{ "loadplugin", LoadPlugin, 1, 0, 0 },
+        { "loadplugin", LoadPlugin, 1, 0, 0 },
         { "print",      Print,      1, 0, 0 },
         { "verbose",    Verbose,    1, 0, 0 },
         { "exit",       Exit,       1, 0, 0 },
@@ -136,13 +136,13 @@ int main(int argc, char *argv[])
 
     initVersions(cx, global);
     rtd.verbose = JS_FALSE;
-   
+
     /* Execution */
     script = JS_CompileFile(cx, global, argv[1]);
     if (script)
     {
-       JS_ExecuteScript(cx, global, script, &result);
-       JS_DestroyScript(cx, script);
+        JS_ExecuteScript(cx, global, script, &result);
+        JS_DestroyScript(cx, script);
     }
 
     JS_DestroyContext(cx);

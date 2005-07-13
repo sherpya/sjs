@@ -1,22 +1,22 @@
 /*
- * Sherpya JavaScript Shell
- * Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- */
+* Sherpya JavaScript Shell
+* Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Library General Public
+* License as published by the Free Software Foundation; either
+* version 2 of the License, or (at your option) any later version.
+*
+* This library is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+* Library General Public License for more details.
+*
+* You should have received a copy of the GNU Library General Public
+* License along with this library; if not, write to the
+* Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+* Boston, MA 02111-1307, USA.
+*/
 
 #include <sjs.h>
 #include <util.h>
@@ -26,59 +26,59 @@ static sjs_data *grtd;
 /* Korax Classes */
 static JSBool IniClass_cons(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-   util::CPar *par = NULL;
-   JSString *filename;
+    util::CPar *par = NULL;
+    JSString *filename;
 
-   if (argc != 1) return JS_TRUE;
-   filename = JS_ValueToString(cx, argv[0]);
+    if (argc != 1) return JS_TRUE;
+    filename = JS_ValueToString(cx, argv[0]);
 
-   if (!filename) return JS_TRUE;
+    if (!filename) return JS_TRUE;
 
-   par = new util::CPar();
-   if (!par->loadIni(JS_GetStringBytes(filename)))
-   {
-      delete par;
-      return JS_TRUE;
-   }
-   JS_SetPrivate(cx, obj, (void *) par);
-   return JS_TRUE;
+    par = new util::CPar();
+    if (!par->loadIni(JS_GetStringBytes(filename)))
+    {
+        delete par;
+        return JS_TRUE;
+    }
+    JS_SetPrivate(cx, obj, (void *) par);
+    return JS_TRUE;
 }
 
 static void IniClass_finalize(JSContext *cx, JSObject *obj)
 {
-   util::CPar *par  = (util::CPar *) JS_GetPrivate(cx, obj);
-   if (par) delete par;
+    util::CPar *par  = (util::CPar *) JS_GetPrivate(cx, obj);
+    if (par) delete par;
 }
 
 /* string getvalue(query); */
 static JSBool IniClass_GetValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-  JSString *query, *result;
-  util::CPar *par = (util::CPar *) JS_GetPrivate(cx, obj);
+    JSString *query, *result;
+    util::CPar *par = (util::CPar *) JS_GetPrivate(cx, obj);
 
-  if (argc != 1) return JS_TRUE;
-  if (!par) return JS_TRUE;
+    if (argc != 1) return JS_TRUE;
+    if (!par) return JS_TRUE;
 
-  query = JS_ValueToString(cx, argv[0]); 
+    query = JS_ValueToString(cx, argv[0]); 
 
-  result = JS_NewStringCopyZ(cx, par->getValue(JS_GetStringBytes(query)).c_str());
-  *rval = STRING_TO_JSVAL(result);
-  return JS_TRUE; 
+    result = JS_NewStringCopyZ(cx, par->getValue(JS_GetStringBytes(query)).c_str());
+    *rval = STRING_TO_JSVAL(result);
+    return JS_TRUE; 
 }
 
 /* int getintvalue(query); */
 static JSBool IniClass_GetIntValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-  JSString *query;
-  util::CPar *par = (util::CPar *) JS_GetPrivate(cx, obj);
+    JSString *query;
+    util::CPar *par = (util::CPar *) JS_GetPrivate(cx, obj);
 
-  if (argc != 1) return JS_TRUE;
-  if (!par) return JS_TRUE;
+    if (argc != 1) return JS_TRUE;
+    if (!par) return JS_TRUE;
 
-  query = JS_ValueToString(cx, argv[0]);
+    query = JS_ValueToString(cx, argv[0]);
 
-  *rval = INT_TO_JSVAL(par->getValueEx<int32>(JS_GetStringBytes(query)));
-  return JS_TRUE;
+    *rval = INT_TO_JSVAL(par->getValueEx<int32>(JS_GetStringBytes(query)));
+    return JS_TRUE;
 }
 
 static JSClass inifile_class =
@@ -166,8 +166,8 @@ extern "C"
         util::idum_ = (long) time(NULL);
 
         return (JS_InitClass(cx, global, NULL, &inifile_class,
-                             IniClass_cons, 0, ini_props, ini_methods, NULL, NULL) &&
-                JS_DefineFunctions(cx, global, korax_functions));
+            IniClass_cons, 0, ini_props, ini_methods, NULL, NULL) &&
+            JS_DefineFunctions(cx, global, korax_functions));
 
         return JS_TRUE;
     }

@@ -1,22 +1,22 @@
 /*
- * Sherpya JavaScript Shell
- * Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- */
+* Sherpya JavaScript Shell
+* Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Library General Public
+* License as published by the Free Software Foundation; either
+* version 2 of the License, or (at your option) any later version.
+*
+* This library is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+* Library General Public License for more details.
+*
+* You should have received a copy of the GNU Library General Public
+* License along with this library; if not, write to the
+* Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+* Boston, MA 02111-1307, USA.
+*/
 
 #include <sjs.h>
 #include <curl/curl.h>
@@ -31,9 +31,9 @@ static int curl_fwrite(void *buffer, size_t size, size_t nmemb, void *stream)
     File *out = (File *) stream;
     if(out && !out->stream)
     {
-       /* open file for writing */
-       out->stream = fopen(out->filename, "wb");
-       if(!out->stream) return -1; /* failure, can't open file to write */
+        /* open file for writing */
+        out->stream = fopen(out->filename, "wb");
+        if(!out->stream) return -1; /* failure, can't open file to write */
     }
     return (int) fwrite(buffer, size, nmemb, out->stream);
 }
@@ -46,22 +46,22 @@ static int c_progress_fun(void *clientp, double dltotal, double dlnow, double ul
     /* DOUBLE_TO_JSVAL segfaults ;( */
     jsval args[] =
     {
-       INT_TO_JSVAL(dltotal),
-       INT_TO_JSVAL(dlnow),
-       INT_TO_JSVAL(ultotal),
-       INT_TO_JSVAL(ulnow)
+        INT_TO_JSVAL(dltotal),
+        INT_TO_JSVAL(dlnow),
+        INT_TO_JSVAL(ultotal),
+        INT_TO_JSVAL(ulnow)
     };
 
     if (!progress_fun) return 0; /* Safety check */
     if (!context) return 0; /* Safety check */
 
     if (JS_CallFunction(context,
-                        JS_GetFunctionObject(progress_fun),
-                        progress_fun, 4, args, &rval) == JS_FALSE)
+        JS_GetFunctionObject(progress_fun),
+        progress_fun, 4, args, &rval) == JS_FALSE)
     {
-       /* TODO: grab js error and avoid calling this twice */
-       printf("Error in js progress function, aborting...\n");
-       return -1;
+        /* TODO: grab js error and avoid calling this twice */
+        printf("Error in js progress function, aborting...\n");
+        return -1;
     }
 
     JS_ValueToECMAInt32(context, rval, &result); 
@@ -100,8 +100,8 @@ static JSBool Download(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
     if (file.stream) fclose(file.stream);
     if (res != CURLE_OK)
     {
-       printf("libcurl error: %s\n", curl_easy_strerror(res));
-       R_FALSE;
+        printf("libcurl error: %s\n", curl_easy_strerror(res));
+        R_FALSE;
     }
     R_TRUE;
 }

@@ -1,22 +1,22 @@
 /*
- * Sherpya JavaScript Shell
- * Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- */
+* Sherpya JavaScript Shell
+* Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Library General Public
+* License as published by the Free Software Foundation; either
+* version 2 of the License, or (at your option) any later version.
+*
+* This library is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+* Library General Public License for more details.
+*
+* You should have received a copy of the GNU Library General Public
+* License along with this library; if not, write to the
+* Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+* Boston, MA 02111-1307, USA.
+*/
 
 #include <sjs.h>
 
@@ -32,16 +32,16 @@ JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 
 JSBool GetTemp(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-   JSString *str;
+    JSString *str;
 #ifdef _WIN32
-   char temp[MAX_PATH];
-   GetTempPath(MAX_PATH, temp);
-   str = JS_NewStringCopyZ(cx, temp);
+    char temp[MAX_PATH];
+    GetTempPath(MAX_PATH, temp);
+    str = JS_NewStringCopyZ(cx, temp);
 #else
-   str = JS_NewStringCopyZ(cx, "/tmp/");
+    str = JS_NewStringCopyZ(cx, "/tmp/");
 #endif
-   *rval = STRING_TO_JSVAL(str);
-   return JS_TRUE;
+    *rval = STRING_TO_JSVAL(str);
+    return JS_TRUE;
 }
 
 JSBool Unlink(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
@@ -95,12 +95,12 @@ JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
     if (!JS_ValueToECMAUint32(cx, argv[1], &offset)) return JS_TRUE;
 
     if (rtd.verbose)
-       printf("Getting dword value of %s at 0x%08x\n", JS_GetStringBytes(filename), offset);
+        printf("Getting dword value of %s at 0x%08x\n", JS_GetStringBytes(filename), offset);
 
     if (GetDataAt(JS_GetStringBytes(filename), offset, &value, sizeof(value)))
     {
-       *rval = INT_TO_JSVAL(value);
-       return JS_TRUE;
+        *rval = INT_TO_JSVAL(value);
+        return JS_TRUE;
     }
     return JS_TRUE;
 }
@@ -118,10 +118,10 @@ JSBool GetDWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
     if (!JS_ValueToECMAUint32(cx, argv[1], &offset)) return JS_TRUE;
 
     if (rtd.verbose)
-       printf("Getting dword value of %s at 0x%08x\n", JS_GetStringBytes(filename), offset);
+        printf("Getting dword value of %s at 0x%08x\n", JS_GetStringBytes(filename), offset);
 
     if (GetDataAt(JS_GetStringBytes(filename), offset, &value, sizeof(value)))
-       *rval = INT_TO_JSVAL(value);
+        *rval = INT_TO_JSVAL(value);
 
     return JS_TRUE;
 }
