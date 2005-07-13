@@ -5,7 +5,8 @@ add other stuff from korax
 endian/offset64 for functions of file.cpp
 document code for doxygen
 random from korax need a first value rollup :) - fix unsigned/signed - add float - call with no params
-add rmdir + recursive to file.cpp (os depends) maybe also add glob support
+implement recurse for rmdir
+add globbing
 clean up zip
 
 grab error from JS_CallFunction
@@ -13,3 +14,5 @@ grab error from JS_CallFunction
 js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
 
 check all JS_FALSE -> rval undef
+
+DOCUMENT all js Functions

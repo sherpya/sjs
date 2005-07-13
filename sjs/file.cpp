@@ -29,6 +29,16 @@ JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     R_TRUE;
 }
 
+/* FIXME: Implement recurse */
+JSBool RmDir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    JSString *dirname;
+    if (argc != 1) R_FALSE;
+    dirname = JS_ValueToString(cx, argv[0]);
+    if (rmdir(JS_GetStringBytes(dirname))) R_FALSE;
+    R_TRUE;
+}
+
 JSBool GetTemp(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *str;

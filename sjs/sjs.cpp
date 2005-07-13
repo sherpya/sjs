@@ -64,10 +64,10 @@ static JSBool Exit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval 
 static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
 {
     JSString *msg;
-    JSBool nl = JS_TRUE;
+    JSBool nl = JS_FALSE;
     if ((argc < 1) || (argc > 2)) R_FALSE;
     msg = JS_ValueToString(cx, argv[0]);
-    JS_ValueToBoolean(cx, argv[1], &nl);
+    if (argc == 2) JS_ValueToBoolean(cx, argv[1], &nl);
     printf("%s", JS_GetStringBytes(msg));
     if (!nl) printf("\n");
     R_TRUE;
@@ -114,6 +114,7 @@ int main(int argc, char *argv[])
 
         /* file.cpp */
         { "mkdir",      Mkdir,      1, 0, 0 },
+        { "rmdir",      RmDir,      1, 0, 0 },
         { "unlink",     Unlink,     1, 0, 0 },
         { "gettemp",    GetTemp,    0, 0, 0 },
         { "getword",    GetWord,    2, 0, 0 },

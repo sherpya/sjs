@@ -98,6 +98,7 @@ JSBool setVersion(JSContext *cx, const char *name, const char *value);
 
 /* File */
 JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+JSBool RmDir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
 JSBool GetTemp(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
 JSBool Unlink(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
 JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
