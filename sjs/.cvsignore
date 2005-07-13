@@ -1,0 +1,9 @@
+*.pdb
+*.ncb
+*.opt
+*.plg
+*.suo
+*.vcproj.*.user
+Debug
+Release
+Makefile
