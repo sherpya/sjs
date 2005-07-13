@@ -30,8 +30,8 @@
         if ((!par) || (argc != 1)) R_FALSE; \
         JSString *filename = JS_ValueToString(cx, argv[0]); \
         if (par->method(JS_GetStringBytes(filename))) R_TRUE;  \
-    R_FALSE;    \
-}
+        R_FALSE;    \
+    }
 
 static sjs_data *grtd;
 
