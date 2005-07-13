@@ -21,37 +21,52 @@
 #include <sjs.h>
 #include <util.h>
 
+#define GET_PAR_OBJECT util::CPar *par  = (util::CPar *) JS_GetPrivate(cx, obj)
+
+#define WRAP_LOAD_SAVE(func, method) \
+    static JSBool ParserClass_##func(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) \
+    { \
+        GET_PAR_OBJECT; \
+        if ((!par) || (argc != 1)) R_FALSE; \
+        JSString *filename = JS_ValueToString(cx, argv[0]); \
+        if (par->##method(JS_GetStringBytes(filename))) R_TRUE;  \
+    R_FALSE;    \
+}
+
 static sjs_data *grtd;
 
 /* Korax Classes */
-static JSBool IniClass_cons(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+static JSBool ParserClass_cons(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-    util::CPar *par = NULL;
-    JSString *filename;
-
-    if (argc != 1) return JS_TRUE;
-    filename = JS_ValueToString(cx, argv[0]);
-
-    if (!filename) return JS_TRUE;
-
-    par = new util::CPar();
-    if (!par->loadIni(JS_GetStringBytes(filename)))
-    {
-        delete par;
-        return JS_TRUE;
-    }
+    util::CPar *par = new util::CPar();
     JS_SetPrivate(cx, obj, (void *) par);
     return JS_TRUE;
 }
 
-static void IniClass_finalize(JSContext *cx, JSObject *obj)
+static void ParserClass_finalize(JSContext *cx, JSObject *obj)
 {
-    util::CPar *par  = (util::CPar *) JS_GetPrivate(cx, obj);
+    GET_PAR_OBJECT;
     if (par) delete par;
 }
 
+/* Load */
+/* bool loadxml(filename); */
+WRAP_LOAD_SAVE(LoadXml, loadXml);
+/* bool loadcfg(filename); */
+WRAP_LOAD_SAVE(LoadCfg, loadCfg);
+/* bool loadini(filename); */
+WRAP_LOAD_SAVE(LoadIni, loadIni);
+
+/* Save */
+/* bool savexml(filename); */
+WRAP_LOAD_SAVE(SaveXml, saveXml);
+/* bool savecfg(filename); */
+WRAP_LOAD_SAVE(SaveCfg, saveCfg);
+/* bool saveini(filename); */
+WRAP_LOAD_SAVE(SaveIni, saveIni);
+
 /* string getvalue(query); */
-static JSBool IniClass_GetValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+static JSBool ParserClass_GetValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *query, *result;
     util::CPar *par = (util::CPar *) JS_GetPrivate(cx, obj);
@@ -67,10 +82,10 @@ static JSBool IniClass_GetValue(JSContext *cx, JSObject *obj, uintN argc, jsval 
 }
 
 /* int getintvalue(query); */
-static JSBool IniClass_GetIntValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+static JSBool ParserClass_GetIntValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *query;
-    util::CPar *par = (util::CPar *) JS_GetPrivate(cx, obj);
+    GET_PAR_OBJECT;
 
     if (argc != 1) return JS_TRUE;
     if (!par) return JS_TRUE;
@@ -81,24 +96,33 @@ static JSBool IniClass_GetIntValue(JSContext *cx, JSObject *obj, uintN argc, jsv
     return JS_TRUE;
 }
 
-static JSClass inifile_class =
+static JSClass parser_class =
 {
-    "inifile", JSCLASS_HAS_PRIVATE,
+    "parser", JSCLASS_HAS_PRIVATE,
     JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, IniClass_finalize, 
+    JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, ParserClass_finalize, 
 };
 
-static JSFunctionSpec ini_methods[] =
+static JSFunctionSpec parser_methods[] =
 {
-    { "getvalue",     IniClass_GetValue,    1, 0, 0 },
-    { "getintvalue",  IniClass_GetIntValue, 1, 0, 0 },
-    { 0,              0,                    0, 0, 0 },
+    { "loadxml",      ParserClass_LoadXml,     1, 0, 0 },
+    { "loadini",      ParserClass_LoadIni,     1, 0, 0 },
+    { "loadcfg",      ParserClass_LoadCfg,     1, 0, 0 },
+
+    { "savexml",      ParserClass_SaveXml,     1, 0, 0 },
+    { "saveini",      ParserClass_SaveIni,     1, 0, 0 },
+    { "savecfg",      ParserClass_SaveCfg,     1, 0, 0 },
+    
+    { "getvalue",     ParserClass_GetValue,    1, 0, 0 },
+    { "getintvalue",  ParserClass_GetIntValue, 1, 0, 0 },
+    { 0,              0,                       0, 0, 0 },
 };
 
-static JSPropertySpec ini_props[] = 
+/*
+static JSPropertySpec parser_props[] = 
 {
     { 0,          0,        0, 0, 0 },
-};
+};*/
 
 /* Korax Functions */
 /* sys */
@@ -165,8 +189,8 @@ extern "C"
         grtd = rtd;
         util::idum_ = (long) time(NULL);
 
-        return (JS_InitClass(cx, global, NULL, &inifile_class,
-            IniClass_cons, 0, ini_props, ini_methods, NULL, NULL) &&
+        return (JS_InitClass(cx, global, NULL, &parser_class,
+            ParserClass_cons, 0, NULL, parser_methods, NULL, NULL) &&
             JS_DefineFunctions(cx, global, korax_functions));
 
         return JS_TRUE;
