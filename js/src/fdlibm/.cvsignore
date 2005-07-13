@@ -2,6 +2,7 @@
 *.ncb
 *.opt
 *.plg
+*.vcproj.*.user
 Debug
 Release
 Makefile
