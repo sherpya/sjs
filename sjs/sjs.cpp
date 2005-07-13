@@ -63,10 +63,13 @@ static JSBool Exit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval 
 
 static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
 {
-    JSString *str;
-    if (argc != 1) R_FALSE;
-    str = JS_ValueToString(cx, argv[0]);
-    printf("%s\n", JS_GetStringBytes(str));
+    JSString *msg;
+    JSBool nl = JS_TRUE;
+    if ((argc < 1) || (argc > 2)) R_FALSE;
+    msg = JS_ValueToString(cx, argv[0]);
+    JS_ValueToBoolean(cx, argv[1], &nl);
+    printf("%s", JS_GetStringBytes(msg));
+    if (!nl) printf("\n");
     R_TRUE;
 }
 

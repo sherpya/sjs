@@ -24,7 +24,6 @@ JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *str;
     if (argc != 1) R_FALSE;
-
     str = JS_ValueToString(cx, argv[0]);
     if (mkdir(JS_GetStringBytes(str), 0755)) R_FALSE;
     R_TRUE;
@@ -49,7 +48,6 @@ JSBool Unlink(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
     JSString *filename;
     if (argc != 1) R_FALSE;
     filename = JS_ValueToString(cx, argv[0]);
-
     if (unlink(JS_GetStringBytes(filename))) R_FALSE;
     R_TRUE;
 }
@@ -62,21 +60,22 @@ static JSBool GetDataAt(const char *filename, off_t offset, void *dest, int len)
     fd = fopen(filename, "rb");
     if (!fd)
     {
-        printf("Error in fopen\n");
+        perror("Error opening file");
         goto end_fun;
     } 
 
     if (fseek(fd, offset, SEEK_SET))
     {
-        printf("Error in fseek\n");
+        perror("Error seeking file");
         goto end_fun;
     }
 
     if (fread(dest, len, 1, fd) != 1)
     {
-        printf("Error in fread\n");
+        perror("Error reading from file");
         goto end_fun;
     }
+
 end_fun:
     if (fd) fclose(fd);
     return JS_TRUE;
@@ -90,7 +89,6 @@ JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
     uint16 value = 0;
 
     if (argc != 2) return JS_TRUE;
-
     filename = JS_ValueToString(cx, argv[0]);
     if (!JS_ValueToECMAUint32(cx, argv[1], &offset)) return JS_TRUE;
 

@@ -53,7 +53,15 @@ JSBool initPlugin(const char *plugin, JSContext *cx, JSObject *global)
     if (!plug.handle)
     {
 #ifdef _WIN32
-        printf("initPlugin Error: GetLastError() = %d\n", GetLastError());
+        LPVOID lpMsgBuf = NULL;
+        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+                      NULL,
+                      GetLastError(),
+                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                      (LPTSTR) &lpMsgBuf,
+                      0, NULL);
+        printf("initPlugin Error: %s", lpMsgBuf);
+        LocalFree(lpMsgBuf);
 #else
         printf("initPlugin Error: %s\n", dlerror());
 #endif
