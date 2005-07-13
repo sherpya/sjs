@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<log>
+	<info>
+		<cpu unit="Hz">2279490290</cpu>
+		<overhead unit="cycles">88</overhead>
+		<date format="YYYY-MM-DD">2005-07-10</date>
+		<time format="hh:mm:ss">19:37:13</time>
+		<pid>19470</pid>
+		<tid>3084412000</tid>
+	</info>
+	<start>11644586678399004</start>
+	<entries>
+	</entries>
+	<end  >11644598282626322</end>
+</log>

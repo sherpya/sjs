@@ -1,0 +1,58 @@
+koraX's utils version 1.7.0.0 - 2005-03-24 - first public version
+
+Version : A.B.C.D
+A - big change, uncompatible with previous
+B - new util added
+C - util rewrited/changed, major change to util
+D - minor bugfixes
+
+TODO : add throw() statement everywhere some day
+
+util.h        - done
+              - modify only if new util added
+util_sync.*   - done
+              - add semaphore in the future
+util_misc.*   ! OPEN
+              - for new miscelaneous utils
+util_sys.*    - done, known bugs
+              - fix gcc assembler for 64bit CPUs
+util_thread.* ! OPEN, this util is in very early stage, but working well :)
+              - add more support for threads
+              - pausing threads
+              - thread priority
+util_log.*    - done
+              ! this util has built-in support for koraXs Build number logger
+                - uncomment definition in util_log.h to enable it
+              ! cout is redirected to file by default. If you don't want to redirect it
+                comment macro definition KORAX_UTIL_COUT in util_log.cpp
+              ! must edit path where logs should be, see util_log.cpp
+              ! change buffer size in constructor
+                - 0 is for direct write, 4096 is recommended (0 is recommended for cerr)
+                - buffer speeds logging. But upon crash log will be incomplete.
+                  So sometimes it is good to have direct log, but only if you debug things
+              ! you can set what will be logged in Report() by commenting lines
+                - My first priority was speed so I haven't put some switches what to log
+                  runtime but compile-time
+              - create cross-platform log viewer, because
+util_vector.* - done
+              - maybe add more math stuff with vectors
+              ! this util has built-in support for Half-Life SDK's Vector class
+                - enable it in util_vector.h by removing comment where macro
+                  SDK_VECTOR_SUPPORT is defined
+              ! in toAngles, UP is -90, not 90 degrees, this corresponds
+                to player pitch angles in Half-Life
+util_par.*    - OPEN
+              - complex util, possible bugs somewhere
+              ! play with KORAX_UTIL_PAR_RESERVE_ELEMENTS,
+                however some STL implementations works best with 0
+              ! & operator in query is useless
+              - TODO change query but don't know when :)
+              - TODO add FindNext function useful when two similar elements so we don't
+                have to find from start every time. NOTE you can hack this by
+                acquiring parent element and parsing its child elements in for loop.
+                However you must change some class declarations from private to public
+                and remove constness somewhere
+              - advanced editing (such as moving) is maybe slow and maybe buggy
+              ! loading/saving/querying is recurrent so 
+                POSSIBLE STACK OVERFLOW for large .xml. Haven't tested it yet
+              - new paredit

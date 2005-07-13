@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "jsshell", "jsshell.vcproj", "{68161A88-1098-4E05-B2A6-F98AC3D9DB90}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fdlibm", "fdlibm\fdlibm.vcproj", "{483686BF-3DB0-4298-B8FE-48206DE60546}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "js", "js.vcproj", "{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{68161A88-1098-4E05-B2A6-F98AC3D9DB90}.Debug|Win32.ActiveCfg = Debug|Win32
+		{68161A88-1098-4E05-B2A6-F98AC3D9DB90}.Debug|Win32.Build.0 = Debug|Win32
+		{68161A88-1098-4E05-B2A6-F98AC3D9DB90}.Release|Win32.ActiveCfg = Release|Win32
+		{68161A88-1098-4E05-B2A6-F98AC3D9DB90}.Release|Win32.Build.0 = Release|Win32
+		{483686BF-3DB0-4298-B8FE-48206DE60546}.Debug|Win32.ActiveCfg = Debug|Win32
+		{483686BF-3DB0-4298-B8FE-48206DE60546}.Debug|Win32.Build.0 = Debug|Win32
+		{483686BF-3DB0-4298-B8FE-48206DE60546}.Release|Win32.ActiveCfg = Release|Win32
+		{483686BF-3DB0-4298-B8FE-48206DE60546}.Release|Win32.Build.0 = Release|Win32
+		{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}.Debug|Win32.Build.0 = Debug|Win32
+		{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}.Release|Win32.ActiveCfg = Release|Win32
+		{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

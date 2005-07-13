@@ -1,0 +1,42 @@
+body {
+	text-align:justify;
+}
+
+hr {
+	border:none;
+	border-bottom:1px solid gray;
+}
+
+#toc {
+	border:1px dotted gray;
+	padding:0.5em;
+}
+
+#links {
+	display:none;
+}
+
+#foot {
+	font-family:courier new;
+	font-size:0.75em;
+}
+
+#foot p {
+	margin:0;
+	margin-bottom:0.5em;
+	text-align:center;
+}
+
+.contact {
+	font-style:italic;
+	font-size:0.8em;
+}
+
+.error {
+	background-color:red !important;
+	padding:1em;
+	font-size:0.9em !important;
+	font-weight:bold;
+	text-align:left;
+}
+

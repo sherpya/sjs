@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+
+<head>
+	<title>koraX's utils</title>
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+	<meta http-equiv="content-style-type" content="text/css"/>
+	<meta http-equiv="content-language" content="en"/>
+	<meta name="keywords" content="koraX, Jozef Wagner, profiler, parser, xml, log, vector"/>
+	<meta name="description" content="koraX's utils"/>
+	<meta name="author" content="Jozef Wagner, wagner@wagjo.com"/>
+	<link rel="copyright" href="http://creativecommons.org/licenses/by-nc-sa/2.0/" title="Creative Commons License"/>
+	<link title="Stylesheet" type="text/css" rel="stylesheet" media="screen, projection, tv" href="css/simple/index-en.css"/>
+	<link title="Stylesheet" type="text/css" rel="stylesheet" media="print, handheld" href="css/print/index-en.css"/>
+	<script type="text/javascript"></script>
+</head>
+
+<body>
+<div id="container">
+
+<div id="header">
+	<h2><a href="" title="Classic HL1-mod framework"><span>koraX's utils 1.7.0.0</span></a></h2>
+	<h3>Fast utilities for your program</h3>
+</div>
+
+<hr class="hide"/>
+
+<div id="content">
+<h1>CVector class</h1>
+<p>this is just a collection of hints and tips. You should open util_vector.h and study interface :)</p>
+<p>3 usable classes, CVector, CPosition and CAngle</p>
+<p>CVector has dotproduct and crossproduct and <a href="http://wiki.bots-united.com/index.php/Vector_Math">many other</a> functions</p>
+<p>convert 2 positions to vector with - operator</p>
+<p>You can add vector to position and result will be new position</p>
+<p>Hints</p>
+<ul>
+<li>Length() - simple euclidean vector length, LengthEx() - other types of metric</li>
+<li>Angle() computes angle between 2 vectors</li>
+<li>toAngles convert vector to angles</li>
+<li>toForward, toUp and toRight converts angles to vector</li>
+<li>"Wrap angle facility" for angles</li>
+</ul>
+<p>all these classes have built-in support for Half-Life's Vector class. You can simply use these new classes instead on HL Vector even on engine functions</p>
+</div>
+
+<hr class="hide"/>
+
+<div id="links">
+	<h2><span>Links</span></h2>
+
+	<div class="links_entry" id="menu">
+		<h3><span>Menu</span></h3>
+		<ul>
+			<li><a href="index.html" title="Home">Home</a></li>
+			<li>&nbsp;</li>
+			<li><a href="sys.html">CSys - profiler and system</a></li>
+			<li><a href="log.html">CLog - loging</a></li>
+			<li><a href="sync.html">CSync - thread synchronization</a></li>
+			<li><a href="thread.html">CThread - threads</a></li>
+			<li><a href="par.html">CPar - xml/ini/cfg parser</a></li>
+			<li><a href="vector.html">CVector - 3d Vector, position, angle</a></li>
+			<li><a href="misc.html">misc - miscelaneous utils</a></li>
+		</ul>
+	</div>
+
+	<div class="links_entry" id="style">
+		<h3><span>External links</span></h3>
+		<ul>
+			<li><a href="http://neuron.tuke.sk/~wagner" title="Homepage">my homepage</a></li>
+			<li><a href="http://www.bots-united.com" title="Ze pesky title">Bots united</a></li>
+		</ul>
+	</div>
+
+</div>
+
+<hr class="hide"/>
+
+<div id="foot">
+	<p id="foot_copy"><i>Copyright &copy; 2005 <a href="mailto:wagner@wagjo.com" title="wagner@wagjo.com">Jozef Wagner</a>, <a href="http://neuron.tuke.sk/~wagner" title="http://neuron.tuke.sk/~wagner">http://neuron.tuke.sk/~wagner</a></i></p>
+	<p id="foot_license">This work is licensed under a <a href="http://creativecommons.org/licenses/by-nc-sa/2.0/" title="Creative Commons License">Creative Commons License</a></p>
+	<p id="foot_valid"><span id="foot_valid_wrapper">
+	<span id="v_xhtml"><a href="http://validator.w3.org/check?uri=referer" title="Valid XHTML 1.1"><span>Valid XHTML 1.1</span></a></span>
+	<span id="v_css"><a href="http://jigsaw.w3.org/css-validator/check/referer/" title="Valid CSS"><span>Valid CSS</span></a></span>
+	</span></p>
+</div>
+
+</div>
+</body>
+
+</html>

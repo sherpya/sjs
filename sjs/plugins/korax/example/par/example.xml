@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<kxbot type="Created Automatically by kXBot parser" version="1.0" date="07.21.2004">
+	<!-- first bot, very ghey -->
+	<bot>
+		<name>Frodo</name>
+		<mod>CS</mod>
+		<skill>
+			<easy>10</easy>
+			<medium>20</medium>
+			<hard>30</hard>
+		</skill>		
+		<skin>
+			5
+			<T>1</T>
+			<CT>2</CT>
+		</skin>
+		<meta version="1.3" date="12.02.1995"/>
+	</bot>
+	<!-- this bot is slow -->
+	<bot>
+		<name>Sam</name>
+		<mod>CS</mod>
+		<skill>
+			<easy>20</easy>
+			<medium>20</medium>
+			<hard>60</hard>
+		</skill>		
+		<skin>
+			5
+			<T>3</T>
+			<CT>3</CT>
+		</skin>
+		<meta version="1.0" date="12.03.1995"/>
+	</bot>
+	<!-- this bot is cheating all the time -->
+	<bot>
+		<name>Sauron</name>
+		<mod>CS</mod>
+		<skill>
+			<easy>100</easy>
+			<medium>100</medium>
+			<hard>100</hard>
+		</skill>		
+		<skin>
+			5
+			<T>5</T>
+			<CT>5</CT>
+		</skin>
+		<meta version="1.1" date="11.09.2001"/>
+	</bot>
+	<!-- my own server -->
+	<server>
+		<address>192.168.6.147</address>
+		<hostname>-</hostname>
+		<maxplayers></maxplayers>
+		<type dedicated="yes" />
+	</server>
+	<!-- tom71s server -->
+	<server>
+		<address>192.168.6.149</address>
+		<hostname>TD</hostname>
+		<maxplayers>8</maxplayers>
+		<type dedicated="no" />
+	</server>
+	<!-- Counter-strike version -->
+	<game version="1.5"/>
+</kxbot>

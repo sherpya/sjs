@@ -1,0 +1,414 @@
+/*
+	Simple style for http://www.wagjo.com
+
+	Copyright (C) 2005, Jozef Wagner
+	This file is licensed under a Creative Commons License
+	http://creativecommons.org/licenses/by-nc-sa/2.0/
+
+	created with build-in text editor in Far manager
+	with colorer plugin. http://www.farmanager.com
+*/
+
+body {
+	margin:0;
+	padding:0;
+	background-color:white;
+	font-family: Georgia, Helvetica, Verdana, Arial, sans-serif;
+}
+
+a:hover {
+	color:red;
+	background-color:#E6ECFF;
+}
+
+acronym {
+	cursor:help;
+	font-style:normal;
+	border-bottom:1px dashed #809FFF;
+}
+
+acronym:hover {color:red;}
+
+img {border:none;}
+
+hr {display:none;}
+
+.error {
+	background-color:red !important;
+	padding:1em;
+	font-size:0.9em !important;
+	font-weight:bold;
+	text-align:left;
+}
+
+/* header */
+
+#header h2 {
+	margin:0;
+	padding:0.5em;
+	background-color:#FDF9ED;
+	font-family:Arial, Helvetica, sans-serif;
+   font-size:1.6em;
+	font-weight:bold;
+	text-align:center;
+	letter-spacing:0.5em;
+	text-transform:uppercase;
+}
+
+#header h3 {
+	margin:0;
+	padding-left:1em;
+	padding-top:3px;
+	padding-bottom:3px;
+	color:white;
+	background-color:#727EA3;
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:0.8em;
+	font-weight:bold;
+	letter-spacing:3px;
+	text-transform:uppercase;
+}
+
+#header h3:hover {color:yellow;}
+
+/* content */
+
+h1 {color:#A52A2A;}
+
+h1:hover {
+	color:red;
+	background-color:#FDF9ED;
+}
+
+#content h2 {border-bottom:1px dotted black;}
+
+#content h2:hover {
+	color:red;
+	border-bottom:1px solid red;
+}
+
+#content {
+	float:left;
+	width:550px;
+	margin:10px;
+	margin-left:5px;
+	margin-top:0px;
+	margin-bottom:0px;
+	padding:10px;
+	padding-right:1em;
+	padding-bottom:1em;
+	text-align:justify;
+}
+
+html>body #content {
+	margin-left:10px;
+	width:520px;
+}
+
+/* toc */
+
+#toc {
+	border:1px dashed #FDF9ED;
+	background-color:#FDF9ED;
+	padding:1em;
+	padding-top:0.5em;
+}
+
+#toc:hover {border:1px dashed #727EA3;}
+
+#toc p {
+	font-weight:bold;
+	margin-bottom:0;
+}
+
+#toc ol, #toc ul {margin-top:0;}
+
+#toc h3 {font-size:1em;}
+
+#toc li {font-size:0.8em;}
+
+.contact {
+	font-style:italic;
+	font-size:0.8em;
+}
+
+#toc .contact {text-align:right;}
+
+/* links */
+
+#links {
+	margin-left:560px;
+	margin-right:1em;
+	font-family:Verdana, Arial, sans-serif;
+	min-width:200px;
+}
+
+#links h2 {display:none;}
+
+#links h3 {
+	margin:0;
+	padding-left:1em;
+	padding-top:3px;
+	padding-bottom:3px;
+	color:white;
+	background-color:#727EA3;
+	font-family: Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:0.8em;
+	letter-spacing:3px;
+	text-transform: uppercase;
+}
+
+#links h3:hover {color:yellow;}
+
+.links_entry {
+	min-width:200px;
+	padding:0;
+	margin-top:1em;
+	background-color:#E6ECFF;
+	border:1px solid #727EA3;
+}
+
+.links_form, #language, #newsfeed  {
+	min-width:200px;
+	padding:0;
+	margin-top:1em;
+	background-color:#FDF9ED;
+	border:1px solid #727EA3;
+}
+
+.links_entry       a         {color:black;}
+.links_entry:hover           {border:1px solid black;}
+.links_entry       a:visited {color:#727EA3;}
+.links_entry:hover a:visited {color:blue;}
+.links_entry:hover a:link    {color:blue;}
+.links_entry:hover a:hover   {color:red;}
+
+div#links form {margin:1em;}
+
+div#links ul {
+	margin:0;
+	padding:1em;
+	list-style:none;
+}
+
+#newsfeed {margin-bottom:1em;}
+
+#mistake p {margin:0;}
+
+#input_original, #input_fixed {
+	border:1px solid black;
+	margin:0;
+	margin-bottom:1em;
+	margin-right:0.5em;
+	height:20px;
+}
+
+#mistake_send {
+	border:1px solid black;
+	background-color:#E6ECFF;
+	height:20px;
+	width:80px;
+}
+
+#mistake_advanced {
+	padding:1em;
+	padding-top:0;
+	margin:0;
+	font-style:italic;
+}
+
+#search form {
+	margin-top:0 !important;
+	margin-bottom:0 !important;
+}
+
+#search {padding-bottom:1em !important;} /* IE 5 fix */
+
+#search_search {
+	margin-top:1em;
+	border:1px solid black;
+	float:left;
+	margin-right:0.5em;
+	height:20px;
+}
+
+#search_send {
+	margin-top:1em;
+	border:1px solid black;
+	background-color:#E6ECFF;
+	height:20px;
+	width:80px;
+}
+
+/* foot */
+
+#foot {
+	margin:0;
+	padding:0.5em;
+	clear:both;
+	background-color:#FDF9ED;
+	border-top:1px solid #aaaaaa;
+	font-family:courier new;
+	font-size:0.75em;
+}
+
+#foot p {
+	margin:0;
+	padding:0.2em;
+	text-align:center;
+}
+
+/* news */
+
+#news ul {
+	margin-top:0.5em;
+	margin-left:1em;
+}
+
+#news h3 {
+	margin-bottom:0.5em;
+}
+
+#news li {
+	font-size:0.8em;
+	list-style:none;
+}
+
+/* news */
+
+.news_entry h2 {
+	border:none !important;
+	margin:0 !important;
+	padding:0 !important;
+	font-size:1em !important;
+}
+
+.news_entry h3:before {content:"(";}
+.news_entry h3:after {content:")";}
+.news_entry h3 {
+	margin:0 !important;
+	padding:0 !important;
+	font-size:0.8em !important;
+	font-weight:normal !important;
+	font-style:italic !important;
+	margin-top:0.5em !important;
+	margin-left:1em !important;
+}
+
+.news_entry p {
+	margin-top:0.5em !important;
+	margin-bottom:1.5em !important;
+	margin-left:1em !important;
+}
+
+/* search page */
+
+.note {
+	font-size:0.8em;
+}
+
+.search_found {
+	margin-bottom:1.5em !important;
+}
+
+/* listing */
+
+div.list_entry {
+	position:relative;
+	margin:0;
+	margin-bottom:1em;
+	padding:0;
+}
+
+div.list_entry h3{
+	background-color:#E6ECFF;
+	padding:0.5em !important;
+	margin:0 !important;
+}
+
+div.list_entry img {
+	position:relative;
+	float:left;
+	margin:0.5em;
+	margin-right:1em;
+	margin-bottom:0;
+}
+
+p.list_entry_footer {
+	clear:both;
+	font-style:italic;
+	margin-left:0.5em;
+	font-size:0.8em;
+}
+
+p.list_entry_stats {
+	font-style:italic;
+	margin-right:0.5em;
+	font-size:0.8em;
+	text-align:right !important;
+}
+
+p.list_entry_overview {
+	margin:0;
+	padding:0;
+	padding-left:1em;
+	padding-right:1em;	
+}
+
+/* discussion */
+
+.post {
+	margin:0;
+	margin-bottom:0.5em;
+	padding:0;
+}
+
+.post h3{
+	padding:0.1em !important;
+	padding-left:0.5em !important;
+	margin:0 !important;
+	font-size:1em;
+	float:left;
+}
+
+.post .message {
+	font-family:courier new, monospace;
+	padding:0.5em;
+	margin:0 !important;
+	clear:both;
+	overflow:auto;
+	border:none;
+	border-bottom:1px dotted #B36B00;
+	font-size:0.8em !important;
+}
+
+.post p.name {
+	margin:0;
+	padding:0;
+	float:right;
+	margin-right:0.5em;
+	font-size:0.7em;
+	font-weight:bold;
+}
+
+.post p.name:before {content:"by ";}
+
+.post p.date {
+	margin:0;
+	padding:0;
+	float:right;
+	margin-right:0.5em;
+	font-size:0.7em;
+}
+
+.post p.date:before {content:"(";}
+.post p.date:after  {content:")";}
+
+/* pre */
+pre {
+	overflow:scroll;
+	width:520px;
+	border:1px solid black;
+	padding:0.5em;
+}
