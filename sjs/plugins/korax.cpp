@@ -118,12 +118,6 @@ static JSFunctionSpec parser_methods[] =
     { 0,              0,                       0, 0, 0 },
 };
 
-/*
-static JSPropertySpec parser_props[] = 
-{
-    { 0,          0,        0, 0, 0 },
-};*/
-
 /* Korax Functions */
 /* sys */
 static JSBool GetCpuFrequency(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
