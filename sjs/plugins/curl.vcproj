@@ -6,6 +6,7 @@
 	ProjectGUID="{5B6666B8-9E26-4114-B890-501D039F3D20}"
 	RootNamespace="curl"
 	Keyword="Win32Proj"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -120,7 +121,7 @@
 				Optimization="2"
 				AdditionalIncludeDirectories="../../js/src/;..;../../curl/include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;curl_EXPORTS"
-				RuntimeLibrary="2"
+				RuntimeLibrary="0"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"

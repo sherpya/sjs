@@ -6,6 +6,7 @@
 	ProjectGUID="{FC4C2F9E-42DC-4CE0-AD10-D4DA7E476EAF}"
 	RootNamespace="korax"
 	Keyword="Win32Proj"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -120,7 +121,7 @@
 				Optimization="2"
 				AdditionalIncludeDirectories="../../js/src/;..;korax/util"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;KORAX_EXPORTS"
-				RuntimeLibrary="2"
+				RuntimeLibrary="0"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
