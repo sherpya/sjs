@@ -40,7 +40,7 @@ JSBool initPlugin(const char *plugin, JSContext *cx, JSObject *global)
    memset(&plug, 0, sizeof(plug));
 
    JS_snprintf(plug.name, MAX_PATH, "%s", plugin);
-#ifdef _DEBUG
+#if defined(_DEBUG) && defined(_WIN32)
    JS_snprintf(plugin_path, MAX_PATH, "plugins/Debug/%s"PLUGIN_EXT, plugin);
 #else
    JS_snprintf(plugin_path, MAX_PATH, "plugins/%s"PLUGIN_EXT, plugin);

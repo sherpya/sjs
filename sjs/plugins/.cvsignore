@@ -2,7 +2,9 @@
 *.ncb
 *.opt
 *.plg
+*.o
 *.vcproj.*.user
+*.so
 Debug
 Release
 Makefile

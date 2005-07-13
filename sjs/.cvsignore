@@ -3,7 +3,9 @@
 *.opt
 *.plg
 *.suo
+*.o
 *.vcproj.*.user
+sjs
 Debug
 Release
 Makefile
