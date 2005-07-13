@@ -16,3 +16,4 @@ js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
 check all JS_FALSE -> rval undef
 
 DOCUMENT all js Functions
+Add win32 only registry plugin
