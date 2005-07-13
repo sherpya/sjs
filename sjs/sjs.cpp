@@ -1,21 +1,21 @@
 /*
-* Sherpya JavaScript Shell
-* Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU Library General Public
-* License as published by the Free Software Foundation; either
-* version 2 of the License, or (at your option) any later version.
-*
-* This library is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* Library General Public License for more details.
-*
-* You should have received a copy of the GNU Library General Public
-* License along with this library; if not, write to the
-* Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-* Boston, MA 02111-1307, USA.
+ * Sherpya JavaScript Shell
+ * Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Library General Public License for more details.
+ *
+ * You should have received a copy of the GNU Library General Public
+ * License along with this library; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
 */
 
 #include <sjs.h>
@@ -129,10 +129,20 @@ int main(int argc, char *argv[])
     }
 
 
-    rt = JS_NewRuntime(0x100000);
-    cx = JS_NewContext(rt, 0x1000);
-    global = JS_NewObject(cx, &global_class, NULL, NULL);
-    JS_InitStandardClasses(cx, global);
+    /* create new runtime, new context, global object */
+    if (    (!(rt      = JS_NewRuntime (1024L * 1024L)))
+         || (!(cx      = JS_NewContext (rt, 8192)))
+         || (!(global  = JS_NewObject  (cx,  &global_class, NULL, NULL))))
+    {
+        printf("Cannot init JavaScript Engine\n");
+        return -1;
+    }
+
+    if (!JS_InitStandardClasses(cx, global))
+    {
+        printf("Cannot init standard classes\n");
+        return -1;
+    }
 
     JS_SetErrorReporter(cx, ErrorReporter);
 
@@ -149,6 +159,7 @@ int main(int argc, char *argv[])
         JS_DestroyScript(cx, script);
     }
 
+    /* Cleanup */
     JS_DestroyContext(cx);
     JS_DestroyRuntime(rt);
     JS_ShutDown();
