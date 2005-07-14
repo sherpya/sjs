@@ -17,3 +17,5 @@ check all JS_FALSE -> rval undef
 
 DOCUMENT all js Functions
 Add win32 only registry plugin
+
+take plugins directory from executable path
