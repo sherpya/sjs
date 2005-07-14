@@ -112,7 +112,7 @@ static JSFunctionSpec parser_methods[] =
     { "savexml",      ParserClass_SaveXml,     1, 0, 0 },
     { "saveini",      ParserClass_SaveIni,     1, 0, 0 },
     { "savecfg",      ParserClass_SaveCfg,     1, 0, 0 },
-    
+
     { "getvalue",     ParserClass_GetValue,    1, 0, 0 },
     { "getintvalue",  ParserClass_GetIntValue, 1, 0, 0 },
     { 0,              0,                       0, 0, 0 },
@@ -173,7 +173,6 @@ static JSFunctionSpec korax_functions[] =
     { "random",          Random,          2, 0, 0 },
     { 0,                 0,               0, 0, 0 },
 };
-
 
 /* Public Interface */
 extern "C"

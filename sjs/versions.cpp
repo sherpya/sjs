@@ -66,7 +66,6 @@ JSBool setVersion(JSContext *cx, const char *name, const char *value)
 
 JSBool initVersions(JSContext *cx, JSObject *global)
 {
-
     version = JS_InitClass(cx, global, NULL, &version_class,
         NULL, 0,
         version_props, NULL,
