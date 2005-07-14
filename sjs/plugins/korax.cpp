@@ -180,7 +180,7 @@ extern "C"
     JSBool SJS_PluginInit(JSContext *cx, JSObject *global, sjs_data *rtd)
     {
         grtd = rtd;
-	/* Init random number generator */
+        /* Init random number generator */
         util::idum_ = (long) time(NULL);
 
         return (JS_InitClass(cx, global, NULL, &parser_class,
