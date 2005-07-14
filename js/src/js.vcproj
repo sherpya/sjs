@@ -4,6 +4,8 @@
 	Version="8,00"
 	Name="js"
 	ProjectGUID="{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}"
+	RootNamespace="js"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -144,7 +146,7 @@
 				Optimization="0"
 				PreprocessorDefinitions="_DEBUG;DEBUG;_X86_=1;_WINDOWS;WIN32;XP_WIN;JSFILE;EXPORT_JS_API"
 				MinimalRebuild="true"
-				RuntimeLibrary="3"
+				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\Debug/js.pch"
 				AssemblerListingLocation=".\Debug/"

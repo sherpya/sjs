@@ -119,6 +119,6 @@ extern "C"
 
     const char *SJS_PluginVersion(void)
     {
-        return "zlib "ZLIB_VERSION;
+        return "zlib/"ZLIB_VERSION;
     }
 }

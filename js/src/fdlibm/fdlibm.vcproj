@@ -4,6 +4,8 @@
 	Version="8,00"
 	Name="fdlibm"
 	ProjectGUID="{483686BF-3DB0-4298-B8FE-48206DE60546}"
+	RootNamespace="fdlibm"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -41,7 +43,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				PreprocessorDefinitions="_DEBUG;WIN32;_X86_=1;_WINDOWS;_IEEE_LIBM"
-				RuntimeLibrary="3"
+				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\..\Debug/fdlibm.pch"
 				AssemblerListingLocation=".\..\Debug/"

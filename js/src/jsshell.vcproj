@@ -4,7 +4,7 @@
 	Version="8,00"
 	Name="jsshell"
 	ProjectGUID="{68161A88-1098-4E05-B2A6-F98AC3D9DB90}"
-	SignManifests="true"
+	RootNamespace="jsshell"
 	>
 	<Platforms>
 		<Platform
@@ -46,7 +46,7 @@
 				Optimization="0"
 				PreprocessorDefinitions="_CONSOLE;_DEBUG;WIN32;XP_WIN;JSFILE;DEBUG"
 				MinimalRebuild="true"
-				RuntimeLibrary="3"
+				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\Debug/jsshell.pch"
 				AssemblerListingLocation=".\Debug/"

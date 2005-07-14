@@ -124,6 +124,7 @@ int main(int argc, char *argv[])
 
     if (argc != 2)
     {
+        printf("-- "SJS_VERSION" --\n");
         printf("Usage: %s filename.js\n", argv[0]);
         return -1;
     }

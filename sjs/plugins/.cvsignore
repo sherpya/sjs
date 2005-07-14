@@ -1,5 +1,6 @@
 *.pdb
 *.ncb
+*.aps
 *.opt
 *.plg
 *.o

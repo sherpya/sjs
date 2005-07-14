@@ -1,7 +1,5 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
-
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -20,32 +18,18 @@
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 #pragma code_page(1252)
 #endif //_WIN32
-
-#ifdef APSTUDIO_INVOKED
+#endif    // Neutral resources
 /////////////////////////////////////////////////////////////////////////////
-//
-// TEXTINCLUDE
-//
 
-1 TEXTINCLUDE 
-BEGIN
-    "resource.h\0"
-END
 
-2 TEXTINCLUDE 
-BEGIN
-    "#include ""afxres.h""\r\n"
-    "\0"
-END
+/////////////////////////////////////////////////////////////////////////////
+// Neutral resources
 
-3 TEXTINCLUDE 
-BEGIN
-    "\r\n"
-    "\0"
-END
-
-#endif    // APSTUDIO_INVOKED
-
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_NEU)
+#ifdef _WIN32
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+#pragma code_page(1252)
+#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -62,19 +46,19 @@ VS_VERSION_INFO VERSIONINFO
  FILEFLAGS 0x0L
 #endif
  FILEOS 0x4L
- FILETYPE 0x1L
+ FILETYPE 0x2L
  FILESUBTYPE 0x0L
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
         BLOCK "000004b0"
         BEGIN
-            VALUE "FileDescription", "Sherpya JavaScript Shell"
+            VALUE "FileDescription", "SJS Zlib Plugin"
             VALUE "FileVersion", "1, 0, 0, 0"
-            VALUE "InternalName", "sjs"
+            VALUE "InternalName", "zlib"
             VALUE "LegalCopyright", "Copyright © 2005 Gianluigi Tiesi"
-            VALUE "OriginalFilename", "sjs.exe"
-            VALUE "ProductName", "Sherpya JavaScript Shell"
+            VALUE "OriginalFilename", "zlib.dll"
+            VALUE "ProductName", "SJS Zlib Plugin"
             VALUE "ProductVersion", "1, 0, 0, 0"
         END
     END
@@ -84,27 +68,6 @@ BEGIN
     END
 END
 
-#endif    // Neutral resources
-/////////////////////////////////////////////////////////////////////////////
-
-
-/////////////////////////////////////////////////////////////////////////////
-// Neutral resources
-
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_NEU)
-#ifdef _WIN32
-LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
-#pragma code_page(1252)
-#endif //_WIN32
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Icon
-//
-
-// Icon with lowest ID value placed first to ensure application icon
-// remains consistent on all systems.
-IDI_ICON               ICON                    "sjs.ico"
 #endif    // Neutral resources
 /////////////////////////////////////////////////////////////////////////////
 
