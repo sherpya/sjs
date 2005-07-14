@@ -48,8 +48,13 @@
 
 #define SJS_VERSION "Sherpya JavaScript Shell version 1.0"
 
+#ifdef _WIN32
+#include <jsapi.h>
+#include <jsprf.h>
+#else
 #include <smjs/jsapi.h>
 #include <smjs/jsprf.h>
+#endif
 
 #ifndef MAX_PATH
 #define MAX_PATH 1024
