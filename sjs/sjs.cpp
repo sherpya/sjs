@@ -136,10 +136,10 @@ JSBool initPlatform(JSContext *cx, JSObject *global)
     platform = JS_NewStringCopyZ(cx, "win32");
 #else
     struct utsname info;
-    if (!uname(&info)) return JS_FALSE;
+    if (uname(&info)) return JS_FALSE;
     /* Lowercase it */
-    for (int i = 0; i < strlen(info.sysname); i++)
-        info.sysname[i] = tolower(info.sysname[i]));
+    for (size_t i = 0; i < strlen(info.sysname); i++)
+        info.sysname[i] = tolower(info.sysname[i]);
     platform = JS_NewStringCopyZ(cx, info.sysname);
 #endif
     return JS_DefineProperty(cx, global, "platform", STRING_TO_JSVAL(platform), NULL, NULL, 0);
