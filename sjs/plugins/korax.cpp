@@ -35,7 +35,7 @@
 
 static sjs_data *grtd;
 
-/* Korax Classes */
+/* Korax Parser Class */
 static JSBool ParserClass_cons(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     util::CPar *par = new util::CPar();
