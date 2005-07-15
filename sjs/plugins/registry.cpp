@@ -167,6 +167,12 @@ extern "C"
     JSBool SJS_PluginInit(JSContext *cx, sjs_data *rtd)
     {
         grtd = rtd;
+#ifndef _WIN32
+        printf("\n");
+        printf("* Warning this plugin has no functionality on this platform *\n");
+        printf("* It's compiled only to check c++ code conformance with gcc *\n");
+        printf("\n");
+#endif
         registry = JSRegistry::JSInit(cx, JS_GetGlobalObject(cx), NULL);
         return (registry != NULL);
     }

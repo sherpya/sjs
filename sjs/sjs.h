@@ -38,6 +38,20 @@
 #include <unistd.h>
 #include <sys/utsname.h>
 #define HMODULE void *
+
+/* Win32 Gcc conformance */
+#define HKEY uint32 *
+#define HKEY_CLASSES_ROOT     ((HKEY)0x80000000)
+#define HKEY_CURRENT_USER     ((HKEY)0x80000001)
+#define HKEY_LOCAL_MACHINE    ((HKEY)0x80000002)
+#define HKEY_USERS            ((HKEY)0x80000003)
+#define HKEY_CURRENT_CONFIG   ((HKEY)0x80000005)
+#define ERROR_SUCCESS         0L
+
+/* fake calls */
+#define GetLastError()        (printf("Win32::GetLastError() called\n") && 0)
+#define RegOpenKeyA(a,b,c)    (printf("Win32::RegOpenKeyA() called\n") && 0)
+#define RegCloseKey(a)        (printf("Win32::RegCloseKey() called\n") && 0)
 #endif
 
 #include <errno.h>
