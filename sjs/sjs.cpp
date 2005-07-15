@@ -82,10 +82,14 @@ static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
 {
     JSString *msg;
     JSBool nl = JS_FALSE;
+
     if ((argc < 1) || (argc > 2)) R_FALSE;
+    
     msg = JS_ValueToString(cx, argv[0]);
+
     if (argc == 2) JS_ValueToBoolean(cx, argv[1], &nl);
     printf("%s", JS_GetStringBytes(msg));
+
     if (!nl) printf("\n");
     R_TRUE;
 }
