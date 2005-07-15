@@ -35,6 +35,7 @@
 #else
 #define XP_UNIX
 #include <unistd.h>
+#include <sys/utsname.h>
 #define HMODULE void *
 #endif
 

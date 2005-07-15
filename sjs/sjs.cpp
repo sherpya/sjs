@@ -109,9 +109,11 @@ static void ErrorReporter(JSContext *cx, const char *message, JSErrorReport *rep
         printf("%s:%d %s\n", report->filename, report->lineno, message);
 }
 
+/* Helpers */
 static void initBasePath(const char *executable)
 {
-    int i = strlen(executable);
+    /* FIXME: This function is really ugly :( */
+    size_t i = strlen(executable);
     while (i)
     {
         if ((executable[i] == '/') || (executable[i] == '\\')) break;
@@ -127,6 +129,23 @@ static void initBasePath(const char *executable)
         strcpy(rtd.basepath, "./");
 }
 
+JSBool initPlatform(JSContext *cx, JSObject *global)
+{
+    JSString *platform;
+#ifdef _WIN32
+    platform = JS_NewStringCopyZ(cx, "win32");
+#else
+    struct utsname info;
+    if (!uname(&info)) return JS_FALSE;
+    /* Lowercase it */
+    for (int i = 0; i < strlen(info.sysname); i++)
+        info.sysname[i] = tolower(info.sysname[i]));
+    platform = JS_NewStringCopyZ(cx, info.sysname);
+#endif
+    return JS_DefineProperty(cx, global, "platform", STRING_TO_JSVAL(platform), NULL, NULL, 0);
+}
+
+/* Main */
 int main(int argc, char *argv[])
 {
     JSRuntime *rt;
@@ -188,9 +207,10 @@ int main(int argc, char *argv[])
 
     JS_DefineFunctions(cx, global, sjs_functions);
 
-    initVersions(cx, global);
+    rtd.verbose = JS_FALSE;
     initBasePath(argv[0]);
-    rtd.verbose = JS_FALSE;  
+    initVersions(cx, global);   
+    initPlatform(cx, global);
 
     /* Execution */
     script = JS_CompileFile(cx, global, argv[1]);
