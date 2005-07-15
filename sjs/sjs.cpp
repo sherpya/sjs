@@ -64,7 +64,7 @@ static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
     if (argc != 1) return JS_TRUE;
 
     env = JS_ValueToString(cx, argv[0]);
-    if (value = getenv(JS_GetStringBytes(env)))
+    if ((value = getenv(JS_GetStringBytes(env))))
     {
         result = JS_NewStringCopyZ(cx, value);
         *rval = STRING_TO_JSVAL(result);
