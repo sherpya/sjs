@@ -18,4 +18,4 @@ check all JS_FALSE -> rval undef
 DOCUMENT all js Functions
 Add win32 only registry plugin
 
-take plugins directory from executable path
+look for plugins in /usr/lib/sjs on linux and from registry in windows
