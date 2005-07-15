@@ -35,6 +35,7 @@ static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, 
     *rval = BOOLEAN_TO_JSVAL(initPlugin(JS_GetStringBytes(name), cx, obj));
     return JS_TRUE;
 }
+
 static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
 {
     JSScript *script;
@@ -42,7 +43,7 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     jsval result;
 
     if (argc != 1) R_FALSE;
-    filename = JS_ValueToString(cx, argv[0]);;
+    filename = JS_ValueToString(cx, argv[0]);
 
     /* Execution */
     script = JS_CompileFile(cx, obj, JS_GetStringBytes(filename));
@@ -53,6 +54,22 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
         R_TRUE;
     }
     R_FALSE;
+}
+
+static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
+{
+    JSString *env, *result;
+    char *value = NULL;
+
+    if (argc != 1) return JS_TRUE;
+
+    env = JS_ValueToString(cx, argv[0]);
+    if (value = getenv(JS_GetStringBytes(env)))
+    {
+        result = JS_NewStringCopyZ(cx, value);
+        *rval = STRING_TO_JSVAL(result);
+    }
+    return JS_TRUE;
 }
 
 static JSBool Exit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
@@ -108,6 +125,7 @@ int main(int argc, char *argv[])
         /* sjs.cpp */
         { "include",    Include,    1, 0, 0 },
         { "loadplugin", LoadPlugin, 1, 0, 0 },
+        { "getenv",     GetEnv,     1, 0, 0 },
         { "print",      Print,      1, 0, 0 },
         { "verbose",    Verbose,    1, 0, 0 },
         { "exit",       Exit,       1, 0, 0 },
