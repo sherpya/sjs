@@ -32,7 +32,7 @@ static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, 
     JSString *name;
     if (argc != 1) R_FALSE;
     name = JS_ValueToString(cx, argv[0]);
-    *rval = BOOLEAN_TO_JSVAL(initPlugin(JS_GetStringBytes(name), cx, obj));
+    *rval = BOOLEAN_TO_JSVAL(initPlugin(JS_GetStringBytes(name), cx));
     return JS_TRUE;
 }
 
@@ -129,7 +129,7 @@ static void initBasePath(const char *executable)
         strcpy(rtd.basepath, "./");
 }
 
-JSBool initPlatform(JSContext *cx, JSObject *global)
+JSBool initPlatform(JSContext *cx)
 {
     JSString *platform;
 #ifdef _WIN32
@@ -142,7 +142,7 @@ JSBool initPlatform(JSContext *cx, JSObject *global)
         info.sysname[i] = tolower(info.sysname[i]);
     platform = JS_NewStringCopyZ(cx, info.sysname);
 #endif
-    return JS_DefineProperty(cx, global, "platform", STRING_TO_JSVAL(platform), NULL, NULL, 0);
+    return JS_DefineProperty(cx, JS_GetGlobalObject(cx), "platform", STRING_TO_JSVAL(platform), NULL, NULL, 0);
 }
 
 /* Main */
@@ -209,8 +209,8 @@ int main(int argc, char *argv[])
 
     rtd.verbose = JS_FALSE;
     initBasePath(argv[0]);
-    initVersions(cx, global);   
-    initPlatform(cx, global);
+    initVersions(cx);   
+    initPlatform(cx);
 
     /* Execution */
     script = JS_CompileFile(cx, global, argv[1]);

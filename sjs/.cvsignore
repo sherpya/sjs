@@ -6,6 +6,7 @@
 *.suo
 *.o
 *.vcproj.*.user
+*.js
 sjs
 Debug
 Release

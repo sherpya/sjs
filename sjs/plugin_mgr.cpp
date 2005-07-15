@@ -32,7 +32,7 @@
 
 std::vector<Plugin> plugins;
 
-JSBool initPlugin(const char *plugin, JSContext *cx, JSObject *global)
+JSBool initPlugin(const char *plugin, JSContext *cx)
 {
     char plugin_path[MAX_PATH];
     Plugin plug;
@@ -40,7 +40,12 @@ JSBool initPlugin(const char *plugin, JSContext *cx, JSObject *global)
     memset(&plug, 0, sizeof(plug));
 
     JS_snprintf(plug.name, MAX_PATH, "%s", plugin);
+#if defined(_DEBUG) && defined(_WIN32)
+//#if 0
+    JS_snprintf(plugin_path, MAX_PATH, "%s../plugins/Debug/%s"PLUGIN_EXT, rtd.basepath, plugin);
+#else
     JS_snprintf(plugin_path, MAX_PATH, "%splugins/%s"PLUGIN_EXT, rtd.basepath, plugin);
+#endif
 
 #ifdef _DEBUG
     printf("Loading plugin %s using %s\n", plug.name, plugin_path);
@@ -68,7 +73,7 @@ JSBool initPlugin(const char *plugin, JSContext *cx, JSObject *global)
     plug.PluginUnInit  = (PluginUnInitFunction)  dlsym(plug.handle, "SJS_PluginUnInit");
     plug.PluginVersion = (PluginVersionFunction) dlsym(plug.handle, "SJS_PluginVersion");
 
-    if (plug.PluginInit && plug.PluginInit(cx, global, &rtd) == JS_FALSE)
+    if (plug.PluginInit && plug.PluginInit(cx, &rtd) == JS_FALSE)
     {
         printf("initPlugin failed: %s\n", plug.name);
         dlclose(plug.handle);

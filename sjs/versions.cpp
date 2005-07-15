@@ -25,8 +25,6 @@ static JSObject *version = NULL;
 #define VERSION_JS_ID  0
 #define VERSION_SJS_ID 1
 
-#define PROP_FLAGS (JSPROP_ENUMERATE | JSPROP_READONLY)
-
 static JSPropertySpec version_props[] =
 {
     { "js",      VERSION_JS_ID,    PROP_FLAGS },
@@ -64,11 +62,11 @@ JSBool setVersion(JSContext *cx, const char *name, const char *value)
     return JS_SetProperty(cx, version, name, &val);
 }
 
-JSBool initVersions(JSContext *cx, JSObject *global)
+JSBool initVersions(JSContext *cx)
 {
-    version = JS_InitClass(cx, global, NULL, &version_class,
+    version = JS_InitClass(cx, JS_GetGlobalObject(cx), NULL, &version_class,
         NULL, 0,
         version_props, NULL,
         NULL, NULL);
-    return JS_TRUE;
+    return (version != NULL);
 }

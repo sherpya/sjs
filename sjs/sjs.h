@@ -21,10 +21,9 @@
 #ifndef _SJS_H_
 #define _SJS_H_
 
-#ifndef __GNUC__
+#ifdef _MSC_VER
 #pragma warning(disable:4996) // Deprecated stuff
 #pragma warning(disable:4311) // pointer truncation from 'JSString *' to 'jsval'
-
 #endif
 
 #ifdef _WIN32
@@ -32,6 +31,8 @@
 #include <windows.h>
 #include <direct.h>
 #define mkdir(a,b) mkdir(a)
+#define strcasecmp stricmp
+#define strncasecmp strnicmp
 #else
 #define XP_UNIX
 #include <unistd.h>
@@ -65,6 +66,9 @@
 
 #define R_TRUE { *rval = BOOLEAN_TO_JSVAL(JS_TRUE); return JS_TRUE; }
 #define R_FALSE { *rval = BOOLEAN_TO_JSVAL(JS_FALSE); return JS_TRUE; }
+#define R_FUNC(x) { *rval = BOOLEAN_TO_JSVAL(x); return JS_TRUE; }
+
+#define PROP_FLAGS (JSPROP_ENUMERATE | JSPROP_READONLY)
 
 typedef struct _File
 {
@@ -79,7 +83,7 @@ typedef struct _sjs_data
     char basepath[MAX_PATH];
 } sjs_data;
 
-typedef JSBool (*PluginInitFunction)(JSContext *cx, JSObject *global, sjs_data *rtd);
+typedef JSBool (*PluginInitFunction)(JSContext *cx, sjs_data *rtd);
 typedef JSBool (*PluginUnInitFunction)(void);
 typedef const char *(*PluginVersionFunction)(void);
 
@@ -96,11 +100,11 @@ extern sjs_data rtd;
 extern std::vector<Plugin> plugins;
 
 /* Plugin Handler */
-JSBool initPlugin(const char *plugin, JSContext *cx, JSObject *global);
+JSBool initPlugin(const char *plugin, JSContext *cx);
 JSBool uninitPlugins(void);
 
 /* Versions */
-JSBool initVersions(JSContext *cx, JSObject *global);
+JSBool initVersions(JSContext *cx);
 JSBool setVersion(JSContext *cx, const char *name, const char *value);
 
 /* File */
@@ -111,4 +115,4 @@ JSBool Unlink(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
 JSBool GetDWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
 
-#endif
+#endif // _SJS_H_

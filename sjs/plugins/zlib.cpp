@@ -106,13 +106,13 @@ static JSFunctionSpec zlib_functions[] =
 /* Public Interface */
 extern "C"
 {
-    JSBool SJS_PluginInit(JSContext *cx, JSObject *global, sjs_data *rtd)
+    JSBool SJS_PluginInit(JSContext *cx, sjs_data *rtd)
     {
         grtd = rtd;
-        return JS_DefineFunctions(cx, global, zlib_functions);
+        return JS_DefineFunctions(cx, JS_GetGlobalObject(cx), zlib_functions);
     }
 
-    JSBool SJS_PluginUnInit(void)
+    JSBool SJS_PluginUnInit(JSContext *cx)
     {
         return JS_TRUE;
     }

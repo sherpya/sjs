@@ -127,15 +127,15 @@ static JSFunctionSpec curl_functions[] =
 /* Public Interface */
 extern "C"
 {
-    JSBool SJS_PluginInit(JSContext *cx, JSObject *global, sjs_data *rtd)
+    JSBool SJS_PluginInit(JSContext *cx, sjs_data *rtd)
     {
         grtd = rtd;
         curl = curl_easy_init();
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, true);
-        return JS_DefineFunctions(cx, global, curl_functions);
+        return JS_DefineFunctions(cx, JS_GetGlobalObject(cx), curl_functions);
     }
 
-    JSBool SJS_PluginUnInit(void)
+    JSBool SJS_PluginUnInit(JSContext *cx)
     {
         if (curl) curl_easy_cleanup(curl);
         return JS_TRUE;

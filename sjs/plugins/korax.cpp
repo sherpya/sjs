@@ -177,15 +177,15 @@ static JSFunctionSpec korax_functions[] =
 /* Public Interface */
 extern "C"
 {
-    JSBool SJS_PluginInit(JSContext *cx, JSObject *global, sjs_data *rtd)
+    JSBool SJS_PluginInit(JSContext *cx, sjs_data *rtd)
     {
         grtd = rtd;
         /* Init random number generator */
         util::idum_ = (long) time(NULL);
 
-        return (JS_InitClass(cx, global, NULL, &parser_class,
+        return (JS_InitClass(cx, JS_GetGlobalObject(cx), NULL, &parser_class,
             ParserClass_cons, 0, NULL, parser_methods, NULL, NULL) &&
-            JS_DefineFunctions(cx, global, korax_functions));
+            JS_DefineFunctions(cx, JS_GetGlobalObject(cx), korax_functions));
     }
 
     JSBool SJS_PluginUnInit(void)
@@ -193,7 +193,7 @@ extern "C"
         return JS_TRUE;
     }
 
-    const char * SJS_PluginVersion(void)
+    const char *SJS_PluginVersion(void)
     {
         return "koraX's utils 1.7.0.0";
     }

@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "curl", "plugins\curl.vcproj
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib", "plugins\zlib.vcproj", "{26B67574-9F14-4AA5-97C1-43B4949126D6}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "registry", "plugins\registry.vcproj", "{FD3912FC-7573-49A8-B796-CAEBF45EDE7B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -31,6 +33,10 @@ Global
 		{26B67574-9F14-4AA5-97C1-43B4949126D6}.Debug|Win32.Build.0 = Debug|Win32
 		{26B67574-9F14-4AA5-97C1-43B4949126D6}.Release|Win32.ActiveCfg = Release|Win32
 		{26B67574-9F14-4AA5-97C1-43B4949126D6}.Release|Win32.Build.0 = Release|Win32
+		{FD3912FC-7573-49A8-B796-CAEBF45EDE7B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{FD3912FC-7573-49A8-B796-CAEBF45EDE7B}.Debug|Win32.Build.0 = Debug|Win32
+		{FD3912FC-7573-49A8-B796-CAEBF45EDE7B}.Release|Win32.ActiveCfg = Release|Win32
+		{FD3912FC-7573-49A8-B796-CAEBF45EDE7B}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
