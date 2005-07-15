@@ -109,6 +109,24 @@ static void ErrorReporter(JSContext *cx, const char *message, JSErrorReport *rep
         printf("%s:%d %s\n", report->filename, report->lineno, message);
 }
 
+static void initBasePath(const char *executable)
+{
+    int i = strlen(executable);
+    while (i)
+    {
+        if ((executable[i] == '/') || (executable[i] == '\\')) break;
+        i--;
+    }
+    if (i)
+    {
+        strncpy(rtd.basepath, executable, i);
+        rtd.basepath[i] = '/';
+        rtd.basepath[i+1] = 0;
+    }
+    else
+        strcpy(rtd.basepath, "./");
+}
+
 int main(int argc, char *argv[])
 {
     JSRuntime *rt;
@@ -151,7 +169,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-
     /* create new runtime, new context, global object */
     if (    (!(rt      = JS_NewRuntime (1024L * 1024L)))
          || (!(cx      = JS_NewContext (rt, 8192)))
@@ -172,7 +189,8 @@ int main(int argc, char *argv[])
     JS_DefineFunctions(cx, global, sjs_functions);
 
     initVersions(cx, global);
-    rtd.verbose = JS_FALSE;
+    initBasePath(argv[0]);
+    rtd.verbose = JS_FALSE;  
 
     /* Execution */
     script = JS_CompileFile(cx, global, argv[1]);

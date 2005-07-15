@@ -75,6 +75,7 @@ typedef struct _File
 typedef struct _sjs_data
 {
     JSBool verbose;
+    char basepath[MAX_PATH];
 } sjs_data;
 
 typedef JSBool (*PluginInitFunction)(JSContext *cx, JSObject *global, sjs_data *rtd);
