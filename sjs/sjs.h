@@ -65,6 +65,7 @@
 
 #define PROP_FLAGS (JSPROP_ENUMERATE | JSPROP_READONLY)
 
+/* Human readable win32 error messages formatting */
 #define printlasterror(prefix) \
 { \
     LPVOID lpMsgBuf = NULL; \
