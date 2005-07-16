@@ -20,6 +20,7 @@
 
 #include <sjs.h>
 #ifndef _WIN32
+/* Wine includes */
 #include <windows.h>
 #endif
 
@@ -265,7 +266,6 @@ JSClass JSRegistry::registryClass =
     JS_EnumerateStub, JS_ResolveStub, 
     JS_ConvertStub, JSRegistry::JSDestructor
 };
- 
 
 /* Public Interface */
 extern "C"
