@@ -1,10 +1,10 @@
 make classes for curl (needed ?), zip
-rip the error printing stuff from somewhere
 implement getlasterror feature
 add other stuff from korax
 endian/offset64 for functions of file.cpp
 document code for doxygen
 random from korax need a first value rollup :) - fix unsigned/signed - add float - call with no params
+js has Math.random() :P
 implement recurse for rmdir
 add globbing
 clean up zip
@@ -16,6 +16,5 @@ js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
 check all JS_FALSE -> rval undef
 
 DOCUMENT all js Functions
-Add win32 only registry plugin
 
 look for plugins in /usr/lib/sjs on linux and from registry in windows
