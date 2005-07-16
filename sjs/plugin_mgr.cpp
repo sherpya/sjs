@@ -54,15 +54,7 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
     if (!plug.handle)
     {
 #ifdef _WIN32
-        LPVOID lpMsgBuf = NULL;
-        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-                      NULL,
-                      GetLastError(),
-                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                      (LPTSTR) &lpMsgBuf,
-                      0, NULL);
-        printf("initPlugin Error: %s", lpMsgBuf);
-        LocalFree(lpMsgBuf);
+        printlasterror("initPlugin Error");
 #else
         printf("initPlugin Error: %s\n", dlerror());
 #endif

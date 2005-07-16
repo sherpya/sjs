@@ -84,6 +84,21 @@
 
 #define PROP_FLAGS (JSPROP_ENUMERATE | JSPROP_READONLY)
 
+#ifdef _WIN32
+inline void printlasterror(const char *prefix)
+{
+    LPVOID lpMsgBuf = NULL;
+    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+                  NULL,
+                  GetLastError(),
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  (LPSTR) &lpMsgBuf,
+                  0, NULL);
+    printf("%s: %s\n", prefix, lpMsgBuf);
+    LocalFree(lpMsgBuf);
+}
+#endif
+
 typedef struct _File
 {
     char *filename;

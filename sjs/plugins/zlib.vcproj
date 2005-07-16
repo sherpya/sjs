@@ -6,6 +6,7 @@
 	ProjectGUID="{26B67574-9F14-4AA5-97C1-43B4949126D6}"
 	RootNamespace="zlib"
 	Keyword="Win32Proj"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
