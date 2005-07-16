@@ -19,6 +19,9 @@
  */
 
 #include <sjs.h>
+#ifndef _WIN32
+#include <windows.h>
+#endif
 
 static sjs_data *grtd;
 static JSObject *registry = NULL;
@@ -39,7 +42,7 @@ public:
     JSBool OpenKey(const char *rootkey, const char *subkey);
     JSBool EnumKey(char *subkey);
     void   SetIndex(uint32 index) { this->Index = index; }; /* inlined */
-    uint32 QueryValue(const char *keyname, unsigned char **value);
+    DWORD  QueryValue(const char *keyname, unsigned char **value);
     void   CloseKey(void) { if (hKey) RegCloseKey(hKey); hKey = NULL; Index = 0; } /* inlined */
     JSBool IsValid(void) { return (hKey != NULL); } /* inlined */
 private:
@@ -72,9 +75,9 @@ JSBool Registry::OpenKey(const char *rootkey, const char *subkey)
     return JS_TRUE;
 }
 
-uint32 Registry::QueryValue(const char *keyname, unsigned char **value)
+DWORD Registry::QueryValue(const char *keyname, unsigned char **value)
 {
-    uint32 type = 0, len = 0;
+    DWORD type = 0, len = 0;
     if ((RegQueryValueExA(this->hKey, keyname, 0, &type, 0, &len) != ERROR_SUCCESS))
     {
         printlasterror("Registry::RegQueryValueExA() failed to get value size");
@@ -92,7 +95,7 @@ uint32 Registry::QueryValue(const char *keyname, unsigned char **value)
 
 JSBool Registry::EnumKey(char *subkey)
 {
-    uint32 len = MAX_PATH;
+    DWORD len = MAX_PATH;
     FILETIME lw;
     LONG res = RegEnumKeyExA(this->hKey, this->Index, subkey, &len, NULL, NULL, NULL, &lw);
     switch (res)
