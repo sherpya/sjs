@@ -56,7 +56,7 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     R_FALSE;
 }
 
-static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
+static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *env, *result;
     char *value = NULL;
@@ -72,13 +72,21 @@ static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
     return JS_TRUE;
 }
 
-static JSBool Exit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
+static JSBool BasePath(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    JSString *result;
+    result = JS_NewStringCopyZ(cx, rtd.scriptpath);
+    *rval = STRING_TO_JSVAL(result);
+    return JS_TRUE;
+}
+
+static JSBool Exit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JS_ValueToECMAInt32(cx, argv[0], &code);
     return JS_FALSE;
 }
 
-static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
+static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *msg;
     JSBool nl = JS_FALSE;
@@ -92,6 +100,13 @@ static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
 
     if (!nl) printf("\n");
     R_TRUE;
+}
+
+static JSBool Pause(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    printf("Press Enter key to continue");
+    getchar();
+    return JS_TRUE;
 }
 
 static JSBool Verbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
@@ -110,23 +125,23 @@ static void ErrorReporter(JSContext *cx, const char *message, JSErrorReport *rep
 }
 
 /* Helpers */
-static void initBasePath(const char *executable)
+static void initBasePath(const char *path, char *dest)
 {
     /* FIXME: This function is really ugly :( */
-    size_t i = strlen(executable);
+    size_t i = strlen(path);
     while (i)
     {
-        if ((executable[i] == '/') || (executable[i] == '\\')) break;
+        if ((path[i] == '/') || (path[i] == '\\')) break;
         i--;
     }
     if (i)
     {
-        strncpy(rtd.basepath, executable, i);
-        rtd.basepath[i] = '/';
-        rtd.basepath[i+1] = 0;
+        strncpy(dest, path, i);
+        dest[i] = '/';
+        dest[i+1] = 0;
     }
     else
-        strcpy(rtd.basepath, "./");
+        getcwd(dest, MAX_PATH);
 }
 
 JSBool initPlatform(JSContext *cx)
@@ -167,7 +182,9 @@ int main(int argc, char *argv[])
         { "include",    Include,    1, 0, 0 },
         { "loadplugin", LoadPlugin, 1, 0, 0 },
         { "getenv",     GetEnv,     1, 0, 0 },
+        { "basepath",   BasePath,   0, 0, 0 },
         { "print",      Print,      1, 0, 0 },
+        { "pause",      Pause,      0, 0, 0 },
         { "verbose",    Verbose,    1, 0, 0 },
         { "exit",       Exit,       1, 0, 0 },
 
@@ -208,7 +225,8 @@ int main(int argc, char *argv[])
     JS_DefineFunctions(cx, global, sjs_functions);
 
     rtd.verbose = JS_FALSE;
-    initBasePath(argv[0]);
+    initBasePath(argv[0], rtd.exepath);
+    initBasePath(argv[0], rtd.scriptpath);
     initVersions(cx);   
     initPlatform(cx);
 
