@@ -1,6 +1,7 @@
 loadplugin("curl");
 loadplugin("korax");
 loadplugin("zlib");
+loadplugin("registry");
 
 //print(version.js);
 //print(version.sjs);
