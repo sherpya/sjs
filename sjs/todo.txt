@@ -19,3 +19,4 @@
 
 - DOCUMENT all js Functions
 - document code for doxygen
+- make an sdk for building plugins
