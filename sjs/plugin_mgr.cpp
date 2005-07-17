@@ -70,7 +70,7 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
 
     if (!isNameValid(plugin))
     {
-        printf("initPlugin Error: the plugin name is invalid\n");
+        JS_ReportError(cx, "initPlugin Error: the plugin name is invalid");
         return JS_FALSE;
     }
 
@@ -84,7 +84,7 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
 #endif
 
 #ifdef _DEBUG
-    printf("Loading plugin %s using %s\n", plug.name, plugin_path);
+    fprintf(stderr, "Loading plugin %s using %s\n", plug.name, plugin_path);
 #endif
     plug.handle = dlopen(plugin_path, RTLD_NOW);
     if (!plug.handle)
@@ -92,7 +92,7 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
 #ifdef _WIN32
         printlasterror("initPlugin Error");
 #else
-        printf("initPlugin Error: %s\n", dlerror());
+        JS_ReportError(cx, "initPlugin Error: %s", dlerror());
 #endif
         return JS_FALSE;
     }
@@ -104,14 +104,14 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
 
     if (!(plug.PluginInit && plug.PluginUnInit && plug.PluginVersion && plug.PluginBuild))
     {
-        printf("initPlugin failed: Bad exports\n");
+        JS_ReportError(cx, "initPlugin failed: Bad exports");
         dlclose(plug.handle);
         return JS_FALSE;
     }
 
     if (plug.PluginInit(cx, &rtd) == JS_FALSE)
     {
-        printf("initPlugin failed: %s\n", plug.name);
+        JS_ReportError(cx, "initPlugin PluginInit failed for %s", plug.name);
         dlclose(plug.handle);
         return JS_FALSE; 
     }
@@ -131,7 +131,7 @@ JSBool uninitPlugins(void)
     {
         if (!i->handle) continue; /* skip js and sjs */
 #ifdef _DEBUG
-        printf("Unloading %s plugin\n", i->name);
+        fprintf(stderr, "Unloading %s plugin\n", i->name);
 #endif
         if (i->PluginUnInit) i->PluginUnInit();
         dlclose(i->handle);

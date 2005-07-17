@@ -57,7 +57,8 @@ static JSBool Require(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 
     if (!found || (required > current))
     {
-        printf("Required %s build %d, found %d, aborting...\n", JS_GetStringBytes(name), required, current);
+        JS_ReportError(cx, "Required %s build %d, found %d, aborting...",
+                       JS_GetStringBytes(name), required, current);
         return JS_FALSE;
     }
 
@@ -275,13 +276,13 @@ int main(int argc, char *argv[])
          || (!(cx      = JS_NewContext (rt, 8192)))
          || (!(global  = JS_NewObject  (cx,  &global_class, NULL, NULL))))
     {
-        printf("Cannot init JavaScript Engine\n");
+        fprintf(stderr, "Cannot init JavaScript Engine\n");
         return -1;
     }
 
     if (!JS_InitStandardClasses(cx, global))
     {
-        printf("Cannot init standard classes\n");
+        fprintf(stderr, "Cannot init standard classes\n");
         return -1;
     }
 
