@@ -57,7 +57,7 @@ static JSBool Require(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 
     if (!found || (required > current))
     {
-        printf("Required %s build %d not found, aborting...\n", JS_GetStringBytes(name), required);
+        printf("Required %s build %d, found %d, aborting...\n", JS_GetStringBytes(name), required, current);
         return JS_FALSE;
     }
 
@@ -289,8 +289,11 @@ int main(int argc, char *argv[])
 
     JS_DefineFunctions(cx, global, sjs_functions);
 
+    JS_SetVersion(cx, JSVERSION_1_5);
+
     rtd.verbose   = JS_FALSE;
     rtd.pluginapi = PLUGIN_API;
+
     initBasePath(argv[0], rtd.exepath);
     initBasePath(argv[1], rtd.scriptpath);
     initScriptArgs(cx, argc - 2, &argv[2]);

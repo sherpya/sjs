@@ -47,16 +47,17 @@ JSBool initPlugins(JSContext *cx)
 {
     Plugin plug;
     memset(&plug, 0, sizeof(plug));
-    plug.build = SJS_BUILD;
 
     /* Init fake js plugin */
     JS_snprintf(plug.name, MAX_PATH, "js");
     setVersion(cx, plug.name, JS_GetImplementationVersion());
+    plug.build = JS_GetVersion(cx);
     plugins.push_back(plug);
 
     /* Init fake sjs plugin */
     JS_snprintf(plug.name, MAX_PATH, "sjs");
     setVersion(cx, plug.name, SJS_VERSION);
+    plug.build = SJS_BUILD;
     plugins.push_back(plug);
 
     return JS_TRUE;
