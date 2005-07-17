@@ -33,8 +33,7 @@ static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, 
     JSString *name;
     if (argc != 1) R_FALSE;
     name = JS_ValueToString(cx, argv[0]);
-    *rval = BOOLEAN_TO_JSVAL(initPlugin(JS_GetStringBytes(name), cx));
-    return JS_TRUE;
+    R_FUNC(initPlugin(JS_GetStringBytes(name), cx));
 }
 
 static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)

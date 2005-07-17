@@ -41,7 +41,6 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
 
     JS_snprintf(plug.name, MAX_PATH, "%s", plugin);
 #if defined(_DEBUG) && defined(_WIN32)
-//#if 0
     JS_snprintf(plugin_path, MAX_PATH, "%s../plugins/Debug/%s"PLUGIN_EXT, rtd.exepath, plugin);
 #else
     JS_snprintf(plugin_path, MAX_PATH, "%splugins/%s"PLUGIN_EXT, rtd.exepath, plugin);
