@@ -20,6 +20,8 @@
 
 #include <sjs.h>
 
+#define _DEBUGIDE
+
 #ifdef _WIN32
 #define dlopen(a, b) LoadLibrary(a)
 #define dlsym(a, b) GetProcAddress(a, b)
@@ -40,10 +42,10 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
     memset(&plug, 0, sizeof(plug));
 
     JS_snprintf(plug.name, MAX_PATH, "%s", plugin);
-#if defined(_DEBUG) && defined(_WIN32)
-    JS_snprintf(plugin_path, MAX_PATH, "%s../plugins/Debug/%s"PLUGIN_EXT, rtd.exepath, plugin);
+#if defined(_DEBUG) && defined(_WIN32) && defined(_DEBUGIDE)
+    JS_snprintf(plugin_path, MAX_PATH, "%s/../plugins/Debug/%s"PLUGIN_EXT, rtd.exepath, plugin);
 #else
-    JS_snprintf(plugin_path, MAX_PATH, "%splugins/%s"PLUGIN_EXT, rtd.exepath, plugin);
+    JS_snprintf(plugin_path, MAX_PATH, "%s/plugins/%s"PLUGIN_EXT, rtd.exepath, plugin);
 #endif
 
 #ifdef _DEBUG
