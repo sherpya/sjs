@@ -1,22 +1,21 @@
-make classes for curl (needed ?), zip
-implement getlasterror feature
-add other stuff from korax
-endian/offset64 for functions of file.cpp
-document code for doxygen
-random from korax need a first value rollup :) - fix unsigned/signed - add float - call with no params
-js has Math.random() :P
-implement recurse for rmdir
-add globbing
-clean up zip
+- make classes for curl (needed ?), zip
+- implement getlasterror feature
+- add other stuff from korax
+- endian/offset64 for functions of file.cpp
+- random from korax need a first value rollup :)
+  fix unsigned/signed - add float - call with no params
+  js has Math.random() :P
+- implement recurse for rmdir
+- add file globbing and listdir
+- grab error from JS_CallFunction
+- check all JS_FALSE -> rval undef
 
-grab error from JS_CallFunction
+- look for plugins in /usr/lib/sjs on linux and from registry in windows
 
-js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
+- implement chown/attrib
 
-check all JS_FALSE -> rval undef
+- js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
+- curl progress works badly
 
-DOCUMENT all js Functions
-
-look for plugins in /usr/lib/sjs on linux and from registry in windows
-
-chown/attrib
+- DOCUMENT all js Functions
+- document code for doxygen
