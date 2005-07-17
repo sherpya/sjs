@@ -139,8 +139,8 @@ static JSBool Verbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 
 static void ErrorReporter(JSContext *cx, const char *message, JSErrorReport *report)
 {
-    if (!report)
-        printf("%s\n", message);
+    if (!report || !report->filename)
+        printf("[Main] %s\n", message);
     else
         printf("%s:%d %s\n", report->filename, report->lineno, message);
 }
