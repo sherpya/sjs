@@ -36,16 +36,13 @@ const char *protected_names[] = { "js", "sjs", NULL };
 
 std::vector<Plugin> plugins;
 
-JSBool isNameValid(const char *name)
+static JSBool isNameValid(const char *name)
 {
-    char id = 0;
+    uint32 id = 0;
     std::vector<Plugin>::iterator i;
 
     while (protected_names[id])
-    {
-        if (!strcasecmp(name, protected_names[id])) JS_FALSE;
-        id++;
-    }
+        if (!strcasecmp(name, protected_names[id++])) return JS_FALSE;
 
     for (i = plugins.begin(); i != plugins.end(); i++)
         if (!strcasecmp(name, i->name)) return JS_FALSE;
