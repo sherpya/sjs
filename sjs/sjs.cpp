@@ -25,9 +25,10 @@ sjs_data rtd;
 
 /* Locals ;) */
 static int32 code = 0;
+static JSObject *scriptArgs = NULL;
 
 /* ------------------- JS Functions ------------------- */
-static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
+static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *name;
     if (argc != 1) R_FALSE;
@@ -36,7 +37,7 @@ static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, 
     return JS_TRUE;
 }
 
-static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) 
+static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSScript *script;
     JSString *filename;
@@ -80,6 +81,12 @@ static JSBool BasePath(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
     return JS_TRUE;
 }
 
+static JSBool ScriptArgs(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    *rval = OBJECT_TO_JSVAL(scriptArgs);
+    return JS_TRUE;
+}
+
 static JSBool Exit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JS_ValueToECMAInt32(cx, argv[0], &code);
@@ -92,7 +99,7 @@ static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
     JSBool nl = JS_FALSE;
 
     if ((argc < 1) || (argc > 2)) R_FALSE;
-    
+
     msg = JS_ValueToString(cx, argv[0]);
 
     if (argc == 2) JS_ValueToBoolean(cx, argv[1], &nl);
@@ -144,6 +151,20 @@ static void initBasePath(const char *path, char *dest)
         getcwd(dest, MAX_PATH);
 }
 
+static void initScriptArgs(JSContext *cx, int argc, char *argv[])
+{
+    JSString *str = NULL;
+    jsval val;
+
+    scriptArgs = JS_NewArrayObject(cx, argc, NULL);
+    for (int i = 0; i < argc; i++)
+    {
+        str = JS_NewStringCopyZ(cx, argv[i]); 
+        val = STRING_TO_JSVAL(str);
+        JS_SetElement(cx, scriptArgs, i, &val);
+    }
+}
+
 JSBool initPlatform(JSContext *cx)
 {
     JSString *platform;
@@ -183,6 +204,7 @@ int main(int argc, char *argv[])
         { "loadplugin", LoadPlugin, 1, 0, 0 },
         { "getenv",     GetEnv,     1, 0, 0 },
         { "basepath",   BasePath,   0, 0, 0 },
+        { "scriptargs", ScriptArgs, 0, 0, 0 },
         { "print",      Print,      1, 0, 0 },
         { "pause",      Pause,      0, 0, 0 },
         { "verbose",    Verbose,    1, 0, 0 },
@@ -198,7 +220,7 @@ int main(int argc, char *argv[])
         { 0,            0,          0, 0, 0 },
     };
 
-    if (argc != 2)
+    if (argc < 2)
     {
         printf("-- "SJS_VERSION" --\n");
         printf("Usage: %s filename.js\n", argv[0]);
@@ -227,6 +249,7 @@ int main(int argc, char *argv[])
     rtd.verbose = JS_FALSE;
     initBasePath(argv[0], rtd.exepath);
     initBasePath(argv[0], rtd.scriptpath);
+    initScriptArgs(cx, argc - 2, &argv[2]);
     initVersions(cx);   
     initPlatform(cx);
 
