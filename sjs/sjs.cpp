@@ -109,6 +109,21 @@ static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
     R_TRUE;
 }
 
+static JSBool Prompt(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    JSString *msg, *result;
+    char value[MAX_PATH]; /* FIXME: insecure */
+
+    if (argc != 1) return JS_FALSE;
+
+    msg = JS_ValueToString(cx, argv[0]);
+    printf("%s", JS_GetStringBytes(msg));
+    scanf("%s", value);
+    result = JS_NewStringCopyZ(cx, value);
+    *rval = STRING_TO_JSVAL(result);
+    return JS_TRUE;
+}
+
 static JSBool Pause(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     printf("Press Enter key to continue");
@@ -206,6 +221,7 @@ int main(int argc, char *argv[])
         { "basepath",   BasePath,   0, 0, 0 },
         { "scriptargs", ScriptArgs, 0, 0, 0 },
         { "print",      Print,      1, 0, 0 },
+        { "prompt",     Prompt,     1, 0, 0 },
         { "pause",      Pause,      0, 0, 0 },
         { "verbose",    Verbose,    1, 0, 0 },
         { "exit",       Exit,       1, 0, 0 },
