@@ -158,8 +158,7 @@ static void initBasePath(const char *path, char *dest)
     if (i)
     {
         strncpy(dest, path, i);
-        dest[i] = '/';
-        dest[i+1] = 0;
+        dest[i] = 0;
     }
     else
         getcwd(dest, MAX_PATH);
