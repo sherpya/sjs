@@ -21,6 +21,3 @@ look for plugins in /usr/lib/sjs on linux and from registry in windows
 
 chown/attrib
 
-protect "js" and "sjs" as plugin names
-check if there is yet a plugin loaded with same name
-implement require function as require("sjs", build) or require("curl", build)

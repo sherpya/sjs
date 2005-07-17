@@ -49,6 +49,7 @@
 
 #define SJS_VERSION "Sherpya JavaScript Shell version 1.0"
 #define PLUGIN_API  100
+#define SJS_BUILD   100
 
 /* SpiderMonkey includes */
 #include <jsapi.h>

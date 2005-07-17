@@ -36,6 +36,43 @@ static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, 
     R_FUNC(initPlugin(JS_GetStringBytes(name), cx));
 }
 
+static JSBool Require(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    JSString *name;
+    JSBool found = JS_FALSE;
+    uint32 required = 0, current = 0;
+    std::vector<Plugin>::iterator i;
+
+    if (argc != 2) R_FALSE;
+    name = JS_ValueToString(cx, argv[0]);
+    JS_ValueToECMAUint32(cx, argv[1], &required);
+
+    /* Check for engine version */
+    if (!strcasecmp("sjs", JS_GetStringBytes(name)))
+    {
+        current = SJS_BUILD;
+        found = JS_TRUE;
+    }
+    else
+    {
+        /* Look for loaded plugin */
+        for (i = plugins.begin(); i != plugins.end(); i++)
+            if (!strcasecmp(i->name, JS_GetStringBytes(name)))
+            {
+                current = i->build;
+                found = JS_TRUE;
+            }
+    }
+
+    if (!found || (required > current))
+    {
+        printf("Required %s build %d not found, aborting...\n", JS_GetStringBytes(name), required);
+        return JS_FALSE;
+    }
+
+    return JS_TRUE;
+}
+
 static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSScript *script;
@@ -213,8 +250,9 @@ int main(int argc, char *argv[])
     static JSFunctionSpec sjs_functions[] =
     {
         /* sjs.cpp */
-        { "include",    Include,    1, 0, 0 },
         { "loadplugin", LoadPlugin, 1, 0, 0 },
+        { "require",    Require,    2, 0, 0 },
+        { "include",    Include,    1, 0, 0 },
         { "getenv",     GetEnv,     1, 0, 0 },
         { "basepath",   BasePath,   0, 0, 0 },
         { "scriptargs", ScriptArgs, 0, 0, 0 },

@@ -20,6 +20,8 @@
 
 #include <sjs.h>
 
+const char *protected_names[] = { "js", "sjs", NULL };
+
 #define _DEBUGIDE
 
 #ifdef _WIN32
@@ -34,10 +36,33 @@
 
 std::vector<Plugin> plugins;
 
+JSBool isNameValid(const char *name)
+{
+    char id = 0;
+    std::vector<Plugin>::iterator i;
+
+    while (protected_names[id])
+    {
+        if (!strcasecmp(name, protected_names[id])) JS_FALSE;
+        id++;
+    }
+
+    for (i = plugins.begin(); i != plugins.end(); i++)
+        if (!strcasecmp(name, i->name)) return JS_FALSE;
+
+    return JS_TRUE;
+}
+
 JSBool initPlugin(const char *plugin, JSContext *cx)
 {
     char plugin_path[MAX_PATH];
     Plugin plug;
+
+    if (!isNameValid(plugin))
+    {
+        printf("initPlugin Error: the plugin name is invalid\n");
+        return JS_FALSE;
+    }
 
     memset(&plug, 0, sizeof(plug));
 
