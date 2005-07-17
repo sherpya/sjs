@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
     rtd.verbose   = JS_FALSE;
     rtd.pluginapi = PLUGIN_API;
     initBasePath(argv[0], rtd.exepath);
-    initBasePath(argv[0], rtd.scriptpath);
+    initBasePath(argv[1], rtd.scriptpath);
     initScriptArgs(cx, argc - 2, &argv[2]);
     initVersions(cx);   
     initPlatform(cx);
