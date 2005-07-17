@@ -265,7 +265,7 @@ int main(int argc, char *argv[])
     initBasePath(argv[0], rtd.exepath);
     initBasePath(argv[1], rtd.scriptpath);
     initScriptArgs(cx, argc - 2, &argv[2]);
-    initVersions(cx);   
+    initVersions(cx);
     initPlatform(cx);
 
     /* Execution */
