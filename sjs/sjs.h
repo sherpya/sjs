@@ -75,7 +75,7 @@
     } \
 
 /* Human readable win32 error messages formatting */
-#define printlasterror(prefix) \
+#define JS_PrintLastError(cx, prefix) \
 { \
     LPVOID lpMsgBuf = NULL; \
     FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, \
@@ -84,7 +84,7 @@
                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), \
                   (LPSTR) &lpMsgBuf, \
                   0, NULL); \
-    printf("%s: %s\n", prefix, (char *) lpMsgBuf); \
+    JS_ReportError(cx, "%s: %s", prefix, (char *) lpMsgBuf); \
     LocalFree(lpMsgBuf); \
 }
 

@@ -29,27 +29,24 @@
 static sjs_data *grtd;
 static JSObject *registry = NULL;
 
-/*
-TODO:
-- add all needed methods
-- remove IsValid() checks when uneeded
-*/
-
 #define GET_REG_OBJECT JSRegistry *p = (JSRegistry *) JS_GetPrivate(cx, obj)
 
 class Registry
 {
 public:
-    ~Registry(void) { if (this->hKey) RegCloseKey(this->hKey); }; /* inlined */
-    HKEY   GetRootKey(const char *rootkey);
-    JSBool OpenKey(const char *rootkey, const char *subkey);
-    JSBool EnumKey(char *subkey);
-    void   SetIndex(uint32 index) { this->Index = index; }; /* inlined */
-    DWORD  QueryValue(const char *keyname, unsigned char **value);
-    void   CloseKey(void) { if (hKey) RegCloseKey(hKey); hKey = NULL; Index = 0; } /* inlined */
-    JSBool IsValid(void) { return (hKey != NULL); } /* inlined */
+    /* Inlined */
+    ~Registry(void) { if (this->hKey) RegCloseKey(this->hKey); }
+    void   SetIndex(uint32 index) { this->Index = index; }
+    void   CloseKey(void) { if (hKey) RegCloseKey(hKey); hKey = NULL; Index = 0; }
+    JSBool IsValid(void) { return (hKey != NULL); }
+
+    JSBool OpenKey(JSContext *cx, const char *rootkey, const char *subkey);
+    DWORD  QueryValue(JSContext *cx, const char *keyname, unsigned char **value);
+    JSBool EnumKey(JSContext *cx, char *subkey);
+
 private:
     HKEY hKey;
+    HKEY GetRootKey(const char *rootkey);
     uint32 Index;
 };
 
@@ -63,7 +60,7 @@ HKEY Registry::GetRootKey(const char *rootkey)
     return NULL;
 }
 
-JSBool Registry::OpenKey(const char *rootkey, const char *subkey)
+JSBool Registry::OpenKey(JSContext *cx, const char *rootkey, const char *subkey)
 {
     HKEY root = GetRootKey(rootkey);
     if (!root) return JS_FALSE; /* FIXME set js Error */
@@ -72,31 +69,31 @@ JSBool Registry::OpenKey(const char *rootkey, const char *subkey)
 
     if (RegOpenKeyExA(root, subkey, 0, KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE | KEY_READ, &this->hKey) != ERROR_SUCCESS)
     {
-        printlasterror("Registry::RegOpenKey failed");
+        JS_PrintLastError(cx, "Registry::RegOpenKey failed");
         return JS_FALSE;
     }
     return JS_TRUE;
 }
 
-DWORD Registry::QueryValue(const char *keyname, unsigned char **value)
+DWORD Registry::QueryValue(JSContext *cx, const char *keyname, unsigned char **value)
 {
     DWORD type = 0, len = 0;
     if ((RegQueryValueExA(this->hKey, keyname, 0, &type, 0, &len) != ERROR_SUCCESS))
     {
-        printlasterror("Registry::RegQueryValueExA() failed to get value size");
+        JS_PrintLastError(cx, "Registry::RegQueryValueExA() failed to get value size");
         return REG_NONE;
     }
 
     *value = new unsigned char[len + 1];
     if ((RegQueryValueExA(this->hKey, keyname, 0, &type, (unsigned char *) *value, &len) != ERROR_SUCCESS))
     {
-        printlasterror("Registry::RegQueryValueExA() failed");
+        JS_PrintLastError(cx, "Registry::RegQueryValueExA() failed");
         return REG_NONE;
     }
     return type;
 }
 
-JSBool Registry::EnumKey(char *subkey)
+JSBool Registry::EnumKey(JSContext *cx, char *subkey)
 {
     DWORD len = MAX_PATH;
     FILETIME lw;
@@ -112,7 +109,7 @@ JSBool Registry::EnumKey(char *subkey)
         case ERROR_NO_MORE_ITEMS:
             return JS_FALSE;
         default:
-            printlasterror("Registry::RegEnumKeyExA() failed");
+            JS_PrintLastError(cx, "Registry::RegEnumKeyExA() failed");
             return JS_FALSE;
     }
 }
@@ -180,7 +177,7 @@ JSBool JSRegistry::JSOpenKey(JSContext *cx, JSObject *obj, uintN argc, jsval *ar
     rootkey = JS_ValueToString(cx, argv[0]);
     subkey = JS_ValueToString(cx, argv[1]);
     GET_REG_OBJECT;
-    R_FUNC(p->getRegistry()->OpenKey(JS_GetStringBytes(rootkey), JS_GetStringBytes(subkey)));
+    R_FUNC(p->getRegistry()->OpenKey(cx, JS_GetStringBytes(rootkey), JS_GetStringBytes(subkey)));
 }
 
 JSBool JSRegistry::JSCloseKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
@@ -205,7 +202,7 @@ JSBool JSRegistry::JSEnumKey(JSContext *cx, JSObject *obj, uintN argc, jsval *ar
     GET_REG_OBJECT;
     if (!p->getRegistry()->IsValid()) R_FALSE;
 
-    if (!p->getRegistry()->EnumKey(value))
+    if (!p->getRegistry()->EnumKey(cx, value))
         R_FALSE;
 
     key = JS_NewStringCopyZ(cx, value);
@@ -221,7 +218,7 @@ JSBool JSRegistry::JSQueryValue(JSContext *cx, JSObject *obj, uintN argc, jsval 
     GET_REG_OBJECT;
     if ((argc != 1) || !p->getRegistry()->IsValid()) R_FALSE;
     key = JS_ValueToString(cx, argv[0]);
-    type = p->getRegistry()->QueryValue(JS_GetStringBytes(key), &value);
+    type = p->getRegistry()->QueryValue(cx, JS_GetStringBytes(key), &value);
 
     switch (type)
     {
@@ -238,7 +235,7 @@ JSBool JSRegistry::JSQueryValue(JSContext *cx, JSObject *obj, uintN argc, jsval 
             break;
         }
         default:
-            printf("Registry::JSQueryValue(): Unsupported type\n");
+            JS_PrintLastError(cx, "Registry::JSQueryValue(): Unsupported type");
     }
     if (value) delete value;
     return JS_TRUE;

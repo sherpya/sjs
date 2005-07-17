@@ -90,7 +90,7 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
     if (!plug.handle)
     {
 #ifdef _WIN32
-        printlasterror("initPlugin Error");
+        JS_PrintLastError(cx, "initPlugin Error");
 #else
         JS_ReportError(cx, "initPlugin Error: %s", dlerror());
 #endif
