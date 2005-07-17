@@ -63,13 +63,23 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
     plug.PluginInit    = (PluginInitFunction)    dlsym(plug.handle, "SJS_PluginInit");
     plug.PluginUnInit  = (PluginUnInitFunction)  dlsym(plug.handle, "SJS_PluginUnInit");
     plug.PluginVersion = (PluginVersionFunction) dlsym(plug.handle, "SJS_PluginVersion");
+    plug.PluginBuild   = (PluginBuildFunction)   dlsym(plug.handle, "SJS_PluginBuild");
 
-    if (plug.PluginInit && plug.PluginInit(cx, &rtd) == JS_FALSE)
+    if (!(plug.PluginInit && plug.PluginUnInit && plug.PluginVersion && plug.PluginBuild))
+    {
+        printf("initPlugin failed: Bad exports\n");
+        dlclose(plug.handle);
+        return JS_FALSE;
+    }
+
+    if (plug.PluginInit(cx, &rtd) == JS_FALSE)
     {
         printf("initPlugin failed: %s\n", plug.name);
         dlclose(plug.handle);
         return JS_FALSE; 
     }
+    
+    plug.build = plug.PluginBuild();
 
     plugins.push_back(plug);
     if (plug.PluginVersion) setVersion(cx, plug.name, plug.PluginVersion());

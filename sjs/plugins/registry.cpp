@@ -24,6 +24,8 @@
 #include <windows.h>
 #endif
 
+#define REGISTRY_BUILD 100
+
 static sjs_data *grtd;
 static JSObject *registry = NULL;
 
@@ -272,6 +274,7 @@ extern "C"
 {
     JSBool SJS_PluginInit(JSContext *cx, sjs_data *rtd)
     {
+        PLUGIN_API_CHECK;
         grtd = rtd;
 #ifndef _WIN32
         printf("\n");
@@ -291,5 +294,10 @@ extern "C"
     const char *SJS_PluginVersion(void)
     {
         return "Win32 Registry 1.0";
+    }
+
+    uint32 SJS_PluginBuild(void)
+    {
+        return REGISTRY_BUILD;
     }
 }

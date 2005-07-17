@@ -21,6 +21,8 @@
 #include <sjs.h>
 #include <curl/curl.h>
 
+#define CURL_BUILD 100
+
 static CURL *curl = NULL;
 static JSFunction *progress_fun = NULL;
 static JSContext *context = NULL;
@@ -129,6 +131,7 @@ extern "C"
 {
     JSBool SJS_PluginInit(JSContext *cx, sjs_data *rtd)
     {
+        PLUGIN_API_CHECK;
         grtd = rtd;
         curl = curl_easy_init();
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, true);
@@ -144,5 +147,10 @@ extern "C"
     const char *SJS_PluginVersion(void)
     {
         return curl_version();
+    }
+
+    uint32 SJS_PluginBuild(void)
+    {
+        return CURL_BUILD;
     }
 }

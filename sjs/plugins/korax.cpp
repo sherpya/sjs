@@ -21,6 +21,8 @@
 #include <sjs.h>
 #include <util.h>
 
+#define KORAX_BUILD 100
+
 #define GET_PAR_OBJECT util::CPar *par  = (util::CPar *) JS_GetPrivate(cx, obj)
 
 #define WRAP_LOAD_SAVE(func, method) \
@@ -179,6 +181,7 @@ extern "C"
 {
     JSBool SJS_PluginInit(JSContext *cx, sjs_data *rtd)
     {
+        PLUGIN_API_CHECK;
         grtd = rtd;
         /* Init random number generator */
         util::idum_ = (long) time(NULL);
@@ -196,5 +199,10 @@ extern "C"
     const char *SJS_PluginVersion(void)
     {
         return "koraX's utils 1.7.0.0";
+    }
+
+    uint32 SJS_PluginBuild(void)
+    {
+        return KORAX_BUILD;
     }
 }

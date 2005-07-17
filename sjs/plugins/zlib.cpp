@@ -21,6 +21,8 @@
 #include <sjs.h>
 #include <unzip.h>
 
+#define ZLIB_BUILD 100
+
 sjs_data *grtd;
 
 static JSBool Unzip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
@@ -108,6 +110,7 @@ extern "C"
 {
     JSBool SJS_PluginInit(JSContext *cx, sjs_data *rtd)
     {
+        PLUGIN_API_CHECK;
         grtd = rtd;
         return JS_DefineFunctions(cx, JS_GetGlobalObject(cx), zlib_functions);
     }
@@ -120,5 +123,10 @@ extern "C"
     const char *SJS_PluginVersion(void)
     {
         return "zlib/"ZLIB_VERSION;
+    }
+
+    uint32 SJS_PluginBuild(void)
+    {
+        return ZLIB_BUILD;
     }
 }

@@ -261,7 +261,8 @@ int main(int argc, char *argv[])
 
     JS_DefineFunctions(cx, global, sjs_functions);
 
-    rtd.verbose = JS_FALSE;
+    rtd.verbose   = JS_FALSE;
+    rtd.pluginapi = PLUGIN_API;
     initBasePath(argv[0], rtd.exepath);
     initBasePath(argv[0], rtd.scriptpath);
     initScriptArgs(cx, argc - 2, &argv[2]);

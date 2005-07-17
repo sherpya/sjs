@@ -48,22 +48,30 @@
 #include <vector>
 
 #define SJS_VERSION "Sherpya JavaScript Shell version 1.0"
+#define PLUGIN_API  100
 
 /* SpiderMonkey includes */
 #include <jsapi.h>
 #include <jsprf.h>
 
 #ifndef MAX_PATH
-#define MAX_PATH 1024
+#define MAX_PATH    1024
 #endif
 
-#define BUFFERSIZE 8192
+#define BUFFERSIZE  8192
 
-#define R_TRUE { *rval = BOOLEAN_TO_JSVAL(JS_TRUE); return JS_TRUE; }
-#define R_FALSE { *rval = BOOLEAN_TO_JSVAL(JS_FALSE); return JS_TRUE; }
-#define R_FUNC(x) { *rval = BOOLEAN_TO_JSVAL(x); return JS_TRUE; }
+#define R_TRUE      { *rval = BOOLEAN_TO_JSVAL(JS_TRUE); return JS_TRUE; }
+#define R_FALSE     { *rval = BOOLEAN_TO_JSVAL(JS_FALSE); return JS_TRUE; }
+#define R_FUNC(x)   { *rval = BOOLEAN_TO_JSVAL(x); return JS_TRUE; }
 
-#define PROP_FLAGS (JSPROP_ENUMERATE | JSPROP_READONLY)
+#define PROP_FLAGS  (JSPROP_ENUMERATE | JSPROP_READONLY)
+
+#define PLUGIN_API_CHECK \
+    if (rtd->pluginapi != PLUGIN_API) \
+    { \
+        printf("Plugin API mismatch: %d != %d\n", rtd->pluginapi, PLUGIN_API); \
+        return JS_FALSE; \
+    } \
 
 /* Human readable win32 error messages formatting */
 #define printlasterror(prefix) \
@@ -91,11 +99,13 @@ typedef struct _sjs_data
     JSBool verbose;
     char exepath[MAX_PATH];
     char scriptpath[MAX_PATH];
+    uint32 pluginapi;
 } sjs_data;
 
 typedef JSBool (*PluginInitFunction)(JSContext *cx, sjs_data *rtd);
 typedef JSBool (*PluginUnInitFunction)(void);
 typedef const char *(*PluginVersionFunction)(void);
+typedef uint32 (*PluginBuildFunction)(void);
 
 typedef struct _Plugin
 {
@@ -105,9 +115,11 @@ typedef struct _Plugin
     void *handle;
 #endif
     char name[MAX_PATH];
+    uint32 build;
     PluginInitFunction PluginInit;
     PluginUnInitFunction PluginUnInit;
     PluginVersionFunction PluginVersion;
+    PluginBuildFunction PluginBuild;
 } Plugin;
 
 extern sjs_data rtd;
