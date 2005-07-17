@@ -127,6 +127,7 @@ extern sjs_data rtd;
 extern std::vector<Plugin> plugins;
 
 /* Plugin Handler */
+JSBool initPlugins(JSContext *cx);
 JSBool initPlugin(const char *plugin, JSContext *cx);
 JSBool uninitPlugins(void);
 

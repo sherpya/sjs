@@ -20,4 +20,3 @@ DOCUMENT all js Functions
 look for plugins in /usr/lib/sjs on linux and from registry in windows
 
 chown/attrib
-

@@ -22,36 +22,10 @@
 
 static JSObject *version = NULL;
 
-#define VERSION_JS_ID  0
-#define VERSION_SJS_ID 1
-
-static JSPropertySpec version_props[] =
-{
-    { "js",      VERSION_JS_ID,    PROP_FLAGS },
-    { "sjs",     VERSION_SJS_ID,   PROP_FLAGS },
-    { 0,         0,                0,         },
-};
-
-JSBool version_getProperty(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
-{
-    if(JSVAL_IS_INT(id))
-    {
-        static JSString *ver_str = NULL;
-        switch(JSVAL_TO_INT(id))
-        {
-            case VERSION_JS_ID : ver_str = JS_NewStringCopyZ(cx, JS_GetImplementationVersion()); break;
-            case VERSION_SJS_ID: ver_str = JS_NewStringCopyZ(cx, SJS_VERSION); break;
-            default: return JS_TRUE;
-        }
-        *vp = STRING_TO_JSVAL(ver_str);
-    }
-    return JS_TRUE;
-}
-
 static JSClass version_class =
 {
     "version", JSCLASS_HAS_PRIVATE,
-    JS_PropertyStub, JS_PropertyStub, version_getProperty, JS_PropertyStub,
+    JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
     JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, JS_FinalizeStub, 
 };
 
@@ -66,7 +40,7 @@ JSBool initVersions(JSContext *cx)
 {
     version = JS_InitClass(cx, JS_GetGlobalObject(cx), NULL, &version_class,
         NULL, 0,
-        version_props, NULL,
+        NULL, NULL,
         NULL, NULL);
     return (version != NULL);
 }

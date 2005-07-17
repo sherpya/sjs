@@ -19,9 +19,6 @@
  */
 
 #include <sjs.h>
-
-const char *protected_names[] = { "js", "sjs", NULL };
-
 #define _DEBUGIDE
 
 #ifdef _WIN32
@@ -38,14 +35,29 @@ std::vector<Plugin> plugins;
 
 static JSBool isNameValid(const char *name)
 {
-    uint32 id = 0;
     std::vector<Plugin>::iterator i;
-
-    while (protected_names[id])
-        if (!strcasecmp(name, protected_names[id++])) return JS_FALSE;
 
     for (i = plugins.begin(); i != plugins.end(); i++)
         if (!strcasecmp(name, i->name)) return JS_FALSE;
+
+    return JS_TRUE;
+}
+
+JSBool initPlugins(JSContext *cx)
+{
+    Plugin plug;
+    memset(&plug, 0, sizeof(plug));
+    plug.build = SJS_BUILD;
+
+    /* Init fake js plugin */
+    JS_snprintf(plug.name, MAX_PATH, "js");
+    setVersion(cx, plug.name, JS_GetImplementationVersion());
+    plugins.push_back(plug);
+
+    /* Init fake sjs plugin */
+    JS_snprintf(plug.name, MAX_PATH, "sjs");
+    setVersion(cx, plug.name, SJS_VERSION);
+    plugins.push_back(plug);
 
     return JS_TRUE;
 }
@@ -104,9 +116,8 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
     }
     
     plug.build = plug.PluginBuild();
-
+    setVersion(cx, plug.name, plug.PluginVersion());
     plugins.push_back(plug);
-    if (plug.PluginVersion) setVersion(cx, plug.name, plug.PluginVersion());
     return JS_TRUE;
 }
 
@@ -117,6 +128,7 @@ JSBool uninitPlugins(void)
 
     for (i = plugins.begin(); i != plugins.end(); i++)
     {
+        if (!i->handle) continue; /* skip js and sjs */
 #ifdef _DEBUG
         printf("Unloading %s plugin\n", i->name);
 #endif

@@ -47,22 +47,13 @@ static JSBool Require(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     name = JS_ValueToString(cx, argv[0]);
     JS_ValueToECMAUint32(cx, argv[1], &required);
 
-    /* Check for engine version */
-    if (!strcasecmp("sjs", JS_GetStringBytes(name)))
-    {
-        current = SJS_BUILD;
-        found = JS_TRUE;
-    }
-    else
-    {
-        /* Look for loaded plugin */
-        for (i = plugins.begin(); i != plugins.end(); i++)
-            if (!strcasecmp(i->name, JS_GetStringBytes(name)))
-            {
-                current = i->build;
-                found = JS_TRUE;
-            }
-    }
+    /* Look for loaded plugin */
+    for (i = plugins.begin(); i != plugins.end(); i++)
+        if (!strcasecmp(i->name, JS_GetStringBytes(name)))
+        {
+            current = i->build;
+            found = JS_TRUE;
+        }
 
     if (!found || (required > current))
     {
@@ -305,6 +296,7 @@ int main(int argc, char *argv[])
     initScriptArgs(cx, argc - 2, &argv[2]);
     initVersions(cx);
     initPlatform(cx);
+    initPlugins(cx);
 
     /* Execution */
     script = JS_CompileFile(cx, global, argv[1]);
