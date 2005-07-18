@@ -77,7 +77,7 @@ static int c_progress_fun(void *clientp, double dltotal, double dlnow, double ul
 
 /**
  * @page curl
- * @section method
+ * @section setprogressfunction
  *  setprogressfunction(my_function)
  *
  * Sets a callback function for curl download, the syntax is:
@@ -96,7 +96,7 @@ static JSBool SetProgressFunction(JSContext *cx, JSObject *obj, uintN argc, jsva
 
 /**
  * @page curl
- * @section method
+ * @section download
  *  download(url, localname)
  *
  * Dowloads a file from url and saves it to localname,
@@ -133,7 +133,7 @@ static JSBool Download(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
 
 /**
  * @page curl
- * @section method
+ * @section setproxy
  *  setproxy(url)
  *
  * Set a proxy for curl downloader

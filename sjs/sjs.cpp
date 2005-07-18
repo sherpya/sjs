@@ -34,7 +34,7 @@ static JSObject *scriptArgs = NULL;
 
 /**
  * @page builtins
- * @section method
+ * @section loadplugin
  *  loadplugin(name)
  *
  * Loads a plugin into the shell namespace
@@ -49,7 +49,7 @@ static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, 
 
 /**
  * @page builtins
- * @section method
+ * @section require
  *  require(name, version)
  *
  * Stops execution if the required plugin version is not present,
@@ -89,7 +89,7 @@ static JSBool Require(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 
 /**
  * @page builtins
- * @section method
+ * @section include
  *  include(filename)
  *
  * Load and execute another script
@@ -116,7 +116,7 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 
 /**
  * @page builtins
- * @section method
+ * @section getenv
  *  getenv(env_variable)
  *
  * Returns an environment variable
@@ -139,7 +139,7 @@ static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
 
 /**
  * @page builtins
- * @section method
+ * @section basepath
  *  basepath()
  *
  * Returns the path from where the script is executed
@@ -154,10 +154,11 @@ static JSBool BasePath(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
 
 /**
  * @page builtins
- * @section method
+ * @section scriptargs
  *  scriptargs()
  *
  * Returns an array with arguments passed to the script
+ * @include scriptinfo.js
  */
 static JSBool ScriptArgs(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
@@ -167,7 +168,7 @@ static JSBool ScriptArgs(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, 
 
 /**
  * @page builtins
- * @section method
+ * @section exit
  *  exit([code])
  *
  * Stop the script executions, the sjs returns 0, or code if specified
@@ -181,7 +182,7 @@ static JSBool Exit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval 
 
 /**
  * @page builtins
- * @section method
+ * @section print
  *  print(message, [no_nl])
  *
  * Prints a message on the standard output, if no_nl is true
@@ -205,7 +206,7 @@ static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
 
 /**
  * @page builtins
- * @section method
+ * @section prompt
  *  prompt(message)
  *
  * Returns a string with the user input, message is showed when prompting
@@ -227,7 +228,7 @@ static JSBool Prompt(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
 
 /**
  * @page builtins
- * @section methods
+ * @section pause
  *   pause()
  *
  * Displays "Press Enter key to continue" message and waits for user to press enter
@@ -241,7 +242,7 @@ static JSBool Pause(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
 
 /**
  * @page builtins
- * @section method
+ * @section verbose
  *  verbose(flag)
  *
  * Set verbose mose for most operation, flag can be true or false
@@ -251,7 +252,6 @@ static JSBool Verbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     JS_ValueToBoolean(cx, argv[0], &rtd.verbose);     
     return JS_TRUE;
 }
-/* ------------------- JS Functions ------------------- */
 
 static void ErrorReporter(JSContext *cx, const char *message, JSErrorReport *report)
 {

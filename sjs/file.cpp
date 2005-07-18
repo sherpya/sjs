@@ -27,7 +27,7 @@
 
 /**
  * @page file
- * @section method
+ * @section mkdir
  *  mkdir(dirname)
  *
  * Creates a directory
@@ -43,7 +43,7 @@ JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 
 /**
  * @page file
- * @section method
+ * @section rmdir
  *  rmdir(dirname)
  *
  * Removes an empty directory
@@ -60,7 +60,7 @@ JSBool RmDir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 
 /**
  * @page file
- * @section method
+ * @section gettemp
  *  gettemp()
  *
  * Get the temp directory path
@@ -81,7 +81,7 @@ JSBool GetTemp(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
 
 /**
  * @page file
- * @section method
+ * @section unlink
  *  unlink(filename)
  *
  * Deletes a file
@@ -126,7 +126,7 @@ end_fun:
 
 /**
  * @page file
- * @section method
+ * @section getword
  *  getword(filename, offset)
  *
  * Gets a word from file at given offset
@@ -155,7 +155,7 @@ JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
 
 /**
  * @page file
- * @section method
+ * @section getdword
  *  getdword(filename, offset)
  *
  * Gets a dword from file at given offset
