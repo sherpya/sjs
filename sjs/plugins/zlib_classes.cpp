@@ -48,6 +48,25 @@ JSBool Zip::SetOutputFolder(char *directory)
     return (!mkdir(directory, 0755));
 }
 
+JSBool Zip::CreateDirPath(char *dest)
+{
+    char path[MAX_PATH];
+    size_t len = strlen(dest);
+    path[0] = 0;
+    strcat(path, dest);
+    for (size_t i = 0; i < len; i++)
+    {
+        if ((path[i] == '/') || (path[i] == '\\'))
+        {
+            path[i] = 0;
+            mkdir(path, 0755);
+            path[i] = '/';
+            i++;
+        }
+    }
+    return JS_TRUE;
+}
+
 JSBool Zip::Unzip(char *directory)
 {
     FILE *outfile = NULL;
@@ -65,19 +84,17 @@ JSBool Zip::Unzip(char *directory)
        return JS_FALSE;
     }
 
-    if (GetCurrentFileInfo(&zinfo, filename, MAX_PATH) != UNZ_OK) return JS_FALSE;
+    if (!GetCurrentFileInfo(&zinfo, filename, MAX_PATH)) return JS_FALSE;
 
     JS_snprintf(dest, MAX_PATH, "%s/%s", directory, filename);
-    mkdir(directory, 0755);
+    //mkdir(directory, 0755);
+
+    CreateDirPath(dest);
 
     if (zinfo.external_fa & FILE_ATTRIBUTE_DIRECTORY)
     {
         if (grtd->verbose) printf("Creating directory: %s\n", dest);
-        if (mkdir(dest, 0755))
-        {
-            perror("Zip::Unzip mkdir()");
-            return JS_FALSE;
-        }
+        mkdir(dest, 0755);
     }
     else
     {
@@ -109,7 +126,8 @@ JSFunctionSpec JSZip::zip_methods[] =
     { "gotonextfile",       JSGoToNextFile,     0,  0,  0 },
     { "getfileinfo",        JSGetFileInfo,      0,  0,  0 },
     { "setoutputfolder",    JSSetOutputFolder,  1,  0,  0 },
-    { "unzip",              JSUnzip,            2,  0,  0 },
+    { "unzip",              JSUnzip,            1,  0,  0 },
+    { "unzipto",            JSUnzipTo,          1,  0,  0 },
     { "closezip",           JSCloseZip,         0,  0,  0 },
     { 0,                    0,                  0,  0,  0 },
 };
@@ -231,6 +249,23 @@ JSBool JSZip::JSCloseZip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, 
 
 JSBool JSZip::JSUnzipTo(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-    /* FIXME */
-    R_FALSE;
+    JSString *directory = NULL;
+    char *outdir = NULL;
+    if (argc > 1) R_FALSE;
+    if (argc == 1)
+    {
+        directory = JS_ValueToString(cx, argv[0]);
+        outdir = JS_GetStringBytes(directory);
+    }
+    GET_ZIP_OBJECT;
+
+    if (!p->getZip()->GoToFirstFile()) R_FALSE;
+
+    do
+    {
+        if (!p->getZip()->Unzip(outdir)) R_FALSE;
+    }
+    while (p->getZip()->GoToNextFile());
+
+    R_TRUE;
 }

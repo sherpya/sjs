@@ -8,5 +8,15 @@ mkdir("test");
 res = download("http://www.zlib.net/zlib122.zip", "test/zlib122.zip");
 print('Dowload res = ' + res);
 verbose(0);
-res = unzip("test/zlib122.zip", "test/out");
+
+zipfile = new zip("test/zlib122.zip");
+
+do
+{
+    info = zipfile.getfileinfo();
+    //for (p in info) print(p + " = " + info[p]);
+    print(info.filename + " - " + info.compressed_size + "/" + info.uncompressed_size);
+} while (zipfile.gotonextfile());
+
+res = zipfile.unzipto("test/out");
 print('Unzip res = ' + res);
