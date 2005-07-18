@@ -18,6 +18,11 @@
  * Boston, MA 02111-1307, USA.
 */
 
+/**
+ * @page builtins
+ * @since version 1.0
+ */
+ 
 #include <sjs.h>
 
 /* Globals */
@@ -27,7 +32,13 @@ sjs_data rtd;
 static int32 code = 0;
 static JSObject *scriptArgs = NULL;
 
-/* ------------------- JS Functions ------------------- */
+/**
+ * @page builtins
+ * @section method
+ *  loadplugin(name)
+ *
+ * Loads a plugin into the shell namespace
+ */
 static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *name;
@@ -36,6 +47,17 @@ static JSBool LoadPlugin(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, 
     R_FUNC(initPlugin(JS_GetStringBytes(name), cx));
 }
 
+/**
+ * @page builtins
+ * @section method
+ *  require(name, version)
+ *
+ * Stops execution if the required plugin version is not present,
+ * there are also two native plugins named "js" and "sjs",
+ * js is the javascript SpiderMonkey engine the default version is
+ * 150 that means javascript 1.5 compliance.
+ * sjs represent the Sherpya JavaScript Shell build
+ */
 static JSBool Require(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *name;
@@ -65,6 +87,13 @@ static JSBool Require(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     return JS_TRUE;
 }
 
+/**
+ * @page builtins
+ * @section method
+ *  include(filename)
+ *
+ * Load and execute another script
+ */
 static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSScript *script;
@@ -85,6 +114,13 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     R_FALSE;
 }
 
+/**
+ * @page builtins
+ * @section method
+ *  getenv(env_variable)
+ *
+ * Returns an environment variable
+ */
 static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *env, *result;
@@ -101,6 +137,13 @@ static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
     return JS_TRUE;
 }
 
+/**
+ * @page builtins
+ * @section method
+ *  basepath()
+ *
+ * Returns the path from where the script is executed
+ */
 static JSBool BasePath(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *result;
@@ -109,18 +152,41 @@ static JSBool BasePath(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
     return JS_TRUE;
 }
 
+/**
+ * @page builtins
+ * @section method
+ *  scriptargs()
+ *
+ * Returns an array with arguments passed to the script
+ */
 static JSBool ScriptArgs(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     *rval = OBJECT_TO_JSVAL(scriptArgs);
     return JS_TRUE;
 }
 
+/**
+ * @page builtins
+ * @section method
+ *  exit([code])
+ *
+ * Stop the script executions, the sjs returns 0, or code if specified
+ * to the caller process
+ */
 static JSBool Exit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JS_ValueToECMAInt32(cx, argv[0], &code);
     return JS_FALSE;
 }
 
+/**
+ * @page builtins
+ * @section method
+ *  print(message, [no_nl])
+ *
+ * Prints a message on the standard output, if no_nl is true
+ * the newline char is omitted
+ */
 static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *msg;
@@ -137,6 +203,13 @@ static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
     R_TRUE;
 }
 
+/**
+ * @page builtins
+ * @section method
+ *  prompt(message)
+ *
+ * Returns a string with the user input, message is showed when prompting
+ */
 static JSBool Prompt(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *msg, *result;
@@ -152,6 +225,13 @@ static JSBool Prompt(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
     return JS_TRUE;
 }
 
+/**
+ * @page builtins
+ * @section methods
+ *   pause()
+ *
+ * Displays "Press Enter key to continue" message and waits for user to press enter
+ */
 static JSBool Pause(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     printf("Press Enter key to continue");
@@ -159,6 +239,13 @@ static JSBool Pause(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
     return JS_TRUE;
 }
 
+/**
+ * @page builtins
+ * @section method
+ *  verbose(flag)
+ *
+ * Set verbose mose for most operation, flag can be true or false
+ */
 static JSBool Verbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JS_ValueToBoolean(cx, argv[0], &rtd.verbose);     

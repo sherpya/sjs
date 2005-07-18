@@ -18,6 +18,11 @@
  * Boston, MA 02111-1307, USA.
  */
 
+/**
+ * @page file
+ * @since 1.0
+ */
+
 #include <sjs.h>
 #include <curl/curl.h>
 
@@ -70,6 +75,15 @@ static int c_progress_fun(void *clientp, double dltotal, double dlnow, double ul
     return result;
 }
 
+/**
+ * @page curl
+ * @section method
+ *  setprogressfunction(my_function)
+ *
+ * Sets a callback function for curl download, the syntax is:
+ * function my_function(dltotal, dlnow, ultotal, ulnow)
+ * if the function returns a value different than 0, the curl download is aborted
+ */
 static JSBool SetProgressFunction(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     progress_fun = JS_ValueToFunction(cx, argv[0]);
@@ -79,6 +93,13 @@ static JSBool SetProgressFunction(JSContext *cx, JSObject *obj, uintN argc, jsva
     return JS_TRUE;
 }
 
+/**
+ * @page curl
+ * @section method
+ *  download(url, localname)
+ *
+ * Dowloads a file from url and saves it to localname,
+ */
 static JSBool Download(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     CURLcode res;
@@ -108,6 +129,14 @@ static JSBool Download(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
     R_TRUE;
 }
 
+/**
+ * @page curl
+ * @section method
+ *  setproxy(url)
+ *
+ * Set a proxy for curl downloader
+ * the syntax should be like "http://myproxy:3128/"
+ */
 static JSBool SetProxy(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *proxy;

@@ -18,8 +18,20 @@
  * Boston, MA 02111-1307, USA.
  */
 
+/**
+ * @page file
+ * @since version 1.0
+ */
+
 #include <sjs.h>
 
+/**
+ * @page file
+ * @section method
+ *  mkdir(dirname)
+ *
+ * Creates a directory
+ */
 JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *str;
@@ -29,7 +41,14 @@ JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     R_TRUE;
 }
 
-/* FIXME: Implement recurse */
+/**
+ * @page file
+ * @section method
+ *  rmdir(dirname)
+ *
+ * Removes an empty directory
+ * @todo Implement recurse
+ */
 JSBool RmDir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *dirname;
@@ -39,6 +58,13 @@ JSBool RmDir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     R_TRUE;
 }
 
+/**
+ * @page file
+ * @section method
+ *  gettemp()
+ *
+ * Get the temp directory path
+ */
 JSBool GetTemp(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *str;
@@ -53,6 +79,13 @@ JSBool GetTemp(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
     return JS_TRUE;
 }
 
+/**
+ * @page file
+ * @section method
+ *  unlink(filename)
+ *
+ * Deletes a file
+ */
 JSBool Unlink(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *filename;
@@ -91,7 +124,14 @@ end_fun:
     return JS_TRUE;
 }
 
-/* FIXME: Endian/offset64 */
+/**
+ * @page file
+ * @section method
+ *  getword(filename, offset)
+ *
+ * Gets a word from file at given offset
+ * @todo fix endian/offset64
+ */
 JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *filename;
@@ -113,7 +153,14 @@ JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
     return JS_TRUE;
 }
 
-/* FIXME: Endian/offset64 */
+/**
+ * @page file
+ * @section method
+ *  getdword(filename, offset)
+ *
+ * Gets a dword from file at given offset
+ * @todo fix endian/offset64
+ */
 JSBool GetDWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *filename;
