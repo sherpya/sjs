@@ -23,8 +23,7 @@
 
 #define ZLIB_BUILD 100
 
-static sjs_data *grtd;
-static JSObject *zip = NULL;
+extern sjs_data *grtd;
 
 #ifndef FILE_ATTRIBUTE_DIRECTORY
 #define FILE_ATTRIBUTE_DIRECTORY    0x00000010

@@ -22,6 +22,9 @@
 #include <unzip.h>
 #include <zlib_classes.h>
 
+sjs_data *grtd;
+JSObject *zip = NULL;
+
 /* Public Interface */
 extern "C"
 {

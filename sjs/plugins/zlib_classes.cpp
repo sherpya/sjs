@@ -39,7 +39,7 @@ JSBool Zip::SetOutputFolder(char *directory)
     if (this->output) delete this->output;
     if (!(stat(directory, &info) || (info.st_mode & S_IFDIR)))
     {
-        printf("%s is not a directory\n");
+        printf("%s is not a directory\n", directory);
         return JS_FALSE;
     }
     this->output = new char[strlen(directory) + 1];
