@@ -1,5 +1,5 @@
 /*
- * Sherpya JavaScript Shell- Zlib Plugin
+ * Sherpya JavaScript Shell - Zlib Plugin
  * Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
  *
  * This program is free software; you can redistribute it and/or
@@ -17,6 +17,9 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
+
+#ifndef _ZLIB_CLASSES_H_
+#define _ZLIB_CLASSES_H_
 
 #define GET_ZIP_OBJECT JSZip *p = (JSZip *) JS_GetPrivate(cx, obj)
 
@@ -68,3 +71,5 @@ protected:
 private:
     Zip *m_pZip;
 };
+
+#endif // _ZLIB_CLASSES_H_

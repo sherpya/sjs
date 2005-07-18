@@ -1,5 +1,5 @@
 /*
- * Sherpya JavaScript Shell- Zlib Plugin
+ * Sherpya JavaScript Shell - Zlib Plugin
  * Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
  *
  * This program is free software; you can redistribute it and/or
