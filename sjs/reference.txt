@@ -1,0 +1,36 @@
+/**
+ * @page Reference JavaScript Reference
+ *
+ * File Utils
+ * <ul>
+ *  <li>@ref mkdir</li>
+ *  <li>@ref rmdir</li>
+ *  <li>@ref gettemp</li>
+ *  <li>@ref unlink</li>
+ *  <li>@ref getword</li>
+ *  <li>@ref getdword</li>
+ * </ul>
+ *
+ * Builtins
+ * <ul>
+ *  <li>@ref loadplugin</li>
+ *  <li>@ref require</li>
+ *  <li>@ref include</li>
+ *  <li>@ref getenv</li>
+ *  <li>@ref basepath</li>
+ *  <li>@ref scriptargs</li>
+ *  <li>@ref exit</li>
+ *  <li>@ref print</li>
+ *  <li>@ref prompt</li>
+ *  <li>@ref pause</li>
+ *  <li>@ref verbose</li>
+ * </ul>
+ *
+ * Curl
+ * <ul>
+ *  <li>@ref setprogressfunction</li>
+ *  <li>@ref download</li>
+ *  <li>@ref setproxy</li>
+ * </ul>
+ * 
+ */
