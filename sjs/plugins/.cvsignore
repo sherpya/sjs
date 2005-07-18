@@ -7,6 +7,7 @@
 *.vcproj.*.user
 *.so
 *.js
+*.zip
 Debug
 Release
 Makefile

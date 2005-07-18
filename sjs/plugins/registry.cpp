@@ -158,7 +158,7 @@ JSBool JSRegistry::JSConstructor(JSContext *cx, JSObject *obj, uintN argc, jsval
 {
     JSRegistry *p = new JSRegistry();
     p->setRegistry(new Registry());
-    if (!JS_SetPrivate(cx, obj, p)) return JS_FALSE;
+    if (!JS_SetPrivate(cx, obj, p)) R_FALSE;
     *rval = OBJECT_TO_JSVAL(obj);
     return JS_TRUE;
 }

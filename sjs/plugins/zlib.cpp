@@ -20,11 +20,14 @@
 
 #include <sjs.h>
 #include <unzip.h>
+#include <zlib_classes.h>
 
 #define ZLIB_BUILD 100
 
-sjs_data *grtd;
+static sjs_data *grtd;
+static JSObject *zip = NULL;
 
+/*
 static JSBool Unzip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *zipfile, *directory;
@@ -98,12 +101,15 @@ static JSBool Unzip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
     unzClose(file);
     R_TRUE;
 }
+*/
 
+/*
 static JSFunctionSpec zlib_functions[] =
 {
     { "unzip",    Unzip,    2, 0, 0 },
     { 0,          0,        0, 0, 0 },
 };
+*/
 
 /* Public Interface */
 extern "C"
@@ -112,7 +118,9 @@ extern "C"
     {
         PLUGIN_API_CHECK;
         grtd = rtd;
-        return JS_DefineFunctions(cx, JS_GetGlobalObject(cx), zlib_functions);
+        zip = JSZip::JSInit(cx, JS_GetGlobalObject(cx), NULL);
+        return (zip != NULL);
+        //return JS_DefineFunctions(cx, JS_GetGlobalObject(cx), zlib_functions);
     }
 
     JSBool SJS_PluginUnInit(JSContext *cx)

@@ -6,7 +6,6 @@
 	ProjectGUID="{26B67574-9F14-4AA5-97C1-43B4949126D6}"
 	RootNamespace="zlib"
 	Keyword="Win32Proj"
-	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -41,7 +40,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../../js/src/;..;../../zlib/include;minizip"
+				AdditionalIncludeDirectories="../../js/src/;..;../../zlib/include;minizip;."
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -119,7 +118,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="2"
-				AdditionalIncludeDirectories="../../js/src/;..;../../zlib/include;minizip"
+				AdditionalIncludeDirectories="../../js/src/;..;../../zlib/include;minizip;."
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL"
 				RuntimeLibrary="0"
 				UsePrecompiledHeader="0"
@@ -185,6 +184,10 @@
 				RelativePath=".\zlib.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\zlib_classes.cpp"
+				>
+			</File>
 			<Filter
 				Name="minizip"
 				>
@@ -205,6 +208,10 @@
 			>
 			<File
 				RelativePath=".\minizip\unzip.h"
+				>
+			</File>
+			<File
+				RelativePath=".\zlib_classes.h"
 				>
 			</File>
 		</Filter>
