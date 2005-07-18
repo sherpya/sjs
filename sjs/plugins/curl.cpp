@@ -19,8 +19,8 @@
  */
 
 /**
- * @page file
- * @since 1.0
+ * @page curl
+ * @since version 1.0
  */
 
 #include <sjs.h>
