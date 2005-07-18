@@ -98,9 +98,9 @@ JSBool JSZip::JSGetFileInfo(JSContext *cx, JSObject *obj, uintN argc, jsval *arg
 
     if (!p->getZip()->GetCurrentFileInfo(&zinfo, filename, MAX_PATH)) R_FALSE;
     JSObject *zipinfo = JS_InitClass(cx, JS_GetGlobalObject(cx), NULL, &zipInfoClass,
-                                    NULL, 0,
-                                    NULL, NULL,
-                                    NULL, NULL);
+                                     NULL, 0,
+                                     NULL, NULL,
+                                     NULL, NULL);
     if (!zipinfo) R_FALSE;
 
     /* Filename */
@@ -108,6 +108,7 @@ JSBool JSZip::JSGetFileInfo(JSContext *cx, JSObject *obj, uintN argc, jsval *arg
     value = STRING_TO_JSVAL(str);
     JS_SetProperty(cx, zipinfo, "filename", &value);
 
+    /* Fill unz_file_info struct */
     SET_INFO_PROP(version);
     SET_INFO_PROP(version_needed);
     SET_INFO_PROP(flag);
