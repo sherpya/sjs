@@ -21,6 +21,15 @@
 #ifndef _ZLIB_CLASSES_H_
 #define _ZLIB_CLASSES_H_
 
+#define ZLIB_BUILD 100
+
+static sjs_data *grtd;
+static JSObject *zip = NULL;
+
+#ifndef FILE_ATTRIBUTE_DIRECTORY
+#define FILE_ATTRIBUTE_DIRECTORY    0x00000010
+#endif
+
 #define GET_ZIP_OBJECT JSZip *p = (JSZip *) JS_GetPrivate(cx, obj)
 
 #define Q(string) # string
@@ -31,16 +40,19 @@ class Zip
 {
 public:
     /* Inlined */
-    Zip(char *filename) { this->zip = unzOpen(filename); }
-    ~Zip(void) { if (this->zip) unzClose(this->zip); }
+    Zip(char *filename) { this->output = NULL; this->zip = unzOpen(filename); }
+    ~Zip(void) { if (this->zip) unzClose(this->zip); if (this->output) delete this->output; }
+    JSBool CloseZip(void) { return (unzClose(this->zip) == UNZ_OK); }
     JSBool GoToFirstFile(void) { return (unzGoToFirstFile(this->zip) == UNZ_OK); }
     JSBool GoToNextFile(void) { return (unzGoToNextFile(this->zip) == UNZ_OK); }
     JSBool GetCurrentFileInfo(unz_file_info *zinfo, char *filename, uLong len)
     {
         return (unzGetCurrentFileInfo(this->zip, zinfo, filename, len, NULL, 0, NULL, 0) == UNZ_OK);
     }
-
+    JSBool SetOutputFolder(char *directory);
+    JSBool Unzip(char *directory);
 private:
+    char *output;
     unzFile zip;
 };
 
@@ -64,6 +76,11 @@ public:
     static JSBool JSGotoFirstFile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JSGoToNextFile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JSGetFileInfo(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JSSetOutputFolder(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JSUnzip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JSCloseZip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+
+    static JSBool JSUnzipTo(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
 
 protected:
     void setZip(Zip *zip) { m_pZip = zip; }

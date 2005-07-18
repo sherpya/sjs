@@ -22,95 +22,6 @@
 #include <unzip.h>
 #include <zlib_classes.h>
 
-#define ZLIB_BUILD 100
-
-static sjs_data *grtd;
-static JSObject *zip = NULL;
-
-/*
-static JSBool Unzip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
-{
-    JSString *zipfile, *directory;
-    zipfile = JS_ValueToString(cx, argv[0]);
-    directory = JS_ValueToString(cx, argv[1]);
-    unzFile file = NULL;
-    unz_file_info info;
-    int nRet = UNZ_OK;
-    FILE *outfile = NULL;
-    static char filename[MAX_PATH];
-    static char dest[MAX_PATH];
-    static char pBuffer[BUFFERSIZE];
-
-    if (argc != 2) R_FALSE;
-
-    file = unzOpen(JS_GetStringBytes(zipfile));
-    if (!file)
-    {
-        printf("Error opening %s as zip file\n", JS_GetStringBytes(zipfile));
-        R_FALSE;
-    }
-
-    if (unzGoToFirstFile(file) != UNZ_OK)
-    {
-        printf("Unzip: GotoFirstFile failed\n");
-        unzClose(file);
-        R_FALSE;
-    }
-
-    do
-    {
-        memset(&info, 0, sizeof(info));
-        memset(filename, 0, sizeof(filename));
-        if (unzGetCurrentFileInfo(file, &info, filename, MAX_PATH, NULL, 0, NULL, 0) != UNZ_OK)
-        {
-            printf("Unzip: error in unzGetCurrentFileInfo\n");
-            unzClose(file);
-            R_FALSE;
-        }
-
-        JS_snprintf(dest, MAX_PATH, "%s/%s", JS_GetStringBytes(directory), filename);
-        mkdir(JS_GetStringBytes(directory), 0755);
-
-        if (filename[strlen(filename)-1] == '/')
-        {
-            if (grtd->verbose) printf("Creating directory: %s\n", dest);
-            mkdir(dest, 0755);
-        }
-        else
-        {
-            if (grtd->verbose) printf("Processing file %s\n", dest);
-            if (unzOpenCurrentFile(file) != UNZ_OK)
-            {
-                printf("Error opening file from zip\n");
-                break;
-            }
-            outfile = fopen(dest, "wb");
-            do
-            {
-                nRet = unzReadCurrentFile(file, pBuffer, BUFFERSIZE);
-                if (fwrite(pBuffer, nRet, 1, outfile) < 0)
-                {
-                    printf("Error writing %s\n", dest);
-                    nRet = UNZ_ERRNO;
-                }
-            } while (nRet > 0);
-            fclose(outfile);
-        }
-    } while (unzGoToNextFile(file) == UNZ_OK);
-
-    unzClose(file);
-    R_TRUE;
-}
-*/
-
-/*
-static JSFunctionSpec zlib_functions[] =
-{
-    { "unzip",    Unzip,    2, 0, 0 },
-    { 0,          0,        0, 0, 0 },
-};
-*/
-
 /* Public Interface */
 extern "C"
 {
@@ -120,7 +31,6 @@ extern "C"
         grtd = rtd;
         zip = JSZip::JSInit(cx, JS_GetGlobalObject(cx), NULL);
         return (zip != NULL);
-        //return JS_DefineFunctions(cx, JS_GetGlobalObject(cx), zlib_functions);
     }
 
     JSBool SJS_PluginUnInit(JSContext *cx)

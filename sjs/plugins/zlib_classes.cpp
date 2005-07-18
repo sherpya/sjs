@@ -32,13 +32,86 @@ JSClass zipInfoClass =
     JS_ConvertStub, JS_FinalizeStub
 };
 
+/* Zip Class */
+JSBool Zip::SetOutputFolder(char *directory)
+{
+    struct stat info;
+    if (this->output) delete this->output;
+    if (!(stat(directory, &info) || (info.st_mode & S_IFDIR)))
+    {
+        printf("%s is not a directory\n");
+        return JS_FALSE;
+    }
+    this->output = new char[strlen(directory) + 1];
+    this->output[0] = 0;
+    strcat(this->output, directory);
+    return (!mkdir(directory, 0755));
+}
+
+JSBool Zip::Unzip(char *directory)
+{
+    FILE *outfile = NULL;
+    unz_file_info zinfo;
+    int nRet = UNZ_OK;
+    static char filename[MAX_PATH];
+    static char dest[MAX_PATH];
+    static char pBuffer[BUFFERSIZE];
+
+    if (!directory) directory = this->output;
+
+    if (!directory)
+    {
+       printf("You must set output folder or specify it\n");
+       return JS_FALSE;
+    }
+
+    if (GetCurrentFileInfo(&zinfo, filename, MAX_PATH) != UNZ_OK) return JS_FALSE;
+
+    JS_snprintf(dest, MAX_PATH, "%s/%s", directory, filename);
+    mkdir(directory, 0755);
+
+    if (zinfo.external_fa & FILE_ATTRIBUTE_DIRECTORY)
+    {
+        if (grtd->verbose) printf("Creating directory: %s\n", dest);
+        if (mkdir(dest, 0755))
+        {
+            perror("Zip::Unzip mkdir()");
+            return JS_FALSE;
+        }
+    }
+    else
+    {
+        if (grtd->verbose) printf("Extracting file %s\n", dest);
+        if (unzOpenCurrentFile(this->zip) != UNZ_OK)
+        {
+            printf("Error opening file from zip\n");
+            return JS_FALSE;
+        }
+        outfile = fopen(dest, "wb");
+        do
+        {
+            nRet = unzReadCurrentFile(this->zip, pBuffer, BUFFERSIZE);
+            if (fwrite(pBuffer, nRet, 1, outfile) < 0)
+            {
+                printf("Error writing %s\n", dest);
+                nRet = UNZ_ERRNO;
+            }
+        } while (nRet > 0);
+        fclose(outfile);
+    }
+    return JS_TRUE;
+}
+
 /* JSZip Class */
 JSFunctionSpec JSZip::zip_methods[] =
 {
-    { "gotofirstfile",  JSGotoFirstFile,    0,  0,  0 },
-    { "gotonextfile",   JSGoToNextFile,     0,  0,  0 },
-    { "getfileinfo",    JSGetFileInfo,      0,  0,  0 },
-    { 0,                0,                  0,  0,  0 },
+    { "gotofirstfile",      JSGotoFirstFile,    0,  0,  0 },
+    { "gotonextfile",       JSGoToNextFile,     0,  0,  0 },
+    { "getfileinfo",        JSGetFileInfo,      0,  0,  0 },
+    { "setoutputfolder",    JSSetOutputFolder,  1,  0,  0 },
+    { "unzip",              JSUnzip,            2,  0,  0 },
+    { "closezip",           JSCloseZip,         0,  0,  0 },
+    { 0,                    0,                  0,  0,  0 },
 };
 
 JSClass JSZip::zipClass = 
@@ -124,6 +197,40 @@ JSBool JSZip::JSGetFileInfo(JSContext *cx, JSObject *obj, uintN argc, jsval *arg
     SET_INFO_PROP(internal_fa);
     SET_INFO_PROP(external_fa);
 
+    /* Check if it's a directory */
+    value = BOOLEAN_TO_JSVAL(zinfo.external_fa & FILE_ATTRIBUTE_DIRECTORY);
+    JS_SetProperty(cx, zipinfo, "isdir", &value);
+
     *rval = OBJECT_TO_JSVAL(zipinfo);
     return JS_TRUE;
+}
+
+JSBool JSZip::JSSetOutputFolder(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    if (argc != 1) R_FALSE;
+    GET_ZIP_OBJECT;
+    JSString *directory = JS_ValueToString(cx, argv[0]);
+    R_FUNC(p->getZip()->SetOutputFolder(JS_GetStringBytes(directory)));
+}
+
+JSBool JSZip::JSUnzip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    JSString *directory = NULL;
+    if (argc > 1) R_FALSE;
+    if (argc == 1) directory = JS_ValueToString(cx, argv[0]);
+    GET_ZIP_OBJECT;
+    if (directory) R_FUNC(p->getZip()->Unzip(JS_GetStringBytes(directory)));
+    R_FUNC(p->getZip()->Unzip(JS_GetStringBytes(NULL)));
+}
+
+JSBool JSZip::JSCloseZip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    GET_ZIP_OBJECT;
+    R_FUNC(p->getZip()->CloseZip());
+}
+
+JSBool JSZip::JSUnzipTo(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    /* FIXME */
+    R_FALSE;
 }
