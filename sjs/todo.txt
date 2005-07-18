@@ -20,3 +20,6 @@
 - document code for doxygen
 - make an sdk for building plugins
 - make zip class also able to zip
+- add a plugin for md5
+
+- http://wxjs.sourceforge.net/ is a similar project
