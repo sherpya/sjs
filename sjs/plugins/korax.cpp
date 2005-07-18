@@ -20,6 +20,12 @@
  * Boston, MA 02111-1307, USA.
  */
 
+
+/**
+ * @page korax_parser
+ * @since version 1.0
+ */
+
 #include <sjs.h>
 #include <util.h>
 
@@ -53,23 +59,77 @@ static void ParserClass_finalize(JSContext *cx, JSObject *obj)
     if (par) delete par;
 }
 
-/* Load */
-/* bool loadxml(filename); */
+/**
+ * @page korax_parser
+ * @section parser parserClass
+ *  Class parser()
+ *
+ * xml/cfg/ini parser class
+ * @include ini2xml.js
+ */
+
+/**
+ * @page korax_parser
+ * @subsection loadxml
+ *  boolean loadxml(filename)
+ *
+ * Load an xml file
+ */
 WRAP_LOAD_SAVE(LoadXml, loadXml);
-/* bool loadcfg(filename); */
+
+/**
+ * @page korax_parser
+ * @subsection loadcfg
+ *  boolean loadcfg(filename)
+ *
+ * Load a cfg file
+ */
 WRAP_LOAD_SAVE(LoadCfg, loadCfg);
-/* bool loadini(filename); */
+
+/**
+ * @page korax_parser
+ * @subsection loadini
+ *  boolean loadini(filename)
+ *
+ * Load an ini file
+ */
 WRAP_LOAD_SAVE(LoadIni, loadIni);
 
-/* Save */
-/* bool savexml(filename); */
+/**
+ * @page korax_parser
+ * @subsection savexml
+ *  boolean savexml(filename)
+ *
+ * Save an xml file
+ */
+
 WRAP_LOAD_SAVE(SaveXml, saveXml);
-/* bool savecfg(filename); */
+
+/**
+ * @page korax_parser
+ * @subsection savecfg
+ *  boolean savecfg(filename)
+ *
+ * Save a cfg file
+ */
 WRAP_LOAD_SAVE(SaveCfg, saveCfg);
-/* bool saveini(filename); */
+
+/**
+ * @page korax_parser
+ * @subsection saveini
+ *  boolean saveini(filename)
+ *
+ * Save an ini file
+ */
 WRAP_LOAD_SAVE(SaveIni, saveIni);
 
-/* string getvalue(query); */
+/**
+ * @page korax_parser
+ * @subsection getvalue
+ *  string getvalue(query)
+ *
+ * Gets a value from a parsed file
+ */
 static JSBool ParserClass_GetValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *query, *result;
@@ -85,7 +145,13 @@ static JSBool ParserClass_GetValue(JSContext *cx, JSObject *obj, uintN argc, jsv
     return JS_TRUE; 
 }
 
-/* int getintvalue(query); */
+/**
+ * @page korax_parser
+ * @subsection getintvalue
+ *  int getintvalue(query)
+ *
+ * Gets an int value from a parsed file
+ */
 static JSBool ParserClass_GetIntValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *query;
@@ -122,8 +188,20 @@ static JSFunctionSpec parser_methods[] =
     { 0,              0,                       0, 0, 0 },
 };
 
-/* Korax Functions */
-/* sys */
+/**
+ * @page korax
+ * @since version 1.0
+ */
+
+/* Korax Functions - sys */
+
+/**
+ * @page korax
+ * @section getcpufrequency
+ *  int getcpufrequency()
+ *
+ * Returns CPU frequency in Mhz
+ */
 static JSBool GetCpuFrequency(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     uint32 freq = (uint32) (util::sys.getCpuFrequency() / 1000000); /* Convert in Mhz to fit in 32bits */
@@ -131,6 +209,13 @@ static JSBool GetCpuFrequency(JSContext *cx, JSObject *obj, uintN argc, jsval *a
     return JS_TRUE;
 }
 
+/**
+ * @page korax
+ * @section getprocessid
+ *  int getprocessid()
+ *
+ * Returns the processid of the running shell
+ */
 static JSBool GetProcessId(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     uint32 pid = util::sys.getProcessId();
@@ -138,6 +223,13 @@ static JSBool GetProcessId(JSContext *cx, JSObject *obj, uintN argc, jsval *argv
     return JS_TRUE;
 }
 
+/**
+ * @page korax
+ * @section gettime
+ *  string gettime()
+ *
+ * Returns a string with the current time
+ */
 static JSBool GetTime(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *t = JS_NewStringCopyZ(cx, util::sys.getTime(time(NULL)).c_str());
@@ -145,6 +237,13 @@ static JSBool GetTime(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     return JS_TRUE;
 }
 
+/**
+ * @page korax
+ * @section getdate
+ *  string getdate()
+ *
+ * Returns a string with the current date
+ */
 static JSBool GetDate(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *d = JS_NewStringCopyZ(cx, util::sys.getDate(time(NULL)).c_str());
@@ -152,7 +251,16 @@ static JSBool GetDate(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     return JS_TRUE;
 }
 
-/* misc */
+/* Korax Functions - misc */
+
+/**
+ * @page korax
+ * @section random
+ *  int random(start, end)
+ *
+ * Returns a random int number between start and end
+ * @include simple-passgen.js
+ */
 static JSBool Random(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     uint32 start, end, r = 0;

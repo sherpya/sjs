@@ -28,7 +28,7 @@
 /**
  * @page file
  * @section mkdir
- *  mkdir(dirname)
+ *  boolean mkdir(dirname)
  *
  * Creates a directory
  */
@@ -44,7 +44,7 @@ JSBool Mkdir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 /**
  * @page file
  * @section rmdir
- *  rmdir(dirname)
+ *  boolean rmdir(dirname)
  *
  * Removes an empty directory
  * @todo Implement recurse
@@ -61,7 +61,7 @@ JSBool RmDir(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 /**
  * @page file
  * @section gettemp
- *  gettemp()
+ *  string gettemp()
  *
  * Get the temp directory path
  */
@@ -82,7 +82,7 @@ JSBool GetTemp(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
 /**
  * @page file
  * @section unlink
- *  unlink(filename)
+ *  boolean unlink(filename)
  *
  * Deletes a file
  */
@@ -127,7 +127,7 @@ end_fun:
 /**
  * @page file
  * @section getword
- *  getword(filename, offset)
+ *  int getword(filename, offset)
  *
  * Gets a word from file at given offset
  * @todo fix endian/offset64
@@ -156,7 +156,7 @@ JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
 /**
  * @page file
  * @section getdword
- *  getdword(filename, offset)
+ *  int getdword(filename, offset)
  *
  * Gets a dword from file at given offset
  * @todo fix endian/offset64

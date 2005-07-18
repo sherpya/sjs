@@ -2,35 +2,47 @@
  * @page Reference JavaScript Reference
  *
  * File Utils
- * <ul>
- *  <li>@ref mkdir</li>
- *  <li>@ref rmdir</li>
- *  <li>@ref gettemp</li>
- *  <li>@ref unlink</li>
- *  <li>@ref getword</li>
- *  <li>@ref getdword</li>
- * </ul>
+ *  @li @ref mkdir
+ *  @li @ref rmdir
+ *  @li @ref gettemp
+ *  @li @ref unlink
+ *  @li @ref getword
+ *  @li @ref getdword
  *
  * Builtins
- * <ul>
- *  <li>@ref loadplugin</li>
- *  <li>@ref require</li>
- *  <li>@ref include</li>
- *  <li>@ref getenv</li>
- *  <li>@ref basepath</li>
- *  <li>@ref scriptargs</li>
- *  <li>@ref exit</li>
- *  <li>@ref print</li>
- *  <li>@ref prompt</li>
- *  <li>@ref pause</li>
- *  <li>@ref verbose</li>
- * </ul>
+ *  @li @ref loadplugin
+ *  @li @ref require
+ *  @li @ref include
+ *  @li @ref getenv
+ *  @li @ref basepath
+ *  @li @ref scriptargs
+ *  @li @ref exit
+ *  @li @ref print
+ *  @li @ref prompt
+ *  @li @ref pause
+ *  @li @ref verbose
  *
  * Curl
- * <ul>
- *  <li>@ref setprogressfunction</li>
- *  <li>@ref download</li>
- *  <li>@ref setproxy</li>
- * </ul>
+ *  @li @ref setprogressfunction
+ *  @li @ref download
+ *  @li @ref setproxy
+ * 
+ * Korax
+ *  - Parser Class
+ *    @li @ref parser
+ *    @li @ref loadxml
+ *    @li @ref loadcfg
+ *    @li @ref loadini
+ *
+ *    @li @ref savexml
+ *    @li @ref savecfg
+ *    @li @ref saveini
+ *
+ *  - Functions
+ *    @li @ref getcpufrequency
+ *    @li @ref getprocessid
+ *    @li @ref gettime
+ *    @li @ref getdate
+ *    @li @ref random
  * 
  */
