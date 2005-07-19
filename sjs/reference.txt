@@ -4,7 +4,8 @@
  * TODO: fill me
  * 
  * @section Reference JavaScript Reference
- * File Utils
+ *
+ * @subsection fileutils File Utils
  *  <ul>
  *   <li>@ref mkdir</li>
  *   <li>@ref rmdir</li>
@@ -14,7 +15,7 @@
  *   <li>@ref getdword</li>
  *  </ul>
  *
- * Builtins
+ * @subsection builtins Builtins
  *  <ul>
  *   <li>@ref loadplugin</li>
  *   <li>@ref require</li>
@@ -29,19 +30,19 @@
  *   <li>@ref verbose</li>
  *  </ul>
  *
- * Versions
+ * @subsection versions Versions
  *  <ul>
  *   <li>Version Class @ref version</li>
  *  </ul>
  *
- * Curl Plugin
+ * @subsection curl Curl Plugin
  *  <ul>
  *   <li>@ref setprogressfunction</li>
  *   <li>@ref download</li>
  *   <li>@ref setproxy</li>
  *  </ul>
  * 
- * Korax Plugin
+ * @subsection korax Korax Plugin
  *  <ul>
  *   <li>Parser Class @ref parser</li>
  *    <ul>
@@ -66,7 +67,7 @@
  *  </ul>
  *
  *
- * Zlib Plugin
+ * @subsection zlib Zlib Plugin
  *  <ul>
  *   <li>ZipInfo Class @ref zipinfo</li>
  *    <ul>
