@@ -2,47 +2,98 @@
  * @page Reference JavaScript Reference
  *
  * File Utils
- *  @li @ref mkdir
- *  @li @ref rmdir
- *  @li @ref gettemp
- *  @li @ref unlink
- *  @li @ref getword
- *  @li @ref getdword
+ *  <ul>
+ *   <li>@ref mkdir</li>
+ *   <li>@ref rmdir</li>
+ *   <li>@ref gettemp</li>
+ *   <li>@ref unlink</li>
+ *   <li>@ref getword</li>
+ *   <li>@ref getdword</li>
+ *  </ul>
  *
  * Builtins
- *  @li @ref loadplugin
- *  @li @ref require
- *  @li @ref include
- *  @li @ref getenv
- *  @li @ref basepath
- *  @li @ref scriptargs
- *  @li @ref exit
- *  @li @ref print
- *  @li @ref prompt
- *  @li @ref pause
- *  @li @ref verbose
+ *  <ul>
+ *   <li>@ref loadplugin</li>
+ *   <li>@ref require</li>
+ *   <li>@ref include</li>
+ *   <li>@ref getenv</li>
+ *   <li>@ref basepath</li>
+ *   <li>@ref scriptargs</li>
+ *   <li>@ref exit</li>
+ *   <li>@ref print</li>
+ *   <li>@ref prompt</li>
+ *   <li>@ref pause</li>
+ *   <li>@ref verbose</li>
+ *  </ul>
+ *
+ * Versions
+ *  <ul>
+ *   <li>Version Class @ref version</li>
+ *  </ul>
  *
  * Curl Plugin
- *  @li @ref setprogressfunction
- *  @li @ref download
- *  @li @ref setproxy
+ *  <ul>
+ *   <li>@ref setprogressfunction</li>
+ *   <li>@ref download</li>
+ *   <li>@ref setproxy</li>
+ *  </ul>
  * 
  * Korax Plugin
- *  - Parser Class
- *    @li @ref parser
- *    @li @ref loadxml
- *    @li @ref loadcfg
- *    @li @ref loadini
+ *  <ul>
+ *   <li>Parser Class @ref parser</li>
+ *    <ul>
+ *     <li>@ref loadxml</li>
+ *     <li>@ref loadcfg</li>
+ *     <li>@ref loadini</li>
+ *     <li>@ref savexml</li>
+ *     <li>@ref savecfg</li>
+ *     <li>@ref saveini</li>
+ *     <li>@ref getvalue</li>
+ *     <li>@ref getintvalue</li>
+ *    </ul>
+ *   &nbsp;
+ *   <li>Functions</li>
+ *    <ul>
+ *     <li>@ref getcpufrequency</li>
+ *     <li>@ref getprocessid</li>
+ *     <li>@ref gettime</li>
+ *     <li>@ref getdate</li>
+ *     <li>@ref random</li>
+ *    </ul>
+ *  </ul>
  *
- *    @li @ref savexml
- *    @li @ref savecfg
- *    @li @ref saveini
  *
- *  - Functions
- *    @li @ref getcpufrequency
- *    @li @ref getprocessid
- *    @li @ref gettime
- *    @li @ref getdate
- *    @li @ref random
- * 
+ * Zlib Plugin
+ *  <ul>
+ *   <li>ZipInfo Class @ref zipinfo</li>
+ *    <ul>
+ *     <li>filename</li>
+ *     <li>isfolder</li>
+ *     <li>-</li>
+ *     <li>version</li>
+ *     <li>version_needed</li>
+ *     <li>flag</li>
+ *     <li>compression_method</li>
+ *     <li>dosDate</li>
+ *     <li>crc</li>
+ *     <li>compressed_size</li>
+ *     <li>uncompressed_size</li>
+ *     <li>size_filename</li>
+ *     <li>size_file_extra</li>
+ *     <li>size_file_comment</li>
+ *     <li>disk_num_start</li>
+ *     <li>internal_fa</li>
+ *     <li>external_fa</li>
+ *    </ul>
+ *   &nbsp;
+ *   <li>Zip Class @ref zip</li>
+ *    <ul>
+ *     <li>@ref gotofirstfile</li>
+ *     <li>@ref gotonextfile</li>
+ *     <li>@ref getfileinfo</li>
+ *     <li>@ref setoutputfolder</li>
+ *     <li>@ref unzip</li>
+ *     <li>@ref unzipto</li>
+ *    </ul>
+ *  </ul>
  */

@@ -18,11 +18,23 @@
  * Boston, MA 02111-1307, USA.
  */
 
+/**
+ * @page zlib
+ * @since version 1.0
+ */
+
 #include <sjs.h>
 #include <unzip.h>
 #include <zlib_classes.h>
 
 /* JSZipInfo Class */
+/**
+ * @page zlib
+ * @section zipinfo zipInfoClass
+ *  Class zipinfo()
+ *
+ * ZipInfo class to handle zip files informations
+ */
 JSClass zipInfoClass = 
 {
     "zipinfo", 0,
@@ -87,7 +99,6 @@ JSBool Zip::Unzip(char *directory)
     if (!GetCurrentFileInfo(&zinfo, filename, MAX_PATH)) return JS_FALSE;
 
     JS_snprintf(dest, MAX_PATH, "%s/%s", directory, filename);
-    //mkdir(directory, 0755);
 
     CreateDirPath(dest);
 
@@ -120,6 +131,14 @@ JSBool Zip::Unzip(char *directory)
 }
 
 /* JSZip Class */
+
+/**
+ * @page zlib
+ * @section zip zipClass
+ *  Class zip()
+ *
+ * Zip class to handle zip compressed files
+ */
 JSFunctionSpec JSZip::zip_methods[] =
 {
     { "gotofirstfile",      JSGotoFirstFile,    0,  0,  0 },
@@ -167,18 +186,39 @@ void JSZip::JSDestructor(JSContext *cx, JSObject *obj)
     if (p) { delete p; p = NULL; }
 }
 
+/**
+ * @page zlib
+ * @subsection gotofirstfile
+ *  boolean gotofirstfile()
+ *
+ * Rewinds zip object to the first file
+ */
 JSBool JSZip::JSGotoFirstFile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     GET_ZIP_OBJECT;
     R_FUNC(p->getZip()->GoToFirstFile());
 }
 
+/**
+ * @page zlib
+ * @subsection gotonextfile
+ *  boolean gotonextfile()
+ *
+ * Sets the zip object to the next file object
+ */
 JSBool JSZip::JSGoToNextFile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     GET_ZIP_OBJECT;
     R_FUNC(p->getZip()->GoToNextFile());
 }
 
+/**
+ * @page zlib
+ * @subsection getfileinfo
+ *  @ref zipinfo getfileinfo()
+ *
+ * Returns an zipinfo object from current selected file
+ */
 JSBool JSZip::JSGetFileInfo(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     GET_ZIP_OBJECT;
@@ -223,6 +263,13 @@ JSBool JSZip::JSGetFileInfo(JSContext *cx, JSObject *obj, uintN argc, jsval *arg
     return JS_TRUE;
 }
 
+/**
+ * @page zlib
+ * @subsection setoutputfolder
+ *  boolean setoutputfolder(directory)
+ *
+ * Defines an output folder for successive unzip functions
+ */
 JSBool JSZip::JSSetOutputFolder(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     if (argc != 1) R_FALSE;
@@ -231,6 +278,14 @@ JSBool JSZip::JSSetOutputFolder(JSContext *cx, JSObject *obj, uintN argc, jsval 
     R_FUNC(p->getZip()->SetOutputFolder(JS_GetStringBytes(directory)));
 }
 
+/**
+ * @page zlib
+ * @subsection unzip
+ *  boolean unzip([directory])
+ *
+ * Unzips the current zip file in the selected output folder or if specified using directory
+ * param as output folder
+ */
 JSBool JSZip::JSUnzip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *directory = NULL;
@@ -241,12 +296,27 @@ JSBool JSZip::JSUnzip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     R_FUNC(p->getZip()->Unzip(JS_GetStringBytes(NULL)));
 }
 
+/**
+ * @page zlib
+ * @subsection closezip
+ *  boolean closezip()
+ *
+ * Closes the handle to the open zip file object
+ */
 JSBool JSZip::JSCloseZip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     GET_ZIP_OBJECT;
     R_FUNC(p->getZip()->CloseZip());
 }
 
+/**
+ * @page zlib
+ * @subsection unzipto
+ *  boolean unzipto([directory])
+ *
+ * Unzips all the zip content in the selected output directory or if specified using directory
+ * param as output folder
+ */
 JSBool JSZip::JSUnzipTo(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *directory = NULL;

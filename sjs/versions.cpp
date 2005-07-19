@@ -18,10 +18,22 @@
  * Boston, MA 02111-1307, USA.
  */
 
+/**
+ * @page version
+ * @since version 1.0
+ */
 #include <sjs.h>
 
 static JSObject *version = NULL;
 
+/**
+ * @page version
+ * @section version versionClass
+ *  Class version()
+ *
+ * Static class to handle engine/plugins version strings
+ * @include versions.js
+ */
 static JSClass version_class =
 {
     "version", JSCLASS_HAS_PRIVATE,
