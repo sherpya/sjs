@@ -1,6 +1,9 @@
 /**
- * @page Reference JavaScript Reference
- *
+ * @mainpage
+ * @section Introduction
+ * TODO: fill me
+ * 
+ * @section Reference JavaScript Reference
  * File Utils
  *  <ul>
  *   <li>@ref mkdir</li>
