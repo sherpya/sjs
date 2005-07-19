@@ -22,12 +22,12 @@
  *  @li @ref pause
  *  @li @ref verbose
  *
- * Curl
+ * Curl Plugin
  *  @li @ref setprogressfunction
  *  @li @ref download
  *  @li @ref setproxy
  * 
- * Korax
+ * Korax Plugin
  *  - Parser Class
  *    @li @ref parser
  *    @li @ref loadxml
