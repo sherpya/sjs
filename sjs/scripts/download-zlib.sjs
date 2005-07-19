@@ -14,7 +14,6 @@ zipfile = new zip("test/zlib122.zip");
 do
 {
     info = zipfile.getfileinfo();
-    //for (p in info) print(p + " = " + info[p]);
     print(info.filename + " - " + info.compressed_size + "/" + info.uncompressed_size);
 } while (zipfile.gotonextfile());
 

@@ -138,6 +138,7 @@ JSBool Zip::Unzip(char *directory)
  *  Class zip()
  *
  * Zip class to handle zip compressed files
+ * @include download-zlib.js
  */
 JSFunctionSpec JSZip::zip_methods[] =
 {
