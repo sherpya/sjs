@@ -1,4 +1,4 @@
-- implement getlasterror feature
+- implement getlasterror feature (?)
 - add other stuff from korax
 - endian/offset64 for functions of file.cpp
 - random from korax need a first value rollup :)
@@ -6,18 +6,17 @@
   js has Math.random() :P
 - implement recurse for rmdir
 - add file globbing and listdir
-- grab error from JS_CallFunction
+- grab error from JS_CallFunction - how?
 - check all JS_FALSE -> rval undef
 
 - look for plugins in /usr/lib/sjs on linux and from registry in windows
 
 - implement chown/attrib
+- implement exec/system
 
 - js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
-- curl progress works badly
 
-- DOCUMENT all js Functions
-- document code for doxygen
+- Find a way to document js properties (zipinfo class)
 - make an sdk for building plugins
 - make zip class also able to zip
 - add a plugin for md5
