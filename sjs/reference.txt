@@ -100,4 +100,18 @@
  *     <li>@ref unzipto</li>
  *    </ul>
  *  </ul>
+ *
+ * @subsection winreg Registry Plugin
+ * <ul>
+ *  <li>Registry Class @ref registry</li>
+ *   <ul>
+ *    <li>@ref openkey</li>
+ *    <li>@ref closekey</li>
+ *    <li>@ref firstkey</li>
+ *    <li>@ref enumkey</li>
+ *    <li>@ref queryvalue</li>
+ *    <li>@ref isvalid</li>
+ *   </ul>
+ * </ul>
+ *
  */

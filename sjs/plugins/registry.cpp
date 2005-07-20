@@ -18,6 +18,11 @@
  * Boston, MA 02111-1307, USA.
  */
 
+/**
+ * @page registry
+ * @since version 1.0
+ */
+
 #include <sjs.h>
 #ifndef _WIN32
 /* Wine includes */
@@ -114,6 +119,13 @@ JSBool Registry::EnumKey(JSContext *cx, char *subkey)
     }
 }
 
+/**
+ * @page registry
+ * @section registry registryClass
+ *  Class registry()
+ *
+ * Registry class to handle registry keys on win32
+ */
 class JSRegistry
 {
 public:
@@ -169,6 +181,13 @@ void JSRegistry::JSDestructor(JSContext *cx, JSObject *obj)
     if (p) { delete p; p = NULL; }
 }
 
+/**
+ * @page registry
+ * @subsection openkey
+ *  boolean openreg(rookey, subkey)
+ *
+ * Opens a registry key
+ */
 JSBool JSRegistry::JSOpenKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *rootkey, *subkey;
@@ -180,6 +199,13 @@ JSBool JSRegistry::JSOpenKey(JSContext *cx, JSObject *obj, uintN argc, jsval *ar
     R_FUNC(p->getRegistry()->OpenKey(cx, JS_GetStringBytes(rootkey), JS_GetStringBytes(subkey)));
 }
 
+/**
+ * @page registry
+ * @subsection closekey
+ *  boolean closekey()
+ *
+ * Closes the handle to the current opened key
+ */
 JSBool JSRegistry::JSCloseKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     GET_REG_OBJECT;
@@ -187,6 +213,14 @@ JSBool JSRegistry::JSCloseKey(JSContext *cx, JSObject *obj, uintN argc, jsval *a
     R_TRUE;
 }
 
+/**
+ * @page registry
+ * @subsection firstkey
+ *  void firstkey()
+ *
+ * Sets the subkey index to 0 for the @ref enumkey iterator,
+ * @see enumkey()
+ */
 JSBool JSRegistry::JSFirstKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     GET_REG_OBJECT;
@@ -194,6 +228,14 @@ JSBool JSRegistry::JSFirstKey(JSContext *cx, JSObject *obj, uintN argc, jsval *a
     R_TRUE;
 }
 
+/**
+ * @page registry
+ * @subsection enumkey
+ *  boolean enumkey()
+ *
+ * An itereator to enumerate registry subkeys
+ * @include registry.js
+ */
 JSBool JSRegistry::JSEnumKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *key = NULL;
@@ -210,6 +252,13 @@ JSBool JSRegistry::JSEnumKey(JSContext *cx, JSObject *obj, uintN argc, jsval *ar
     return JS_TRUE;
 }
 
+/**
+ * @page registry
+ * @subsection queryvalue
+ *  int/string queryvalue(value)
+ *
+ * Returns the provided value in the currently opened registry key
+ */
 JSBool JSRegistry::JSQueryValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *key = NULL;
@@ -241,6 +290,13 @@ JSBool JSRegistry::JSQueryValue(JSContext *cx, JSObject *obj, uintN argc, jsval 
     return JS_TRUE;
 }
 
+/**
+ * @page registry
+ * @subsection isvalid
+ *  boolean isvalid()
+ *
+ * Asks if the current objects handle is a valid opened registry key
+ */
 JSBool JSRegistry::JSIsValid(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     GET_REG_OBJECT; R_FUNC(p->getRegistry()->IsValid());
