@@ -280,6 +280,25 @@ static void initBasePath(const char *path, char *dest)
         getcwd(dest, MAX_PATH);
 }
 
+static void initPluginPath(const char *path, char *dest)
+{
+    dest[0] = 0;
+#ifdef _WIN32
+    HKEY hKey;
+    DWORD type = 0, len = MAX_PATH;
+    char temp[MAX_PATH];
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, SJS_REG_KEY, 0, KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE | KEY_READ, &hKey) == ERROR_SUCCESS)
+    {
+        if (RegQueryValueExA(hKey, "InstallDir", 0, &type, (unsigned char *) temp, &len) == ERROR_SUCCESS)
+            ExpandEnvironmentStrings(temp, dest, MAX_PATH);
+        RegCloseKey(hKey);
+    }
+    if (!dest[0]) initBasePath(path, dest);
+#else /* Linux */
+    /* FIXME: Pick /usr/lib/sjs/plugins or similar if present */
+    return initBasePath(path, dest);
+#endif
+}
 static void initScriptArgs(JSContext *cx, int argc, char *argv[])
 {
     JSString *str = NULL;
@@ -382,7 +401,7 @@ int main(int argc, char *argv[])
     rtd.verbose   = JS_FALSE;
     rtd.pluginapi = PLUGIN_API;
 
-    initBasePath(argv[0], rtd.exepath);
+    initPluginPath(argv[0], rtd.searchpath);
     initBasePath(argv[1], rtd.scriptpath);
     initScriptArgs(cx, argc - 2, &argv[2]);
     initVersions(cx);

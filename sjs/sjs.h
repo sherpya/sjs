@@ -48,6 +48,7 @@
 #include <vector>
 
 #define SJS_VERSION "Sherpya JavaScript Shell version 1.0"
+#define SJS_REG_KEY "Software\\Netfarm\\Sherpya JavaScript Shell"
 #define PLUGIN_API  100
 #define SJS_BUILD   100
 
@@ -98,8 +99,8 @@ typedef struct _File
 typedef struct _sjs_data
 {
     JSBool verbose;
-    char exepath[MAX_PATH];
     char scriptpath[MAX_PATH];
+    char searchpath[MAX_PATH];
     uint32 pluginapi;
 } sjs_data;
 

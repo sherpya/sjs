@@ -83,14 +83,14 @@ JSBool Registry::OpenKey(JSContext *cx, const char *rootkey, const char *subkey)
 DWORD Registry::QueryValue(JSContext *cx, const char *keyname, unsigned char **value)
 {
     DWORD type = 0, len = 0;
-    if ((RegQueryValueExA(this->hKey, keyname, 0, &type, 0, &len) != ERROR_SUCCESS))
+    if (RegQueryValueExA(this->hKey, keyname, 0, &type, 0, &len) != ERROR_SUCCESS)
     {
         JS_PrintLastError(cx, "Registry::RegQueryValueExA() failed to get value size");
         return REG_NONE;
     }
 
     *value = new unsigned char[len + 1];
-    if ((RegQueryValueExA(this->hKey, keyname, 0, &type, (unsigned char *) *value, &len) != ERROR_SUCCESS))
+    if (RegQueryValueExA(this->hKey, keyname, 0, &type, (unsigned char *) *value, &len) != ERROR_SUCCESS)
     {
         JS_PrintLastError(cx, "Registry::RegQueryValueExA() failed");
         return REG_NONE;

@@ -22,13 +22,15 @@
 #define _DEBUGIDE
 
 #ifdef _WIN32
-#define dlopen(a, b) LoadLibrary(a)
-#define dlsym(a, b) GetProcAddress(a, b)
-#define dlclose(a) FreeLibrary(a)
-#define PLUGIN_EXT ".dll"
+#define dlopen(a, b)    LoadLibraryEx(a, NULL, LOAD_WITH_ALTERED_SEARCH_PATH)
+#define dlsym(a, b)     GetProcAddress(a, b)
+#define dlclose(a)      FreeLibrary(a)
+#define PLUGIN_EXT  ".dll"
+#define SEP         "\\"
 #else
 #include <dlfcn.h>
-#define PLUGIN_EXT ".so"
+#define PLUGIN_EXT  ".so"
+#define SEP         "/"
 #endif
 
 std::vector<Plugin> plugins;
@@ -77,11 +79,7 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
     memset(&plug, 0, sizeof(plug));
 
     JS_snprintf(plug.name, MAX_PATH, "%s", plugin);
-#if defined(_DEBUG) && defined(_WIN32) && defined(_DEBUGIDE)
-    JS_snprintf(plugin_path, MAX_PATH, "%s/../plugins/Debug/%s"PLUGIN_EXT, rtd.exepath, plugin);
-#else
-    JS_snprintf(plugin_path, MAX_PATH, "%s/plugins/%s"PLUGIN_EXT, rtd.exepath, plugin);
-#endif
+    JS_snprintf(plugin_path, MAX_PATH, "%s"SEP"plugins"SEP"%s"PLUGIN_EXT, rtd.searchpath, plugin);
 
 #ifdef _DEBUG
     fprintf(stderr, "Loading plugin %s using %s\n", plug.name, plugin_path);
