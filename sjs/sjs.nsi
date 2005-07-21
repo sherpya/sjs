@@ -17,6 +17,13 @@ SetCompressor /solid lzma
 ; Modern interface settings
 !include "MUI.nsh"
 
+!define MUI_ICON "sjs.ico"
+!define MUI_UNICON "sjs.ico"
+
+; Used to refresh the display of file association
+!define SHCNE_ASSOCCHANGED 0x08000000
+!define SHCNF_IDLIST 0
+
 ; Library Function
 !include "Library.nsh"
 
@@ -28,7 +35,6 @@ OutFile "../dist/sjs-setup.exe"
 
 InstallDir "$PROGRAMFILES\SJS"
 InstallDirRegKey HKLM "Software\Netfarm\${APPNAME}" "InstallDir"
-Icon "sjs.ico"
 
 !packhdr tmp.dat "upx --best tmp.dat"
 SetDateSave on
@@ -38,6 +44,43 @@ SilentInstall normal
 InstallColors FF8080 000030
 WindowIcon on
 XPStyle on
+
+; ============================================================================
+; Install page configuration
+; ============================================================================
+ShowInstDetails show
+
+; ============================================================================
+; Functions and macros - from ethereal installation script
+; ============================================================================
+!macro UpdateIcons
+    Push $R0
+    Push $R1
+    Push $R2
+
+    !define UPDATEICONS_UNIQUE ${__LINE__}
+
+    IfFileExists "$SYSDIR\shell32.dll" UpdateIcons.next1_${UPDATEICONS_UNIQUE} UpdateIcons.error1_${UPDATEICONS_UNIQUE}
+    UpdateIcons.next1_${UPDATEICONS_UNIQUE}:
+    GetDllVersion "$SYSDIR\shell32.dll" $R0 $R1
+    IntOp $R2 $R0 / 0x00010000
+    IntCmp $R2 4 UpdateIcons.next2_${UPDATEICONS_UNIQUE} UpdateIcons.error2_${UPDATEICONS_UNIQUE}
+UpdateIcons.next2_${UPDATEICONS_UNIQUE}:
+    System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v (${SHCNE_ASSOCCHANGED}, ${SHCNF_IDLIST}, 0, 0)'
+    Goto UpdateIcons.quit_${UPDATEICONS_UNIQUE}
+
+UpdateIcons.error1_${UPDATEICONS_UNIQUE}:
+    DetailPrint "Can't find 'shell32.dll' library. Impossible to update icons"
+    Goto UpdateIcons.quit_${UPDATEICONS_UNIQUE}
+UpdateIcons.error2_${UPDATEICONS_UNIQUE}:
+    DetailPrint "You should install the free 'Microsoft Layer for Unicode' to update JS icons"
+    Goto UpdateIcons.quit_${UPDATEICONS_UNIQUE}
+UpdateIcons.quit_${UPDATEICONS_UNIQUE}:
+    !undef UPDATEICONS_UNIQUE
+    Pop $R2
+    Pop $R1
+    Pop $R0
+!macroend
 
 ; Vars
 Var STARTMENU_FOLDER
@@ -55,7 +98,7 @@ Var STARTMENU_FOLDER
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_STARTMENU Application $STARTMENU_FOLDER
 !insertmacro MUI_PAGE_INSTFILES
-!insertmacro MUI_PAGE_FINISH
+;!insertmacro MUI_PAGE_FINISH
 
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
@@ -76,7 +119,6 @@ VIAddVersionKey /LANG=${LANG_ENGLISH} "FileVersion" "1.0"
 SetOverwrite on
 
 Section "JavaScript Shell" Main
-
     ; Main executable in sys dir
     SetOutPath "$SYSDIR"
     File "Release\sjs.exe"
@@ -130,6 +172,18 @@ Section "Example Scripts" Examples
 SectionEnd
     
 Section -FinishSection
+    ; Backup Default Icon
+    ReadRegStr $0 HKCR "JSFile\DefaultIcon" ""
+    WriteRegExpandStr HKCR "JSFile\DefaultIcon.sjs" "" "$0"
+
+    WriteRegExpandStr HKCR "JSFile\DefaultIcon" "" "$SYSDIR\sjs.exe,0"
+
+    ; Open With SJS
+    WriteRegStr HKCR "JSFile\Shell\SJS" "" "Open with SJS"
+    WriteRegExpandStr HKCR "JSFile\Shell\SJS\Command" "" '"$SYSDIR\sjs.exe" -w "%1"'
+
+    !insertmacro UpdateIcons
+
     WriteRegExpandStr HKLM "Software\Netfarm\${APPNAME}" "InstallDir" "$INSTDIR"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayName" "${APPNAME}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString" "$INSTDIR\uninstall.exe"
@@ -149,10 +203,17 @@ SectionEnd
 
 ;Uninstall section
 Section Uninstall
-    ;Remove from registry...
+    ; Restore Default Icon
+    ReadRegStr $0 HKCR "JSFile\DefaultIcon.sjs" ""
+    WriteRegExpandStr HKCR "JSFile\DefaultIcon" "" "$0"
+
+    ; Remove from registry...
+    DeleteRegKey HKCR "JSFile\DefaultIcon.sjs"
     DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
     DeleteRegKey HKLM "Software\Netfarm\${APPNAME}"
     DeleteRegKey /ifempty HKLM "Software\Netfarm"
+
+    !insertmacro UpdateIcons
 
     ; Delete self
     Delete "$INSTDIR\uninstall.exe"
