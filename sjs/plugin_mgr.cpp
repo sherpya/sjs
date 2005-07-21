@@ -22,7 +22,7 @@
 #define _DEBUGIDE
 
 #ifdef _WIN32
-#define dlopen(a, b)    LoadLibraryEx(a, NULL, LOAD_WITH_ALTERED_SEARCH_PATH)
+#define dlopen(a, b)    LoadLibraryExA(a, NULL, LOAD_WITH_ALTERED_SEARCH_PATH)
 #define dlsym(a, b)     GetProcAddress(a, b)
 #define dlclose(a)      FreeLibrary(a)
 #define PLUGIN_EXT  ".dll"
