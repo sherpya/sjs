@@ -166,7 +166,7 @@ SectionEnd
 
 SectionGroupEnd
 
-Section "Example Scripts" Examples
+Section "Sample Scripts" Scripts
     SetOutPath "$INSTDIR\scripts\"
     File "scripts\*.js"
 SectionEnd
@@ -198,7 +198,7 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${SecPluginsKorax} "Plugin for Korax's utils, includes a parses class and other functions"
     !insertmacro MUI_DESCRIPTION_TEXT ${SecPluginsRegistry} "Plugin to handle win32 registry"
     !insertmacro MUI_DESCRIPTION_TEXT ${SecPluginsZlib} "Plugin to zip compressed files"
-    !insertmacro MUI_DESCRIPTION_TEXT ${Examples} "Example Scripts"
+    !insertmacro MUI_DESCRIPTION_TEXT ${Scripts} "Sample Scripts"
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;Uninstall section
