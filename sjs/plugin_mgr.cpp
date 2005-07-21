@@ -25,12 +25,8 @@
 #define dlopen(a, b)    LoadLibraryExA(a, NULL, LOAD_WITH_ALTERED_SEARCH_PATH)
 #define dlsym(a, b)     GetProcAddress(a, b)
 #define dlclose(a)      FreeLibrary(a)
-#define PLUGIN_EXT  ".dll"
-#define SEP         "\\"
 #else
 #include <dlfcn.h>
-#define PLUGIN_EXT  ".so"
-#define SEP         "/"
 #endif
 
 std::vector<Plugin> plugins;

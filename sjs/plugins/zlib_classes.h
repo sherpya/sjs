@@ -30,8 +30,6 @@ extern sjs_data *grtd;
 #endif
 
 #define GET_ZIP_OBJECT JSZip *p = (JSZip *) JS_GetPrivate(cx, obj)
-
-#define Q(string) # string
 #define SET_INFO_PROP(name) value = INT_TO_JSVAL(zinfo.name); JS_SetProperty(cx, zipinfo, Q(name), &value);
 
 /* Zip Class */

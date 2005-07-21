@@ -68,7 +68,7 @@ JSBool Zip::CreateDirPath(char *dest)
     strcat(path, dest);
     for (size_t i = 0; i < len; i++)
     {
-        if ((path[i] == '/') || (path[i] == '\\'))
+        if (PATH_IS_SEP(path[i]))
         {
             path[i] = 0;
             mkdir(path, 0755);
@@ -98,7 +98,7 @@ JSBool Zip::Unzip(char *directory)
 
     if (!GetCurrentFileInfo(&zinfo, filename, MAX_PATH)) return JS_FALSE;
 
-    JS_snprintf(dest, MAX_PATH, "%s/%s", directory, filename);
+    JS_snprintf(dest, MAX_PATH, "%s"SEP"%s", directory, filename);
 
     CreateDirPath(dest);
 

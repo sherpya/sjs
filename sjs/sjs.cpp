@@ -214,13 +214,13 @@ static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
 static JSBool Prompt(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *msg, *result;
-    char value[MAX_PATH]; /* FIXME: insecure */
+    char value[MAX_PATH];
 
     if (argc != 1) return JS_FALSE;
 
     msg = JS_ValueToString(cx, argv[0]);
     printf("%s", JS_GetStringBytes(msg));
-    scanf("%s", value);
+    scanf("%1023s", value);
     result = JS_NewStringCopyZ(cx, value);
     *rval = STRING_TO_JSVAL(result);
     return JS_TRUE;
@@ -264,11 +264,10 @@ static void ErrorReporter(JSContext *cx, const char *message, JSErrorReport *rep
 /* Helpers */
 static void initBasePath(const char *path, char *dest)
 {
-    /* FIXME: This function is really ugly :( */
     size_t i = strlen(path);
     while (i)
     {
-        if ((path[i] == '/') || (path[i] == '\\')) break;
+        if (PATH_IS_SEP(path[i])) break;
         i--;
     }
     if (i)
@@ -293,10 +292,13 @@ static void initPluginPath(const char *path, char *dest)
             ExpandEnvironmentStrings(temp, dest, MAX_PATH);
         RegCloseKey(hKey);
     }
-    if (!dest[0]) initBasePath(path, dest);
+    if (!dest[0]) return initBasePath(path, dest);
 #else /* Linux */
-    /* FIXME: Pick /usr/lib/sjs/plugins or similar if present */
-    return initBasePath(path, dest);
+    struct stat info;
+    if ((!stat(SJS_LIBEXEC"/plugins", &info)) && (info.st_mode & S_IFDIR))
+       strcat(dest, SJS_LIBEXEC);
+    else
+       return initBasePath(path, dest);
 #endif
 }
 static void initScriptArgs(JSContext *cx, int argc, char *argv[])
