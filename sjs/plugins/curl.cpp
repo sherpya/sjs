@@ -30,7 +30,6 @@
 
 static CURL *curl = NULL;
 static JSFunction *progress_fun = NULL;
-static JSContext *context = NULL;
 static sjs_data *grtd;
 
 static int curl_fwrite(void *buffer, size_t size, size_t nmemb, void *stream)
@@ -47,6 +46,7 @@ static int curl_fwrite(void *buffer, size_t size, size_t nmemb, void *stream)
 
 static int c_progress_fun(void *clientp, double dltotal, double dlnow, double ultotal,double ulnow)
 {
+    JSContext *cx = (JSContext *) clientp;
     int32 result = 0;
     jsval rval;
 
@@ -60,18 +60,18 @@ static int c_progress_fun(void *clientp, double dltotal, double dlnow, double ul
     };
 
     if (!progress_fun) return 0; /* Safety check */
-    if (!context) return 0; /* Safety check */
+    if (!cx) return 0; /* Safety check */
 
-    if (JS_CallFunction(context,
+    if (JS_CallFunction(cx,
         JS_GetFunctionObject(progress_fun),
         progress_fun, 4, args, &rval) == JS_FALSE)
     {
         /* TODO: grab js error and avoid calling this twice */
-        printf("Error in js progress function, aborting...\n");
+        JS_ReportError(cx, "Error in js progress function, aborting...");
         return -1;
     }
 
-    JS_ValueToECMAInt32(context, rval, &result); 
+    JS_ValueToECMAInt32(cx, rval, &result); 
     return result;
 }
 
@@ -89,8 +89,8 @@ static JSBool SetProgressFunction(JSContext *cx, JSObject *obj, uintN argc, jsva
 {
     progress_fun = JS_ValueToFunction(cx, argv[0]);
     curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, c_progress_fun);
+    curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, (void *) cx);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, false);
-    context = cx;
     return JS_TRUE;
 }
 
@@ -125,7 +125,7 @@ static JSBool Download(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
     if (file.stream) fclose(file.stream);
     if (res != CURLE_OK)
     {
-        printf("libcurl error: %s\n", curl_easy_strerror(res));
+        JS_ReportError(cx, "libcurl error: %s", curl_easy_strerror(res));
         R_FALSE;
     }
     R_TRUE;

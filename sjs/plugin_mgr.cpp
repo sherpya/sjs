@@ -75,7 +75,12 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
     memset(&plug, 0, sizeof(plug));
 
     JS_snprintf(plug.name, MAX_PATH, "%s", plugin);
+
+#if defined(_DEBUG) && defined(_WIN32) && defined(_DEBUGIDE)
+    JS_snprintf(plugin_path, MAX_PATH, "%s\\..\\plugins\\Debug\\%s"PLUGIN_EXT, rtd.searchpath, plugin);
+#else
     JS_snprintf(plugin_path, MAX_PATH, "%s"SEP"plugins"SEP"%s"PLUGIN_EXT, rtd.searchpath, plugin);
+#endif
 
 #ifdef _DEBUG
     fprintf(stderr, "Loading plugin %s using %s\n", plug.name, plugin_path);

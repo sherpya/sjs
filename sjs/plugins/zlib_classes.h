@@ -46,9 +46,9 @@ public:
     {
         return (unzGetCurrentFileInfo(this->zip, zinfo, filename, len, NULL, 0, NULL, 0) == UNZ_OK);
     }
-    JSBool SetOutputFolder(char *directory);
-    JSBool Zip::CreateDirPath(char *dest);
-    JSBool Unzip(char *directory);
+    JSBool SetOutputFolder(JSContext *cx, char *directory);
+    JSBool CreateDirPath(char *dest);
+    JSBool Unzip(JSContext *cx, char *directory);
 private:
     char *output;
     unzFile zip;

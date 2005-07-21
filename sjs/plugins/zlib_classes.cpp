@@ -45,13 +45,13 @@ JSClass zipInfoClass =
 };
 
 /* Zip Class */
-JSBool Zip::SetOutputFolder(char *directory)
+JSBool Zip::SetOutputFolder(JSContext *cx, char *directory)
 {
     struct stat info;
     if (this->output) delete this->output;
     if (!(stat(directory, &info) || (info.st_mode & S_IFDIR)))
     {
-        printf("%s is not a directory\n", directory);
+        JS_ReportError(cx, "%s is not a directory", directory);
         return JS_FALSE;
     }
     this->output = new char[strlen(directory) + 1];
@@ -79,7 +79,7 @@ JSBool Zip::CreateDirPath(char *dest)
     return JS_TRUE;
 }
 
-JSBool Zip::Unzip(char *directory)
+JSBool Zip::Unzip(JSContext *cx, char *directory)
 {
     FILE *outfile = NULL;
     unz_file_info zinfo;
@@ -92,7 +92,7 @@ JSBool Zip::Unzip(char *directory)
 
     if (!directory)
     {
-       printf("You must set output folder or specify it\n");
+       JS_ReportError(cx, "You must set output folder or specify it");
        return JS_FALSE;
     }
 
@@ -112,7 +112,7 @@ JSBool Zip::Unzip(char *directory)
         if (grtd->verbose) printf("Extracting file %s\n", dest);
         if (unzOpenCurrentFile(this->zip) != UNZ_OK)
         {
-            printf("Error opening file from zip\n");
+            JS_ReportError(cx, "Error opening file from zip");
             return JS_FALSE;
         }
         outfile = fopen(dest, "wb");
@@ -121,7 +121,7 @@ JSBool Zip::Unzip(char *directory)
             nRet = unzReadCurrentFile(this->zip, pBuffer, BUFFERSIZE);
             if (fwrite(pBuffer, nRet, 1, outfile) < 0)
             {
-                printf("Error writing %s\n", dest);
+                JS_ReportError(cx, "Error writing %s", dest);
                 nRet = UNZ_ERRNO;
             }
         } while (nRet > 0);
@@ -276,7 +276,7 @@ JSBool JSZip::JSSetOutputFolder(JSContext *cx, JSObject *obj, uintN argc, jsval 
     if (argc != 1) R_FALSE;
     GET_ZIP_OBJECT;
     JSString *directory = JS_ValueToString(cx, argv[0]);
-    R_FUNC(p->getZip()->SetOutputFolder(JS_GetStringBytes(directory)));
+    R_FUNC(p->getZip()->SetOutputFolder(cx, JS_GetStringBytes(directory)));
 }
 
 /**
@@ -293,8 +293,8 @@ JSBool JSZip::JSUnzip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     if (argc > 1) R_FALSE;
     if (argc == 1) directory = JS_ValueToString(cx, argv[0]);
     GET_ZIP_OBJECT;
-    if (directory) R_FUNC(p->getZip()->Unzip(JS_GetStringBytes(directory)));
-    R_FUNC(p->getZip()->Unzip(JS_GetStringBytes(NULL)));
+    if (directory) R_FUNC(p->getZip()->Unzip(cx, JS_GetStringBytes(directory)));
+    R_FUNC(p->getZip()->Unzip(cx, JS_GetStringBytes(NULL)));
 }
 
 /**
@@ -334,7 +334,7 @@ JSBool JSZip::JSUnzipTo(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, j
 
     do
     {
-        if (!p->getZip()->Unzip(outdir)) R_FALSE;
+        if (!p->getZip()->Unzip(cx, outdir)) R_FALSE;
     }
     while (p->getZip()->GoToNextFile());
 

@@ -26,26 +26,26 @@
 #pragma warning(disable:4311) // pointer truncation from 'JSString *' to 'jsval'
 #endif
 
-#define WINSEP    "\\"
-#define UNIXSEP   "/"
+#define WINSEP          "\\"
+#define UNIXSEP         "/"
 
-#define PATH_IS_SEP(x) ((x == '/') || (x == '\\'))
-#define Q(string) # string
+#define PATH_IS_SEP(x)  ((x == '/') || (x == '\\'))
+#define Q(string)       # string
 
 #ifdef _WIN32
 #define XP_WIN
 #include <windows.h>
 #include <direct.h>
-#define mkdir(a,b) mkdir(a)
-#define strcasecmp stricmp
+#define mkdir(a,b)  mkdir(a)
+#define strcasecmp  stricmp
 #define strncasecmp strnicmp
-#define SEP WINSEP
+#define SEP         WINSEP
 #define PLUGIN_EXT  ".dll"
 #else
 #define XP_UNIX
 #include <unistd.h>
 #include <sys/utsname.h>
-#define SEP UNIXSEP
+#define SEP         UNIXSEP
 #define PLUGIN_EXT  ".so"
 #endif
 
