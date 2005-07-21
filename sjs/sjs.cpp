@@ -100,19 +100,21 @@ static JSBool Require(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
  * @section include
  *  include(filename)
  *
- * Load and execute another script
+ * Load and execute another script, the script should be placed in scripts directory
  */
 static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSScript *script;
     JSString *filename;
+    char include_file[MAX_PATH];
     jsval result;
 
     if (argc != 1) R_FALSE;
     filename = JS_ValueToString(cx, argv[0]);
+    JS_snprintf(include_file, MAX_PATH, "%s"SEP"scripts"SEP"%s", rtd.searchpath, JS_GetStringBytes(filename));
 
     /* Execution */
-    script = JS_CompileFile(cx, obj, JS_GetStringBytes(filename));
+    script = JS_CompileFile(cx, obj, include_file);
     if (script)
     {
         JS_ExecuteScript(cx, obj, script, &result);
