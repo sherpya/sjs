@@ -3,6 +3,14 @@
  * @section Introduction
  * TODO: fill me
  * 
+ * <br>
+ * @section Usage Command Line Usage
+ *  <pre>Usage: sjs [-w] filename.js [scriptargs]
+ * &nbsp;
+ * -w        : waits for enter key at the end of execution
+ * scriptargs: are passed to the script and can be accessed by @ref basepath</pre>
+ * <br>
+ *
  * @section Reference JavaScript Reference
  *
  * @subsection fileutils File Utils

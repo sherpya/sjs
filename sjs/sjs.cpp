@@ -30,7 +30,15 @@ sjs_data rtd;
 
 /* Locals ;) */
 static int32 code = 0;
+static int32 shift = 1;
 static JSObject *scriptArgs = NULL;
+static JSBool waitatend = JS_FALSE;
+
+static inline void usage(char *program)
+{
+     printf("-- "SJS_VERSION" --\n");
+     printf("Usage: %s [-w] filename.js [scriptargs]\n", program);
+}
 
 /**
  * @page builtins
@@ -229,13 +237,21 @@ static JSBool Prompt(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
 /**
  * @page builtins
  * @section pause
- *   pause()
+ *   pause([msg])
  *
- * Displays "Press Enter key to continue" message and waits for user to press enter
+ * Displays "Press Enter key to continue" or msg message and waits for user to press enter
  */
 static JSBool Pause(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-    printf("Press Enter key to continue");
+    JSString *msg = NULL;
+    if (argc > 1) R_FALSE;
+    if (argc > 0)
+    {
+         msg = JS_ValueToString(cx, argv[0]);
+         printf("%s", JS_GetStringBytes(msg));
+    }
+    else
+         printf("Press Enter key to continue");
     getchar();
     return JS_TRUE;
 }
@@ -374,8 +390,19 @@ int main(int argc, char *argv[])
 
     if (argc < 2)
     {
-        printf("-- "SJS_VERSION" --\n");
-        printf("Usage: %s filename.js [scriptargs]\n", argv[0]);
+	usage(argv[0]);
+        return -1;
+    }
+
+    if (!strcasecmp(argv[1], "-w"))
+    {
+        waitatend = JS_TRUE;
+        shift = 2;
+    }
+
+    if (waitatend && (argc == 2))
+    {
+        usage(argv[0]);
         return -1;
     }
 
@@ -404,14 +431,14 @@ int main(int argc, char *argv[])
     rtd.pluginapi = PLUGIN_API;
 
     initPluginPath(argv[0], rtd.searchpath);
-    initBasePath(argv[1], rtd.scriptpath);
-    initScriptArgs(cx, argc - 2, &argv[2]);
+    initBasePath(argv[shift], rtd.scriptpath);
+    initScriptArgs(cx, argc - shift - 1, &argv[shift + 1]);
     initVersions(cx);
     initPlatform(cx);
     initPlugins(cx);
 
     /* Execution */
-    script = JS_CompileFile(cx, global, argv[1]);
+    script = JS_CompileFile(cx, global, argv[shift]);
     if (script)
     {
         JS_ExecuteScript(cx, global, script, &result);
@@ -423,5 +450,13 @@ int main(int argc, char *argv[])
     JS_DestroyRuntime(rt);
     JS_ShutDown();
     uninitPlugins();
+
+    /* Wait for a key if -w is provided */
+    if (waitatend)
+    {
+       printf("Press Enter key to continue");
+       getchar();
+    }
+
     return code;
 }
