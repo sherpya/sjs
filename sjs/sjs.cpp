@@ -456,7 +456,7 @@ int main(int argc, char *argv[])
     /* Wait for a key if -w is provided */
     if (waitatend)
     {
-       printf("Press Enter key to continue");
+       printf("\nPress Enter key to continue");
        getchar();
     }
 
