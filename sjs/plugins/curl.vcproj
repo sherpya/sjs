@@ -6,6 +6,7 @@
 	ProjectGUID="{5B6666B8-9E26-4114-B890-501D039F3D20}"
 	RootNamespace="curl"
 	Keyword="Win32Proj"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -63,6 +64,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="../../js/src/Debug/js32.lib ../../curl/libcurl_imp.lib"
 				LinkIncremental="2"
+				GenerateManifest="false"
 				ModuleDefinitionFile="plugins.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -139,6 +141,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="../../js/src/Release/js32.lib ../../curl/libcurl_imp.lib"
 				LinkIncremental="1"
+				GenerateManifest="false"
 				ModuleDefinitionFile="plugins.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
