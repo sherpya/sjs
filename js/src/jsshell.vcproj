@@ -46,6 +46,7 @@
 				Optimization="0"
 				PreprocessorDefinitions="_CONSOLE;_DEBUG;WIN32;XP_WIN;JSFILE;DEBUG"
 				MinimalRebuild="true"
+				ExceptionHandling="0"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\Debug/jsshell.pch"
@@ -55,6 +56,8 @@
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
+				CompileAs="1"
+				DisableSpecificWarnings="4996;4244"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -73,6 +76,7 @@
 				OutputFile=".\Debug/jsshell.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
+				GenerateManifest="false"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Debug/jsshell.pdb"
 				SubSystem="1"
@@ -139,6 +143,7 @@
 				InlineFunctionExpansion="1"
 				PreprocessorDefinitions="NDEBUG;_CONSOLE;WIN32;XP_WIN;JSFILE"
 				StringPooling="true"
+				ExceptionHandling="0"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -148,6 +153,8 @@
 				ProgramDataBaseFileName=".\Release/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
+				CompileAs="1"
+				DisableSpecificWarnings="4996;4244"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -166,9 +173,10 @@
 				OutputFile=".\Release/jsshell.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
+				GenerateManifest="false"
 				ProgramDatabaseFile=".\Release/jsshell.pdb"
 				SubSystem="1"
-				EnableCOMDATFolding="1"
+				EnableCOMDATFolding="2"
 				TargetMachine="1"
 			/>
 			<Tool
