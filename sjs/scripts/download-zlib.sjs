@@ -5,11 +5,11 @@ include("progress_fun.js");
 
 verbose(1);
 mkdir("test");
-res = download("http://www.zlib.net/zlib122.zip", "test/zlib122.zip");
+res = download("http://www.zlib.net/zlib123.zip", "test/zlib123.zip");
 print('Dowload res = ' + res);
 verbose(0);
 
-zipfile = new zip("test/zlib122.zip");
+zipfile = new zip("test/zlib123.zip");
 
 do
 {

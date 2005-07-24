@@ -24,7 +24,7 @@
 
 sjs_data *grtd;
 JSObject *zip = NULL;
-static char version[200] = "";
+static char version[200] = "zlib/unknown";
 
 /* Public Interface */
 extern "C"
