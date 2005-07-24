@@ -24,6 +24,7 @@
 
 sjs_data *grtd;
 JSObject *zip = NULL;
+static char version[200] = "";
 
 /* Public Interface */
 extern "C"
@@ -32,6 +33,7 @@ extern "C"
     {
         PLUGIN_API_CHECK;
         grtd = rtd;
+        JS_snprintf(version, 200, "zlib/%s", zlibVersion());
         zip = JSZip::JSInit(cx, JS_GetGlobalObject(cx), NULL);
         return (zip != NULL);
     }
@@ -43,7 +45,7 @@ extern "C"
 
     const char *SJS_PluginVersion(void)
     {
-        return "zlib/"ZLIB_VERSION;
+        return version;
     }
 
     uint32 SJS_PluginBuild(void)
