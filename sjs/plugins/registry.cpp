@@ -35,7 +35,7 @@ static sjs_data *grtd;
 static JSObject *registry = NULL;
 
 #define GET_REG_OBJECT JSRegistry *p = (JSRegistry *) JS_GetPrivate(cx, obj)
-#define SET_REG_PROP(name) { val = INT_TO_JSVAL(name); JS_SetProperty(cx, registry, Q(name), &val); }
+#define SET_REG_PROP(name) { val = INT_TO_JSVAL(name); JS_SetProperty(cx, registry, #name, &val); }
 
 class Registry
 {
