@@ -32,6 +32,7 @@
  * @page zlib
  * @section zipinfo zipInfoClass
  *  Class zipinfo()
+ * @todo add reference to properties
  *
  * ZipInfo class to handle zip files informations
  */
