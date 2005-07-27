@@ -35,6 +35,7 @@ static sjs_data *grtd;
 static JSObject *registry = NULL;
 
 #define GET_REG_OBJECT JSRegistry *p = (JSRegistry *) JS_GetPrivate(cx, obj)
+#define SET_REG_PROP(name) { val = INT_TO_JSVAL(name); JS_SetProperty(cx, registry, Q(name), &val); }
 
 class Registry
 {
@@ -44,14 +45,18 @@ public:
     void   SetIndex(uint32 index) { this->Index = index; }
     void   CloseKey(void) { if (hKey) RegCloseKey(hKey); hKey = NULL; Index = 0; }
     JSBool IsValid(void) { return (hKey != NULL); }
+    JSBool IsReadOnly(void) { return this->readonly; }
 
     JSBool OpenKey(JSContext *cx, const char *rootkey, const char *subkey);
+    JSBool Registry::CreateKey(JSContext *cx, const char *rootkey, const char *subkey);
     DWORD  QueryValue(JSContext *cx, const char *keyname, unsigned char **value);
     JSBool EnumKey(JSContext *cx, char *subkey);
+    JSBool Registry::SetValue(JSContext *cx, char *subkey, LPBYTE data, DWORD size, DWORD type);
 
 private:
     HKEY hKey;
     HKEY GetRootKey(const char *rootkey);
+    JSBool readonly;
     uint32 Index;
 };
 
@@ -77,6 +82,24 @@ JSBool Registry::OpenKey(JSContext *cx, const char *rootkey, const char *subkey)
         JS_PrintLastError(cx, "Registry::RegOpenKey failed");
         return JS_FALSE;
     }
+    this->readonly = JS_TRUE;
+    return JS_TRUE;
+}
+
+JSBool Registry::CreateKey(JSContext *cx, const char *rootkey, const char *subkey)
+{
+    HKEY root = GetRootKey(rootkey);
+    DWORD dwDisposition = 0;
+    if (!root) return JS_FALSE; /* FIXME set js Error */
+
+    CloseKey(); /* Close previously opened key */
+
+    if (RegCreateKeyExA(root, subkey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &this->hKey, &dwDisposition) != ERROR_SUCCESS)
+    {
+        JS_PrintLastError(cx, "Registry::RegCreateKey failed");
+        return JS_FALSE;
+    }
+    this->readonly = JS_FALSE;
     return JS_TRUE;
 }
 
@@ -119,6 +142,11 @@ JSBool Registry::EnumKey(JSContext *cx, char *subkey)
     }
 }
 
+JSBool Registry::SetValue(JSContext *cx, char *subkey, LPBYTE data, DWORD size, DWORD type)
+{
+    return (RegSetValueExA(this->hKey, subkey, 0, type, data, size) == ERROR_SUCCESS);
+}
+
 /**
  * @page registry
  * @section registry registryClass
@@ -144,10 +172,12 @@ public:
 
     /* JS Members */
     static JSBool JSOpenKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JSCreateKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JSCloseKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JSFirstKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JSEnumKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JSQueryValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JSSetValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JSIsValid(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
 
 protected:
@@ -184,7 +214,7 @@ void JSRegistry::JSDestructor(JSContext *cx, JSObject *obj)
 /**
  * @page registry
  * @subsection openkey
- *  boolean openreg(rookey, subkey)
+ *  boolean openkey(rookey, subkey)
  *
  * Opens a registry key
  */
@@ -197,6 +227,25 @@ JSBool JSRegistry::JSOpenKey(JSContext *cx, JSObject *obj, uintN argc, jsval *ar
     subkey = JS_ValueToString(cx, argv[1]);
     GET_REG_OBJECT;
     R_FUNC(p->getRegistry()->OpenKey(cx, JS_GetStringBytes(rootkey), JS_GetStringBytes(subkey)));
+}
+
+/**
+ * @page registry
+ * @subsection createkey
+ *  boolean createkey(rookey, subkey)
+ *
+ * Opens a registry key with read/write access, if the key doesn't exits
+ * it will be created
+ */
+JSBool JSRegistry::JSCreateKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    JSString *rootkey, *subkey;
+    if (argc != 2) R_FALSE;
+
+    rootkey = JS_ValueToString(cx, argv[0]);
+    subkey = JS_ValueToString(cx, argv[1]);
+    GET_REG_OBJECT;
+    R_FUNC(p->getRegistry()->CreateKey(cx, JS_GetStringBytes(rootkey), JS_GetStringBytes(subkey)));
 }
 
 /**
@@ -292,6 +341,55 @@ JSBool JSRegistry::JSQueryValue(JSContext *cx, JSObject *obj, uintN argc, jsval 
 
 /**
  * @page registry
+ * @subsection setvalue
+ *  boolean setvalue(subkey, value, type)
+ *
+ * Set specified value in the registry subkey
+ */
+JSBool JSRegistry::JSSetValue(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    uint32 type = REG_NONE;
+    JSString *subkey = NULL, *value = NULL;
+    size_t size = 0;
+
+    GET_REG_OBJECT;
+
+    if (!p->getRegistry()->IsValid()) R_FALSE;
+
+    if (p->getRegistry()->IsReadOnly())
+    {
+        JS_ReportError(cx, "Registry::JSSetValue(): The registry key is readonly");
+        R_FALSE;
+    }
+
+    if (argc != 3) R_FALSE;
+    if (!JS_ValueToECMAUint32(cx, argv[2], &type)) R_FALSE;
+    subkey = JS_ValueToString(cx, argv[0]);
+    value  = JS_ValueToString(cx, argv[1]);
+
+    switch (type)
+    {
+        case REG_DWORD:
+            size = sizeof(DWORD);
+            break;
+        case REG_SZ:
+        case REG_EXPAND_SZ:
+        case REG_BINARY:
+            size = JS_GetStringLength(value);
+            break;
+        default:
+            JS_ReportError(cx, "Registry::JSSetValue(): unsupported key type 0x%x", type);
+            R_FALSE;
+    }
+
+    R_FUNC(p->getRegistry()->SetValue(cx,
+        JS_GetStringBytes(subkey), (LPBYTE) JS_GetStringBytes(value), (DWORD) size, type));
+    
+    R_TRUE;
+}
+
+/**
+ * @page registry
  * @subsection isvalid
  *  boolean isvalid()
  *
@@ -305,10 +403,12 @@ JSBool JSRegistry::JSIsValid(JSContext *cx, JSObject *obj, uintN argc, jsval *ar
 JSFunctionSpec JSRegistry::registry_methods[] =
 {
     { "openkey",    JSOpenKey,    2, 0, 0 },
+    { "createkey",  JSCreateKey,  2, 0, 0 },
     { "closekey",   JSCloseKey,   0, 0, 0 },
     { "firstkey",   JSFirstKey,   0, 0, 0 },
     { "enumkey",    JSEnumKey,    0, 0, 0 },
     { "queryvalue", JSQueryValue, 1, 0, 0 },
+    { "setvalue",   JSSetValue,   3, 0, 0 },
     { "isvalid",    JSIsValid,    0, 0, 0 },
     { 0,            0,            0, 0, 0 },
 };
@@ -327,8 +427,10 @@ extern "C"
 {
     JSBool SJS_PluginInit(JSContext *cx, sjs_data *rtd)
     {
+        jsval val;
         PLUGIN_API_CHECK;
         grtd = rtd;
+
 #ifndef _WIN32
         printf("\n");
         printf("* Warning this plugin has no functionality on this platform *\n");
@@ -336,7 +438,16 @@ extern "C"
         printf("\n");
 #endif
         registry = JSRegistry::JSInit(cx, JS_GetGlobalObject(cx), NULL);
-        return (registry != NULL);
+        if (!registry) return JS_FALSE;
+
+        /* Registry Types */
+        SET_REG_PROP(REG_NONE);
+        SET_REG_PROP(REG_DWORD);
+        SET_REG_PROP(REG_SZ);
+        SET_REG_PROP(REG_EXPAND_SZ);
+        SET_REG_PROP(REG_BINARY);
+
+        return JS_TRUE;
     }
 
     JSBool SJS_PluginUnInit(void)
