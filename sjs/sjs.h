@@ -65,7 +65,20 @@
 /* SpiderMonkey includes */
 #include <jsapi.h>
 #include <jsprf.h>
-#include <jsxdrapi.h>
+
+/* Endian stuff, note SWAB16 from jsxdrapi.h is broken */
+#if defined IS_LITTLE_ENDIAN
+#define SWAB32(x) x
+#define SWAB16(x) x
+#elif defined IS_BIG_ENDIAN
+#define SWAB32(x) (((uint32)(x) >> 24) | \
+                  (((uint32)(x) >> 8) & 0xff00) | \
+                  (((uint32)(x) << 8) & 0xff0000) | \
+                  ((uint32)(x) << 24))
+#define SWAB16(x) (((uint16)(x) >> 8) | (((uint16)(x) & 0xff) << 8))
+#else
+#error "unknown byte order"
+#endif
 
 #ifndef MAX_PATH
 #define MAX_PATH    1024

@@ -144,10 +144,7 @@ JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
         printf("Getting dword value of %s at 0x%08x\n", JS_GetStringBytes(filename), offset);
 
     if (GetDataAt(JS_GetStringBytes(filename), offset, &value, sizeof(value)))
-    {
-        *rval = INT_TO_JSVAL(JSXDR_SWAB16(value));
-        return JS_TRUE;
-    }
+        *rval = INT_TO_JSVAL(SWAB16(value));
     return JS_TRUE;
 }
 
@@ -173,7 +170,6 @@ JSBool GetDWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
         printf("Getting dword value of %s at 0x%08x\n", JS_GetStringBytes(filename), offset);
 
     if (GetDataAt(JS_GetStringBytes(filename), offset, &value, sizeof(value)))
-        *rval = INT_TO_JSVAL(JSXDR_SWAB32(value));
-
+        *rval = INT_TO_JSVAL(SWAB32(value));
     return JS_TRUE;
 }
