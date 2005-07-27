@@ -62,6 +62,16 @@ DWORD WINAPI RegOpenKeyExA(HKEY hkey, LPCSTR name, DWORD reserved, REGSAM access
     return 0;
 }
 
+DWORD WINAPI RegCreateKeyExA(HKEY hKey, LPCSTR lpSubKey, DWORD Reserved, LPCSTR lpClass, DWORD dwOptions,
+                             REGSAM samDesired,
+                             LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+                             PHKEY phkResult,
+                             LPDWORD lpdwDisposition)
+{
+    printf("RegCreateKeyExA() Stub\n");
+    return 0;
+}
+
 DWORD WINAPI RegEnumKeyExA(HKEY hkey, DWORD index, LPSTR name, LPDWORD name_len,
                            LPDWORD reserved, LPSTR nclass, LPDWORD class_len, FILETIME *ft)
 {
@@ -73,5 +83,12 @@ DWORD WINAPI RegQueryValueExA(HKEY hkey, LPCSTR name, LPDWORD reserved, LPDWORD 
                               LPBYTE data, LPDWORD count)
 {
     printf("RegQueryValueExA() Stub\n");
+    return 0;
+}
+
+DWORD WINAPI RegSetValueExA(HKEY hKey, LPCTSTR lpValueName, DWORD Reserved,
+                            DWORD dwType, const BYTE* lpData, DWORD cbData)
+{
+    printf("RegSetValueExA() Stub\n");
     return 0;
 }

@@ -35,7 +35,15 @@ static sjs_data *grtd;
 static JSObject *registry = NULL;
 
 #define GET_REG_OBJECT JSRegistry *p = (JSRegistry *) JS_GetPrivate(cx, obj)
-#define SET_REG_PROP(name) { val = INT_TO_JSVAL(name); JS_SetProperty(cx, registry, #name, &val); }
+
+#define JS_TO_HKEY(key) (HKEY)(0x80000000 + key)
+
+#define SET_REG_PROP2(name, value) \
+    { \
+        val = INT_TO_JSVAL(value); \
+        JS_SetProperty(cx, JS_GetGlobalObject(cx), name, &val); \
+    }
+#define SET_REG_PROP(name) SET_REG_PROP2(#name, name)
 
 class Registry
 {
@@ -47,37 +55,23 @@ public:
     JSBool IsValid(void) { return (hKey != NULL); }
     JSBool IsReadOnly(void) { return this->readonly; }
 
-    JSBool OpenKey(JSContext *cx, const char *rootkey, const char *subkey);
-    JSBool Registry::CreateKey(JSContext *cx, const char *rootkey, const char *subkey);
+    JSBool OpenKey(JSContext *cx, HKEY rootkey, const char *subkey);
+    JSBool CreateKey(JSContext *cx, HKEY rootkey, const char *subkey);
     DWORD  QueryValue(JSContext *cx, const char *keyname, unsigned char **value);
     JSBool EnumKey(JSContext *cx, char *subkey);
-    JSBool Registry::SetValue(JSContext *cx, char *subkey, LPBYTE data, DWORD size, DWORD type);
+    JSBool SetValue(JSContext *cx, char *subkey, LPBYTE data, DWORD size, DWORD type);
 
 private:
     HKEY hKey;
-    HKEY GetRootKey(const char *rootkey);
     JSBool readonly;
     uint32 Index;
 };
 
-HKEY Registry::GetRootKey(const char *rootkey)
+JSBool Registry::OpenKey(JSContext *cx, HKEY rootkey, const char *subkey)
 {
-    if (!strcasecmp(rootkey, "HKCR")) return HKEY_CLASSES_ROOT;
-    if (!strcasecmp(rootkey, "HKCC")) return HKEY_CURRENT_CONFIG;
-    if (!strcasecmp(rootkey, "HKCU")) return HKEY_CURRENT_USER;
-    if (!strcasecmp(rootkey, "HKLM")) return HKEY_LOCAL_MACHINE;
-    if (!strcasecmp(rootkey, "HKU")) return HKEY_USERS;
-    return NULL;
-}
-
-JSBool Registry::OpenKey(JSContext *cx, const char *rootkey, const char *subkey)
-{
-    HKEY root = GetRootKey(rootkey);
-    if (!root) return JS_FALSE; /* FIXME set js Error */
-
     CloseKey(); /* Close previously opened key */
 
-    if (RegOpenKeyExA(root, subkey, 0, KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE | KEY_READ, &this->hKey) != ERROR_SUCCESS)
+    if (RegOpenKeyExA(rootkey, subkey, 0, KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE | KEY_READ, &this->hKey) != ERROR_SUCCESS)
     {
         JS_PrintLastError(cx, "Registry::RegOpenKey failed");
         return JS_FALSE;
@@ -86,15 +80,13 @@ JSBool Registry::OpenKey(JSContext *cx, const char *rootkey, const char *subkey)
     return JS_TRUE;
 }
 
-JSBool Registry::CreateKey(JSContext *cx, const char *rootkey, const char *subkey)
+JSBool Registry::CreateKey(JSContext *cx, HKEY rootkey, const char *subkey)
 {
-    HKEY root = GetRootKey(rootkey);
     DWORD dwDisposition = 0;
-    if (!root) return JS_FALSE; /* FIXME set js Error */
 
     CloseKey(); /* Close previously opened key */
 
-    if (RegCreateKeyExA(root, subkey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &this->hKey, &dwDisposition) != ERROR_SUCCESS)
+    if (RegCreateKeyExA(rootkey, subkey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &this->hKey, &dwDisposition) != ERROR_SUCCESS)
     {
         JS_PrintLastError(cx, "Registry::RegCreateKey failed");
         return JS_FALSE;
@@ -220,13 +212,14 @@ void JSRegistry::JSDestructor(JSContext *cx, JSObject *obj)
  */
 JSBool JSRegistry::JSOpenKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-    JSString *rootkey, *subkey;
+    uint32 rootkey = 0;
+    JSString *subkey;
     if (argc != 2) R_FALSE;
 
-    rootkey = JS_ValueToString(cx, argv[0]);
+    if (!JS_ValueToECMAUint32(cx, argv[0], &rootkey)) R_FALSE;
     subkey = JS_ValueToString(cx, argv[1]);
     GET_REG_OBJECT;
-    R_FUNC(p->getRegistry()->OpenKey(cx, JS_GetStringBytes(rootkey), JS_GetStringBytes(subkey)));
+    R_FUNC(p->getRegistry()->OpenKey(cx, JS_TO_HKEY(rootkey), JS_GetStringBytes(subkey)));
 }
 
 /**
@@ -239,13 +232,14 @@ JSBool JSRegistry::JSOpenKey(JSContext *cx, JSObject *obj, uintN argc, jsval *ar
  */
 JSBool JSRegistry::JSCreateKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-    JSString *rootkey, *subkey;
+    uint32 rootkey = 0;
+    JSString *subkey;
     if (argc != 2) R_FALSE;
 
-    rootkey = JS_ValueToString(cx, argv[0]);
+    if (!JS_ValueToECMAUint32(cx, argv[0], &rootkey)) R_FALSE;
     subkey = JS_ValueToString(cx, argv[1]);
     GET_REG_OBJECT;
-    R_FUNC(p->getRegistry()->CreateKey(cx, JS_GetStringBytes(rootkey), JS_GetStringBytes(subkey)));
+    R_FUNC(p->getRegistry()->CreateKey(cx, JS_TO_HKEY(rootkey), JS_GetStringBytes(subkey)));
 }
 
 /**
@@ -442,10 +436,29 @@ extern "C"
 
         /* Registry Types */
         SET_REG_PROP(REG_NONE);
-        SET_REG_PROP(REG_DWORD);
         SET_REG_PROP(REG_SZ);
         SET_REG_PROP(REG_EXPAND_SZ);
         SET_REG_PROP(REG_BINARY);
+
+        SET_REG_PROP(REG_DWORD);
+        SET_REG_PROP(REG_DWORD_LITTLE_ENDIAN);
+        SET_REG_PROP(REG_DWORD_BIG_ENDIAN);
+        SET_REG_PROP(REG_LINK);
+        SET_REG_PROP(REG_MULTI_SZ);
+        SET_REG_PROP(REG_RESOURCE_LIST);
+        SET_REG_PROP(REG_FULL_RESOURCE_DESCRIPTOR);
+        SET_REG_PROP(REG_RESOURCE_REQUIREMENTS_LIST);
+	SET_REG_PROP(REG_QWORD);
+        SET_REG_PROP(REG_QWORD_LITTLE_ENDIAN);
+
+        /* jsval loses 0x80000000, so I should add it later */
+        SET_REG_PROP2("HKCR", HKEY_CLASSES_ROOT);
+        SET_REG_PROP2("HKCU", HKEY_CURRENT_USER);
+        SET_REG_PROP2("HKLM", HKEY_LOCAL_MACHINE);
+        SET_REG_PROP2("HKU",  HKEY_USERS);
+        SET_REG_PROP2("HKPD", HKEY_PERFORMANCE_DATA);
+        SET_REG_PROP2("HKCC", HKEY_CURRENT_CONFIG);
+        SET_REG_PROP2("HKDD", HKEY_DYN_DATA);
 
         return JS_TRUE;
     }
