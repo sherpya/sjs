@@ -35,8 +35,7 @@ static sjs_data *grtd;
 static JSObject *registry = NULL;
 
 #define GET_REG_OBJECT JSRegistry *p = (JSRegistry *) JS_GetPrivate(cx, obj)
-
-#define JS_TO_HKEY(key) (HKEY)(0x80000000 + key)
+#define JS_TO_HKEY(key) (HKEY)(0x80000000LL | key)
 
 #define SET_REG_PROP2(name, value) \
     { \
@@ -434,7 +433,7 @@ extern "C"
         registry = JSRegistry::JSInit(cx, JS_GetGlobalObject(cx), NULL);
         if (!registry) return JS_FALSE;
 
-        /* Registry Types */
+        /* Registry Types */ /* FIXME: Add to documentation */
         SET_REG_PROP(REG_NONE);
         SET_REG_PROP(REG_SZ);
         SET_REG_PROP(REG_EXPAND_SZ);
@@ -448,7 +447,7 @@ extern "C"
         SET_REG_PROP(REG_RESOURCE_LIST);
         SET_REG_PROP(REG_FULL_RESOURCE_DESCRIPTOR);
         SET_REG_PROP(REG_RESOURCE_REQUIREMENTS_LIST);
-	SET_REG_PROP(REG_QWORD);
+        SET_REG_PROP(REG_QWORD);
         SET_REG_PROP(REG_QWORD_LITTLE_ENDIAN);
 
         /* jsval loses 0x80000000, so I should add it later */
