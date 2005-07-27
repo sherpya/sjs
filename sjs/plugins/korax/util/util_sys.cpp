@@ -142,7 +142,7 @@ uint64 CSys::getCycles ()
 
 	uint64 cycles;
 
-#if defined __unix__ || ( defined _WIN32 && defined __GNUG__ )
+#if ( defined __i386 && defined __unix__ ) || ( defined _WIN32 && defined __GNUG__ )
 	__asm__ __volatile__ (
 		"rdtsc\n\t"
 	: "=A" (cycles)
@@ -177,7 +177,7 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 
 	uint64 frequency = 0;
 
-#ifdef __unix__ // UNIX
+#if defined __i386 && defined __unix__ // UNIX
 	// see if we have cpuid instruction
 	int isCpuidPresent;
 	__asm__ __volatile__ (
