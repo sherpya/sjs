@@ -8,7 +8,7 @@
  *  <pre>Usage: sjs [-w] filename.js [scriptargs]
  * &nbsp;
  * -w        : waits for enter key at the end of execution
- * scriptargs: are passed to the script and can be accessed by @ref basepath</pre>
+ * scriptargs: are passed to the script and can be accessed by @ref scriptargs function</pre>
  * <br>
  *
  * @section Reference JavaScript Reference
