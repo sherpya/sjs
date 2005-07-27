@@ -21,6 +21,7 @@
 /**
  * @page registry
  * @since version 1.0
+ * @todo add properties documentation
  */
 
 #include <sjs.h>

@@ -114,10 +114,12 @@
  *  <li>Registry Class @ref registry</li>
  *   <ul>
  *    <li>@ref openkey</li>
+ *    <li>@ref createkey</li>
  *    <li>@ref closekey</li>
  *    <li>@ref firstkey</li>
  *    <li>@ref enumkey</li>
  *    <li>@ref queryvalue</li>
+ *    <li>@ref setvalue</li>
  *    <li>@ref isvalid</li>
  *   </ul>
  * </ul>
