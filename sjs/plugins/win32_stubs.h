@@ -18,6 +18,8 @@
  * Boston, MA 02111-1307, USA.
  */
 
+/* Win32 Api Defines, most from wine, most simplified */
+
 #ifndef _WIN32_STUBS_H_
 #define _WIN32_STUBS_H_
 
@@ -68,11 +70,10 @@ typedef struct _SECURITY_ATTRIBUTES
 } SECURITY_ATTRIBUTES, *PSECURITY_ATTRIBUTES, *LPSECURITY_ATTRIBUTES;
 
 
-#define MAKELANGID(p, s)        ((((WORD)(s))<<10) | (WORD)(p))
+#define MAKELANGID(p, s)    ((((WORD)(s))<<10) | (WORD)(p))
 #define LANG_NEUTRAL        0x00
-#define SUBLANG_DEFAULT                  0x01
-
-#define ERROR_SUCCESS 0
+#define SUBLANG_DEFAULT     0x01
+#define ERROR_SUCCESS       0
 
 /* flags to FormatMessage */
 #define FORMAT_MESSAGE_ALLOCATE_BUFFER  0x00000100
@@ -116,11 +117,10 @@ typedef struct _SECURITY_ATTRIBUTES
 #define KEY_NOTIFY              0x00000010
 #define KEY_CREATE_LINK         0x00000020
 
-#define KEY_READ 0 /* Yes not zero, but too long to report ;) */
-#define KEY_ALL_ACCESS 1 /* Yes not 1, but too long to report ;) */
+#define KEY_READ        0 /* Yes not zero, but too long to report ;) */
+#define KEY_ALL_ACCESS  1 /* Yes not 1, but too long to report ;) */
 
-#define ERROR_NO_MORE_ITEMS                                259
-
+#define ERROR_NO_MORE_ITEMS 259
 
 /* kernel32 */
 DWORD WINAPI FormatMessageA(DWORD dwFlags,
