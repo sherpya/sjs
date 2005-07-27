@@ -201,6 +201,7 @@ static JSFunctionSpec parser_methods[] =
  *  int getcpufrequency()
  *
  * Returns CPU frequency in Mhz
+ * Only supported on x86
  */
 static JSBool GetCpuFrequency(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {

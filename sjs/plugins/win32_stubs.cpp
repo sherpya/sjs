@@ -21,7 +21,7 @@
 /* Win32 stubs */
 
 #include <sjs.h>
-#include <windows.h>
+#include <win32_stubs.h>
 
 /* kernel32 */
 DWORD WINAPI FormatMessageA(DWORD dwFlags,

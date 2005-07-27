@@ -25,8 +25,8 @@
 
 #include <sjs.h>
 #ifndef _WIN32
-/* Wine includes */
-#include <windows.h>
+/* Win32 Stubs defines */
+#include <win32_stubs.h>
 #endif
 
 #define REGISTRY_BUILD 100

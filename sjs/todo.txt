@@ -1,6 +1,5 @@
 - implement getlasterror feature (?)
 - add other stuff from korax
-- endian/offset64 for functions of file.cpp
 - random from korax need a first value rollup :)
   fix unsigned/signed - add float - call with no params
   js has Math.random() :P
@@ -8,8 +7,6 @@
 - add file globbing and listdir
 - grab error from JS_CallFunction - how?
 - check all JS_FALSE -> rval undef
-
-- look for plugins in /usr/lib/sjs on linux and from registry in windows
 
 - implement chown/attrib
 - implement exec/system
