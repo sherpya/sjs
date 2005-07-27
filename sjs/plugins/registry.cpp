@@ -141,8 +141,8 @@ JSBool Registry::SetValue(JSContext *cx, char *subkey, LPBYTE data, DWORD size, 
 /**
  * @page registry
  * @section registry registryClass
- * @todo add properties documentation
  *  Class registry()
+ * @todo add properties documentation
  *
  * Registry class to handle registry keys on win32
  */
