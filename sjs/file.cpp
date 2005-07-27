@@ -95,7 +95,6 @@ JSBool Unlink(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
     R_TRUE;
 }
 
-/* FIXME: Endian/offset64 */
 static JSBool GetDataAt(const char *filename, off_t offset, void *dest, int len)
 {
     FILE *fd = NULL;
@@ -130,7 +129,6 @@ end_fun:
  *  int getword(filename, offset)
  *
  * Gets a word from file at given offset
- * @todo fix endian/offset64
  */
 JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
@@ -147,7 +145,7 @@ JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
 
     if (GetDataAt(JS_GetStringBytes(filename), offset, &value, sizeof(value)))
     {
-        *rval = INT_TO_JSVAL(value);
+        *rval = INT_TO_JSVAL(JSXDR_SWAB16(value));
         return JS_TRUE;
     }
     return JS_TRUE;
@@ -159,7 +157,6 @@ JSBool GetWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
  *  int getdword(filename, offset)
  *
  * Gets a dword from file at given offset
- * @todo fix endian/offset64
  */
 JSBool GetDWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
@@ -176,7 +173,7 @@ JSBool GetDWord(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
         printf("Getting dword value of %s at 0x%08x\n", JS_GetStringBytes(filename), offset);
 
     if (GetDataAt(JS_GetStringBytes(filename), offset, &value, sizeof(value)))
-        *rval = INT_TO_JSVAL(value);
+        *rval = INT_TO_JSVAL(JSXDR_SWAB32(value));
 
     return JS_TRUE;
 }

@@ -65,6 +65,7 @@
 /* SpiderMonkey includes */
 #include <jsapi.h>
 #include <jsprf.h>
+#include <jsxdrapi.h>
 
 #ifndef MAX_PATH
 #define MAX_PATH    1024
