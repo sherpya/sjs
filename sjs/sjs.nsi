@@ -201,7 +201,7 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${Scripts} "Sample Scripts"
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
-;Uninstall section
+; Uninstall section
 Section Uninstall
     ; Restore Default Icon
     ReadRegStr $0 HKCR "JSFile\DefaultIcon.sjs" ""
