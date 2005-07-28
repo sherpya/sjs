@@ -111,7 +111,7 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 
     if (argc != 1) R_FALSE;
     filename = JS_ValueToString(cx, argv[0]);
-    JS_snprintf(include_file, MAX_PATH, "%s"SEP"scripts"SEP"%s", rtd.searchpath, JS_GetStringBytes(filename));
+    JS_snprintf(include_file, MAX_PATH, "%s" SEP "scripts" SEP "%s", rtd.searchpath, JS_GetStringBytes(filename));
 
     /* Execution */
     script = JS_CompileFile(cx, obj, include_file);

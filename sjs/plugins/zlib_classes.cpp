@@ -99,7 +99,7 @@ JSBool Zip::Unzip(JSContext *cx, char *directory)
 
     if (!GetCurrentFileInfo(&zinfo, filename, MAX_PATH)) return JS_FALSE;
 
-    JS_snprintf(dest, MAX_PATH, "%s"SEP"%s", directory, filename);
+    JS_snprintf(dest, MAX_PATH, "%s" SEP "%s", directory, filename);
 
     CreateDirPath(dest);
 
