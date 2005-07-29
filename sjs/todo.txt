@@ -21,3 +21,5 @@
 - http://wxjs.sourceforge.net/ is a similar project
 
 - abort script on failed include?
+- amd64 needs fPIC on all korax stuff, asm code on x8
+  doesn't compile with fPIC :(
