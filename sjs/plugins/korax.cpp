@@ -206,7 +206,10 @@ static JSFunctionSpec parser_methods[] =
 static JSBool GetCpuFrequency(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     uint32 freq = (uint32) (util::sys.getCpuFrequency() / 1000000); /* Convert in Mhz to fit in 32bits */
-    *rval = INT_TO_JSVAL(freq);
+    if (freq)
+       *rval = INT_TO_JSVAL(freq);
+    else
+       JS_ReportError(cx, "getcpufrequency() Not supported on this os/architecture");
     return JS_TRUE;
 }
 
