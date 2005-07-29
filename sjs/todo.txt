@@ -1,25 +1,24 @@
-- implement getlasterror feature (?)
-- add other stuff from korax
-- random from korax need a first value rollup :)
-  fix unsigned/signed - add float - call with no params
-  js has Math.random() :P
-- implement recurse for rmdir
-- add file globbing and listdir
-- grab error from JS_CallFunction - how?
-- check all JS_FALSE -> rval undef
-
-- implement chown/attrib
-- implement exec/system
-
-- js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
-
-- Find a way to document js properties (zipinfo class)
-- make an sdk for building plugins
-- make zip class also able to zip
-- add a plugin for md5
-
-- http://wxjs.sourceforge.net/ is a similar project
-
-- abort script on failed include?
-- amd64 needs fPIC on all korax stuff, asm code on x8
-  doesn't compile with fPIC :(
+/**
+ * @page todo
+ *
+ * - implement getlasterror feature (?)
+ * - add other stuff from korax
+ * - random from korax need a first value rollup :)
+ *   fix unsigned/signed - add float - call with no params
+ *   js has Math.random() :P
+ * - implement recurse for rmdir
+ * - add file globbing and listdir
+ * - grab error from JS_CallFunction - how?
+ * - check all JS_FALSE -> rval undef
+ * - implement chown/attrib
+ * - implement exec/system
+ * - js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
+ * - Find a way to document js properties (zipinfo class)
+ * - make an sdk for building plugins
+ * - make zip class also able to zip
+ * - add a plugin for md5
+ * - http://wxjs.sourceforge.net/ is a similar project
+ * - abort script on failed include?
+ * - amd64 needs fPIC on all korax stuff, asm code on x8
+ *   doesn't compile with fPIC :(
+ */
