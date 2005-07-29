@@ -31,6 +31,7 @@
  *   <li>@ref getenv</li>
  *   <li>@ref basepath</li>
  *   <li>@ref scriptargs</li>
+ *   <li>@ref system</li>
  *   <li>@ref exit</li>
  *   <li>@ref print</li>
  *   <li>@ref prompt</li>
