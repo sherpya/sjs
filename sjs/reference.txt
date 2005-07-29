@@ -1,7 +1,7 @@
 /**
  * @mainpage
  * @section Introduction
- * FILL ME
+ * Sherpya JavaScript Shell
  * 
  * <br>
  * @section Usage Command Line Usage
