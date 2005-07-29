@@ -43,7 +43,7 @@ static inline void usage(char *program)
 /**
  * @page builtins
  * @section loadplugin
- *  loadplugin(name)
+ *  boolean loadplugin(name)
  *
  * Loads a plugin into the shell namespace
  */
@@ -98,7 +98,7 @@ static JSBool Require(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 /**
  * @page builtins
  * @section include
- *  include(filename)
+ *  boolean include(filename)
  *
  * Load and execute another script, the script should be placed in scripts directory
  */
@@ -127,7 +127,7 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 /**
  * @page builtins
  * @section getenv
- *  getenv(env_variable)
+ *  string getenv(env_variable)
  *
  * Returns an environment variable
  */
@@ -150,7 +150,7 @@ static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
 /**
  * @page builtins
  * @section basepath
- *  basepath()
+ *  string basepath()
  *
  * Returns the path from where the script is executed
  */
@@ -165,7 +165,7 @@ static JSBool BasePath(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
 /**
  * @page builtins
  * @section scriptargs
- *  scriptargs()
+ *  array scriptargs()
  *
  * Returns an array with arguments passed to the script
  * @include scriptinfo.js
@@ -173,6 +173,25 @@ static JSBool BasePath(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
 static JSBool ScriptArgs(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     *rval = OBJECT_TO_JSVAL(scriptArgs);
+    return JS_TRUE;
+}
+
+/**
+ * @page builtins
+ * @section system
+ *  int system(command)
+ *
+ * Launch a process and waits the exit code
+ */
+
+static JSBool System(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    JSString *cmd = NULL;
+    int32 result = 0;
+    if (argc != 1) return JS_TRUE;
+    cmd = JS_ValueToString(cx, argv[0]);
+    result = system(JS_GetStringBytes(cmd));
+    *rval = INT_TO_JSVAL(result);
     return JS_TRUE;
 }
 
@@ -217,7 +236,7 @@ static JSBool Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
 /**
  * @page builtins
  * @section prompt
- *  prompt(message)
+ *  string prompt(message)
  *
  * Returns a string with the user input, message is showed when prompting
  */
@@ -378,6 +397,7 @@ int main(int argc, char *argv[])
         { "prompt",     Prompt,     1, 0, 0 },
         { "pause",      Pause,      0, 0, 0 },
         { "verbose",    Verbose,    1, 0, 0 },
+        { "system",     System,     1, 0, 0 },
         { "exit",       Exit,       1, 0, 0 },
 
         /* file.cpp */
