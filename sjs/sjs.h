@@ -21,6 +21,10 @@
 #ifndef _SJS_H_
 #define _SJS_H_
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #ifdef _MSC_VER
 #pragma warning(disable:4996) // Deprecated stuff
 #pragma warning(disable:4311) // pointer truncation from 'JSString *' to 'jsval'

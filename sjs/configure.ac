@@ -10,6 +10,8 @@ AM_INIT_AUTOMAKE
 
 AC_PREFIX_DEFAULT([/usr])
 
+AC_DISABLE_STATIC
+AC_PROG_LIBTOOL
 
 # Checks for programs.
 AC_PROG_CXX
@@ -17,13 +19,16 @@ AC_PROG_CC
 AC_PROG_MAKE_SET
 
 # Checks for libraries.
-AC_CHECK_LIB([curl], [curl_easy_init])
+AC_CHECK_LIB([curl], [curl_easy_init], [CURL="-lcurl"])
+AC_CHECK_LIB([z], [zlibVersion], [ZLIB="-lz"])
+
+AC_SUBST(CURL)
+AC_SUBST(ZLIB)
+
 AC_CHECK_LIB([dl], [dlopen])
-AC_CHECK_LIB([m], [sin])
 AC_CHECK_LIB([pthread], [pthread_join])
 ### TODO params on sm js lib
 AC_CHECK_LIB([smjs], [JS_ShutDown])
-AC_CHECK_LIB([z], [zlibVersion])
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -35,13 +40,19 @@ AC_ARG_WITH(smincludes,
                if test [ x$withval != x ] -a [ -d $withval ]; then
                   smincludes=$withval
                fi ,
-               smincdir=$ac_default_prefix/include/smjs)
+               smincdir=/usr/include/smjs)
 
 AC_CHECK_HEADER($smincdir/jsautocfg.h, , 
                 echo "SpiderMonkey include directory does not contain jsautocfg.h!";
                 echo "Please specify a suitable SpiderMonkey include directory" ; exit 1)
 
 AC_SUBST(smincdir)
+
+PLUGIN_LDFLAGS='-module -avoid-version -shared'
+AC_SUBST(PLUGIN_LDFLAGS)
+
+sjs_libexec=$libdir/sjs
+AC_SUBST(sjs_libexec)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
@@ -59,6 +70,5 @@ AC_FUNC_STAT
 AC_FUNC_UTIME_NULL
 AC_CHECK_FUNCS([getcwd memset mkdir pow rmdir sqrt strcasecmp uname utime])
 
-#AC_CONFIG_FILES([Makefile plugins/Makefile])
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile plugins/Makefile])
 AC_OUTPUT

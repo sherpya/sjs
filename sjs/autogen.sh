@@ -32,12 +32,12 @@ else
     exit 1
 fi
 
-#libtoolize --force
+libtoolize --force
 aclocal 2>/dev/null
 autoheader
 automake -ac
 autoconf
 
-rm -fr autom4te.cache *~ stamp* src/include/config.h.in~
+rm -fr autom4te.cache *~ stamp* config.h.in~
 
 ./configure $*

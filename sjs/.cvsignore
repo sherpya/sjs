@@ -6,9 +6,14 @@
 *.log
 *.suo
 *.o
+*.lo
+*.so
+*.exe
+*.dll
 *.vcproj.*.user
 *.js
 *.in
+*.zip
 sjs
 docs
 Debug
@@ -17,6 +22,7 @@ test
 Makefile
 config.status
 configure
+libtool
 depcomp
 missing
 install-sh
@@ -24,4 +30,5 @@ config.h
 aclocal.m4
 autom4te.cache
 stamp-h1
+.libs
 .deps
