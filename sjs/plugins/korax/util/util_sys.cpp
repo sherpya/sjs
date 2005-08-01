@@ -177,10 +177,13 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 
 	uint64 frequency = 0;
 
-#if defined __i386 && defined __unix__ && !defined PIC // UNIX
+#if defined __i386 && defined __unix__ // UNIX
 	// see if we have cpuid instruction
 	int isCpuidPresent;
 	__asm__ __volatile__ (
+#if defined PIC			
+		"push %%ebx\n\t"
+#endif
 		"pushfl\n\t"
 		"pushfl\n\t"
 		"popl %%eax\n\t"
@@ -198,13 +201,21 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 		"movl $0,%0 \n\t"
 		"DONE_CPUID%=:"
 		"popfl\n\t"
+#if defined PIC
+		"pop %%ebx"
+		: "=g" (isCpuidPresent): : "%eax");
+#else
 		: "=g" (isCpuidPresent): : "%eax", "%ebx");
+#endif
 	if (isCpuidPresent == 0)
 		return 0;
 
 	// see if we have rdtsc instruction
 	int isRdtscPresent;
 	__asm__ __volatile__ (
+#if defined PIC
+		"push %%ebx\n\t"
+#endif
 		"movl $1,%%eax\n\t"
 		"cpuid\n\t"
 		"testl $0x10,%%edx\n\t"
@@ -214,7 +225,12 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 		"NO_RDTSC%=:\n\t"
 		"movl $0,%0\n\t"
 		"DONE_RDTSC%=:\n\t"
+#if defined PIC
+		"pop %%ebx"
+		: "=g" (isRdtscPresent): : "%eax", "%ecx", "%edx");
+#else
 		: "=g" (isRdtscPresent): : "%eax", "%ebx", "%ecx", "%edx");
+#endif
 	if (isRdtscPresent == 0)
 		return 0;
 
@@ -232,6 +248,9 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 	for (int i = 0; i < 2; ++i) {
 		// warming up and overhead
 		__asm__ __volatile__ (
+#if defined PIC
+			"push %%ebx\n\t"
+#endif
 			"xor %%eax,%%eax\n\t"
 			"cpuid\n\t"
 			"rdtsc\n\t"
@@ -241,18 +260,27 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 			"xor %%eax,%%eax\n\t"
 			"cpuid\n\t"
 			"rdtsc\n\t"
-		: "=A" (overhead)
-		:
-		: "%ebx", "%ecx");
+#if defined PIC
+			"pop %%ebx"
+		: "=A" (overhead) : : "%ecx");
+#else
+		: "=A" (overhead) : : "%ebx", "%ecx");
+#endif
 
 		// starting
 		__asm__ __volatile__ (
+#if defined PIC
+			"push %%ebx\n\t"
+#endif
 			"xor %%eax,%%eax\n\t"
 			"cpuid\n\t"
 			"rdtsc\n\t"
-		: "=A" (beginCycles)
-		:
-		: "%ebx", "%ecx");
+#if defined PIC
+			"pop %%ebx"
+		: "=A" (beginCycles) : : "%ecx");
+#else
+		: "=A" (beginCycles) : : "%ebx", "%ecx");
+#endif
 
 		// wait loop
 		result = nanosleep (&waitTime, 0);
@@ -261,12 +289,18 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 
 		// end
 		__asm__ __volatile__ (
+#if defined PIC
+			"push %%ebx\n\t"
+#endif
 			"xor %%eax,%%eax\n\t"
 			"cpuid\n\t"
 			"rdtsc\n\t"
-		: "=A" (endCycles)
-		:
-		: "%ebx", "%ecx");
+#if defined PIC
+			"pop %%ebx"
+		: "=A" (endCycles) : : "%ecx");
+#else
+		: "=A" (endCycles) : : "%ebx", "%ecx");
+#endif
 
 		if (result != 0) {
 		::std::perror ("CSys::DetectCpuSpeed() - Timer");
