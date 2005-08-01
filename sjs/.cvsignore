@@ -8,6 +8,7 @@
 *.vcproj.*.user
 *.js
 sjs
+docs
 Debug
 Release
 test
