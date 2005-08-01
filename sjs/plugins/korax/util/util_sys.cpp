@@ -177,7 +177,7 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 
 	uint64 frequency = 0;
 
-#if defined __i386 && defined __unix__ // UNIX
+#if defined __i386 && defined __unix__ && !defined PIC // UNIX
 	// see if we have cpuid instruction
 	int isCpuidPresent;
 	__asm__ __volatile__ (
