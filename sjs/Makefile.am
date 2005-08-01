@@ -1,5 +1,5 @@
 MAINTAINERCLEANFILES = Makefile.in
-SUBDIRS=plugins
+SUBDIRS = plugins scripts
 
 INCLUDES = -I@top_srcdir@ -I@smincdir@ -DSJS_LIBEXEC=\"$(sjs_libexec)\"
 

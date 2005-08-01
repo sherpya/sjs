@@ -70,5 +70,5 @@ AC_FUNC_STAT
 AC_FUNC_UTIME_NULL
 AC_CHECK_FUNCS([getcwd memset mkdir pow rmdir sqrt strcasecmp uname utime])
 
-AC_CONFIG_FILES([Makefile plugins/Makefile])
+AC_CONFIG_FILES([Makefile plugins/Makefile scripts/Makefile])
 AC_OUTPUT

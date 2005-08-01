@@ -8,7 +8,7 @@ INCLUDES += -I@top_srcdir@/plugins/korax/util
 lib_LTLIBRARIES = libcurl.la libzlib.la libkorax.la libregistry.la
 
 plugindir = $(sjs_libexec)/plugins
-plugin_DATA = curl.so zlib.so korax.so
+plugin_DATA = curl.so zlib.so korax.so registry.so
 
 libcurl_la_SOURCES = curl.cpp
 libcurl_la_LDFLAGS = @PLUGIN_LDFLAGS@ -o curl.so

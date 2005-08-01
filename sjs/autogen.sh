@@ -32,7 +32,7 @@ else
     exit 1
 fi
 
-libtoolize --force
+libtoolize -c --force
 aclocal 2>/dev/null
 autoheader
 automake -ac
