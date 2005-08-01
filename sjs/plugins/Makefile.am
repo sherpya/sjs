@@ -1,4 +1,5 @@
 MAINTAINERCLEANFILES = Makefile.in
+CLEANFILES = *.so
 
 INCLUDES = -I@top_srcdir@ -I@smincdir@
 INCLUDES += -I@top_srcdir@/plugins/minizip
