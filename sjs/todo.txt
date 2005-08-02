@@ -11,7 +11,6 @@
  * - grab error from JS_CallFunction - how?
  * - check all JS_FALSE -> rval undef
  * - implement chown/attrib
- * - implement exec/system
  * - js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
  * - Find a way to document js properties (zipinfo class)
  * - make an sdk for building plugins
