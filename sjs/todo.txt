@@ -20,4 +20,5 @@
  * - http://wxjs.sourceforge.net/ is a similar project
  * - abort script on failed include?
  * - Automake/Autoconf stuff keep rebuilding .so (they are not native)
+ * - SM includes check doesn't work
  */

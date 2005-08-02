@@ -18,6 +18,11 @@ AC_PROG_CXX
 AC_PROG_CC
 AC_PROG_MAKE_SET
 
+# Compiler options (warnings/opt)
+OPT="-O2"
+CFLAGS="-Wall -Wno-comment $OPT"
+CXXFLAGS="$CFLAGS -Wno-reorder"
+
 # Checks for libraries.
 AC_CHECK_LIB([curl], [curl_easy_init], [CURL="-lcurl"])
 AC_CHECK_LIB([z], [zlibVersion], [ZLIB="-lz"])
