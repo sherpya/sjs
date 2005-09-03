@@ -20,7 +20,6 @@
 
 /* Win32 stubs */
 
-#include <sjs.h>
 #include <win32_stubs.h>
 
 /* kernel32 */

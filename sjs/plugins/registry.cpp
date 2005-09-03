@@ -23,7 +23,7 @@
  * @since version 1.0
  */
 
-#include <sjs.h>
+#include <sjs-plugin.h>
 #ifndef _WIN32
 /* Win32 Stubs defines */
 #include <win32_stubs.h>

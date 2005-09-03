@@ -23,10 +23,17 @@
  * @since version 1.0
  */
 
-#include <sjs.h>
+#include <sjs-plugin.h>
 #include <curl/curl.h>
 
 #define CURL_BUILD 100
+#define BUFFERSIZE 8192
+
+typedef struct _File
+{
+    char *filename;
+    FILE *stream;
+} File;
 
 static CURL *curl = NULL;
 static JSFunction *progress_fun = NULL;

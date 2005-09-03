@@ -23,8 +23,6 @@
  * @since version 1.0
  */
 
-#include <sjs.h>
-#include <unzip.h>
 #include <zlib_classes.h>
 
 /* JSZipInfo Class */

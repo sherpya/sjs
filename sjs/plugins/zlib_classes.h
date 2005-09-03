@@ -21,10 +21,19 @@
 #ifndef _ZLIB_CLASSES_H_
 #define _ZLIB_CLASSES_H_
 
+#include <unzip.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <sjs-plugin.h>
+
 #define ZLIB_BUILD 100
+#define BUFFERSIZE 8192
 
 extern sjs_data *grtd;
-
+#
 #ifndef FILE_ATTRIBUTE_DIRECTORY
 #define FILE_ATTRIBUTE_DIRECTORY    0x00000010
 #endif

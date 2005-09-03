@@ -18,8 +18,6 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include <sjs.h>
-#include <unzip.h>
 #include <zlib_classes.h>
 
 sjs_data *grtd;

@@ -26,7 +26,7 @@
  * @since version 1.0
  */
 
-#include <sjs.h>
+#include <sjs-plugin.h>
 #include <util.h>
 
 #define KORAX_BUILD 100

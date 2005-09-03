@@ -25,50 +25,10 @@
 #include <config.h>
 #endif
 
-#ifdef _MSC_VER
-#pragma warning(disable:4996) // Deprecated stuff
-#pragma warning(disable:4311) // pointer truncation from 'JSString *' to 'jsval'
-#endif
+#include <sjs-plugin.h>
 
-#define WINSEP          "\\"
-#define UNIXSEP         "/"
-
-#define PATH_IS_SEP(x)  ((x == '/') || (x == '\\'))
-#define Q(string)       # string
-
-#ifdef _WIN32
-#define XP_WIN
-#include <windows.h>
-#include <direct.h>
-#define mkdir(a,b)  mkdir(a)
-#define strcasecmp  stricmp
-#define strncasecmp strnicmp
-#define SEP         WINSEP
-#define PLUGIN_EXT  ".dll"
-#else
-#define XP_UNIX
-#include <unistd.h>
-#include <sys/utsname.h>
-#define SEP         UNIXSEP
-#define PLUGIN_EXT  ".so"
-#endif
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <string.h>
 #include <vector>
-
-#define SJS_VERSION "Sherpya JavaScript Shell version 1.0"
-#define SJS_REG_KEY "Software\\Netfarm\\Sherpya JavaScript Shell"
-#define PLUGIN_API  100
-#define SJS_BUILD   100
-
-/* SpiderMonkey includes */
-#include <jsapi.h>
-#include <jsprf.h>
 
 /* Endian stuff, note SWAB16 from jsxdrapi.h is broken */
 #if defined IS_LITTLE_ENDIAN
@@ -84,58 +44,9 @@
 #error "unknown byte order"
 #endif
 
-#ifndef MAX_PATH
-#define MAX_PATH    1024
-#endif
-
-#define BUFFERSIZE  8192
-
-#define R_TRUE      { *rval = BOOLEAN_TO_JSVAL(JS_TRUE); return JS_TRUE; }
-#define R_FALSE     { *rval = BOOLEAN_TO_JSVAL(JS_FALSE); return JS_TRUE; }
-#define R_FUNC(x)   { *rval = BOOLEAN_TO_JSVAL(x); return JS_TRUE; }
-
-#define PROP_FLAGS  (JSPROP_ENUMERATE | JSPROP_READONLY)
-
-#define PLUGIN_API_CHECK \
-    if (rtd->pluginapi != PLUGIN_API) \
-    { \
-        printf("Plugin API mismatch: %d != %d\n", rtd->pluginapi, PLUGIN_API); \
-        return JS_FALSE; \
-    } \
-
-/* Human readable win32 error messages formatting */
-#define JS_PrintLastError(cx, prefix) \
-{ \
-    LPVOID lpMsgBuf = NULL; \
-    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, \
-                  NULL, \
-                  GetLastError(), \
-                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), \
-                  (LPSTR) &lpMsgBuf, \
-                  0, NULL); \
-    JS_ReportError(cx, "%s: %s", prefix, (char *) lpMsgBuf); \
-    LocalFree(lpMsgBuf); \
-}
-
-typedef struct _File
-{
-    char *filename;
-    FILE *stream;
-} File;
-
-/* Globals */
-typedef struct _sjs_data
-{
-    JSBool verbose;
-    char scriptpath[MAX_PATH];
-    char searchpath[MAX_PATH];
-    uint32 pluginapi;
-} sjs_data;
-
-typedef JSBool (*PluginInitFunction)(JSContext *cx, sjs_data *rtd);
-typedef JSBool (*PluginUnInitFunction)(void);
-typedef const char *(*PluginVersionFunction)(void);
-typedef uint32 (*PluginBuildFunction)(void);
+#define SJS_VERSION "Sherpya JavaScript Shell version 1.0"
+#define SJS_REG_KEY "Software\\Netfarm\\Sherpya JavaScript Shell"
+#define SJS_BUILD   100
 
 typedef struct _Plugin
 {

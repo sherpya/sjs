@@ -23,6 +23,8 @@
 #ifndef _WIN32_STUBS_H_
 #define _WIN32_STUBS_H_
 
+#include <sjs-plugin.h>
+
 #define WINAPI
 #define DECLARE_HANDLE(a) typedef struct a##__ { int unused; } *a
 
