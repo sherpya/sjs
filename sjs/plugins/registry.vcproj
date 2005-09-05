@@ -6,7 +6,6 @@
 	ProjectGUID="{FD3912FC-7573-49A8-B796-CAEBF45EDE7B}"
 	RootNamespace="registry"
 	Keyword="Win32Proj"
-	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -193,6 +192,10 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath="..\sjs-plugin.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"

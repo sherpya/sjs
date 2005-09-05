@@ -6,6 +6,7 @@
 	ProjectGUID="{FC4C2F9E-42DC-4CE0-AD10-D4DA7E476EAF}"
 	RootNamespace="korax"
 	Keyword="Win32Proj"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -194,6 +195,42 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath="..\sjs-plugin.h"
+				>
+			</File>
+			<File
+				RelativePath=".\korax\util\util.h"
+				>
+			</File>
+			<File
+				RelativePath=".\korax\util\util_log.h"
+				>
+			</File>
+			<File
+				RelativePath=".\korax\util\util_misc.h"
+				>
+			</File>
+			<File
+				RelativePath=".\korax\util\util_par.h"
+				>
+			</File>
+			<File
+				RelativePath=".\korax\util\util_sync.h"
+				>
+			</File>
+			<File
+				RelativePath=".\korax\util\util_sys.h"
+				>
+			</File>
+			<File
+				RelativePath=".\korax\util\util_thread.h"
+				>
+			</File>
+			<File
+				RelativePath=".\korax\util\util_vector.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"

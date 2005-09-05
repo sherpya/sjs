@@ -6,7 +6,6 @@
 	ProjectGUID="{EA009F20-66DB-48A4-9FCD-07380E2E141B}"
 	RootNamespace="sjs"
 	Keyword="Win32Proj"
-	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -180,6 +179,10 @@
 			>
 			<File
 				RelativePath=".\resource.h"
+				>
+			</File>
+			<File
+				RelativePath=".\sjs-plugin.h"
 				>
 			</File>
 			<File
