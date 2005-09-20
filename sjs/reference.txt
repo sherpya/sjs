@@ -49,6 +49,7 @@
  *   <li>@ref setprogressfunction</li>
  *   <li>@ref download</li>
  *   <li>@ref setproxy</li>
+ *   <li>@ref curlverbose</li>
  *  </ul>
  * 
  * @subsection korax Korax Plugin

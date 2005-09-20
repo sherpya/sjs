@@ -156,11 +156,28 @@ static JSBool SetProxy(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
     R_TRUE; 
 }
 
+/**
+ * @page curl
+ * @section curlverbose
+ *  curlverbose(value)
+ *
+ * Modifies curl verbosity using CURLOPT_VERBOSE
+ */
+static JSBool CurlVerbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    JSBool curl_verbose = JS_FALSE;
+    if (argc != 1) R_FALSE;
+    JS_ValueToBoolean(cx, argv[0], &curl_verbose);    
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, curl_verbose);
+    R_TRUE; 
+}
+
 static JSFunctionSpec curl_functions[] =
 {
     { "download",            Download,            2, 0, 0 },
     { "setproxy",            SetProxy,            1, 0, 0 },
     { "setprogressfunction", SetProgressFunction, 1, 0, 0 },
+    { "curlverbose",         CurlVerbose,         1, 0, 0 },
     { 0,                     0,                   0, 0, 0 },
 };
 
