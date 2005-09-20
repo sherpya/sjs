@@ -29,6 +29,7 @@
  *   <li>@ref require</li>
  *   <li>@ref include</li>
  *   <li>@ref getenv</li>
+ *   <li>@ref setenv</li>
  *   <li>@ref basepath</li>
  *   <li>@ref scriptargs</li>
  *   <li>@ref system</li>

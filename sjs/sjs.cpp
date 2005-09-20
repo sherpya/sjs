@@ -136,7 +136,7 @@ static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
     JSString *env, *result;
     char *value = NULL;
 
-    if (argc != 1) return JS_TRUE;
+    if (argc != 1) R_FALSE;
 
     env = JS_ValueToString(cx, argv[0]);
     if ((value = getenv(JS_GetStringBytes(env))))
@@ -145,6 +145,29 @@ static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
         *rval = STRING_TO_JSVAL(result);
     }
     return JS_TRUE;
+}
+
+/**
+ * @page builtins
+ * @section setenv
+ *  string setenv(env_variable, value)
+ *
+ * Sets an environment variable
+ * FIXME: possible buffer overflow?
+ */
+static JSBool SetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    JSString *env, *value;
+
+    if (argc != 2) R_FALSE;
+
+    env = JS_ValueToString(cx, argv[0]);
+    value = JS_ValueToString(cx, argv[1]);
+
+    if (!setenv(JS_GetStringBytes(env), JS_GetStringBytes(value), 1))
+	R_FALSE;
+
+    R_TRUE;
 }
 
 /**
@@ -391,6 +414,7 @@ int main(int argc, char *argv[])
         { "require",    Require,    2, 0, 0 },
         { "include",    Include,    1, 0, 0 },
         { "getenv",     GetEnv,     1, 0, 0 },
+        { "setenv",     SetEnv,     2, 0, 0 },
         { "basepath",   BasePath,   0, 0, 0 },
         { "scriptargs", ScriptArgs, 0, 0, 0 },
         { "print",      Print,      1, 0, 0 },
