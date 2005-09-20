@@ -134,12 +134,20 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
 static JSBool GetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSString *env, *result;
+#ifdef _WIN32
+    char value[MAX_PATH];
+#else
     char *value = NULL;
+#endif
 
     if (argc != 1) R_FALSE;
 
     env = JS_ValueToString(cx, argv[0]);
+#ifdef _WIN32
+    if (GetEnvironmentVariable(JS_GetStringBytes(env), value, sizeof(value)))
+#else
     if ((value = getenv(JS_GetStringBytes(env))))
+#endif
     {
         result = JS_NewStringCopyZ(cx, value);
         *rval = STRING_TO_JSVAL(result);
@@ -164,9 +172,12 @@ static JSBool SetEnv(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsva
     env = JS_ValueToString(cx, argv[0]);
     value = JS_ValueToString(cx, argv[1]);
 
+#ifdef _WIN32
+    if (!SetEnvironmentVariable(JS_GetStringBytes(env), JS_GetStringBytes(value)))
+#else
     if (!setenv(JS_GetStringBytes(env), JS_GetStringBytes(value), 1))
-	R_FALSE;
-
+#endif
+        R_FALSE;
     R_TRUE;
 }
 
@@ -436,7 +447,7 @@ int main(int argc, char *argv[])
 
     if (argc < 2)
     {
-	usage(argv[0]);
+        usage(argv[0]);
         return -1;
     }
 
