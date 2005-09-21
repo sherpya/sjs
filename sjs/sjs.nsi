@@ -93,7 +93,7 @@ Var STARTMENU_FOLDER
 !define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\Netfarm\${APPNAME}" 
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "Start Menu Folder"
 
-!insertmacro MUI_PAGE_LICENSE "copyright.txt"
+!insertmacro MUI_PAGE_LICENSE "COPYING"
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_STARTMENU Application $STARTMENU_FOLDER
