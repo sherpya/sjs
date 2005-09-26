@@ -375,7 +375,7 @@ static void initPluginPath(const char *path, char *dest)
     if (!dest[0]) return initBasePath(path, dest);
 #else /* Linux */
     struct stat info;
-    if ((stat(SJS_LIBEXEC"/plugins", &info) != -1) && S_IFDIR(info.st_mode))
+    if ((stat(SJS_LIBEXEC"/plugins", &info) != -1) && S_ISDIR(info.st_mode))
        strcat(dest, SJS_LIBEXEC);
     else
        return initBasePath(path, dest);
