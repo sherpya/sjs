@@ -27,6 +27,15 @@
 #include <config.h>
 #endif
 
+/* Missing S_ISREG S_ISDIR on win32 */
+#ifndef S_ISREG
+#define S_ISREG(m)      (((m) & _S_IFMT) == _S_IFREG)
+#endif
+
+#ifndef S_ISDIR
+#define S_ISDIR(m)      (((m) & _S_IFMT) == _S_IFDIR)
+#endif
+
 #ifdef _MSC_VER
 #pragma warning(disable:4996) // Deprecated stuff
 #pragma warning(disable:4311) // pointer truncation from 'JSString *' to 'jsval'

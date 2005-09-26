@@ -48,7 +48,7 @@ JSBool Zip::SetOutputFolder(JSContext *cx, char *directory)
 {
     struct stat info;
     if (this->output) delete this->output;
-    if (!(stat(directory, &info) || (info.st_mode & S_IFDIR)))
+    if ((stat(directory, &info) != -1) && !S_ISDIR(info.st_mode))
     {
         JS_ReportError(cx, "%s is not a directory", directory);
         return JS_FALSE;

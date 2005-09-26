@@ -107,11 +107,20 @@ static JSBool Include(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
     JSScript *script;
     JSString *filename;
     char include_file[MAX_PATH];
+    struct stat info;
     jsval result;
 
     if (argc != 1) R_FALSE;
     filename = JS_ValueToString(cx, argv[0]);
-    JS_snprintf(include_file, MAX_PATH, "%s" SEP "scripts" SEP "%s", rtd.searchpath, JS_GetStringBytes(filename));
+
+    /* Look first in current_dir */
+
+    JS_snprintf(include_file, MAX_PATH, "%s" SEP "%s", rtd.searchpath, JS_GetStringBytes(filename));
+    if ((stat(include_file, &info) == -1) || (!S_ISREG(info.st_mode)))
+    {
+        include_file[0] = 0;
+        JS_snprintf(include_file, MAX_PATH, "%s" SEP "scripts" SEP "%s", rtd.searchpath, JS_GetStringBytes(filename));
+    }
 
     /* Execution */
     script = JS_CompileFile(cx, obj, include_file);
@@ -366,7 +375,7 @@ static void initPluginPath(const char *path, char *dest)
     if (!dest[0]) return initBasePath(path, dest);
 #else /* Linux */
     struct stat info;
-    if ((!stat(SJS_LIBEXEC"/plugins", &info)) && (info.st_mode & S_IFDIR))
+    if ((stat(SJS_LIBEXEC"/plugins", &info) != -1) && S_IFDIR(info.st_mode))
        strcat(dest, SJS_LIBEXEC);
     else
        return initBasePath(path, dest);

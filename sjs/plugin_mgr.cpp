@@ -65,6 +65,7 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
 {
     char plugin_path[MAX_PATH];
     Plugin plug;
+    struct stat info;
 
     if (!isNameValid(plugin))
     {
@@ -76,11 +77,17 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
 
     JS_snprintf(plug.name, MAX_PATH, "%s", plugin);
 
+    /* Look first in current_dir/plugins */
+    JS_snprintf(plugin_path, MAX_PATH, "plugins" SEP "%s" PLUGIN_EXT,  plugin);
+    if ((stat(plugin_path, &info) == -1) || (!S_ISREG(info.st_mode)))
+    {
+        plugin_path[0] = 0;
 #if defined(_DEBUG) && defined(_WIN32) && defined(_DEBUGIDE)
-    JS_snprintf(plugin_path, MAX_PATH, "%s\\..\\plugins\\Debug\\%s" PLUGIN_EXT, rtd.searchpath, plugin);
+        JS_snprintf(plugin_path, MAX_PATH, "%s\\..\\plugins\\Debug\\%s" PLUGIN_EXT, rtd.searchpath, plugin);
 #else
-    JS_snprintf(plugin_path, MAX_PATH, "%s" SEP "plugins" SEP "%s" PLUGIN_EXT, rtd.searchpath, plugin);
+        JS_snprintf(plugin_path, MAX_PATH, "%s" SEP "plugins" SEP "%s" PLUGIN_EXT, rtd.searchpath, plugin);
 #endif
+    }
 
 #ifdef _DEBUG
     fprintf(stderr, "Loading plugin %s using %s\n", plug.name, plugin_path);
