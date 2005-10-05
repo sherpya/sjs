@@ -5,7 +5,7 @@
  * 
  * <br>
  * @section Usage Command Line Usage
- *  <pre>Usage: sjs [-w] filename.js [scriptargs]
+ *  <pre>Usage: sjs [-w] filename.sjs [scriptargs]
  * &nbsp;
  * -w        : waits for enter key at the end of execution
  * scriptargs: are passed to the script and can be accessed by @ref scriptargs function</pre>

@@ -277,7 +277,7 @@ JSBool JSRegistry::JSFirstKey(JSContext *cx, JSObject *obj, uintN argc, jsval *a
  *  boolean enumkey()
  *
  * An itereator to enumerate registry subkeys
- * @include registry.js
+ * @include registry.sjs
  */
 JSBool JSRegistry::JSEnumKey(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {

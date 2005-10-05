@@ -90,7 +90,7 @@ static int c_progress_fun(void *clientp, double dltotal, double dlnow, double ul
  * Sets a callback function for curl download, the syntax is:
  * function my_function(dltotal, dlnow, ultotal, ulnow)
  * if the function returns a value different than 0, the curl download is aborted
- * @include progress_fun.js
+ * @include progress_fun.sjs
  */
 static JSBool SetProgressFunction(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
@@ -107,7 +107,7 @@ static JSBool SetProgressFunction(JSContext *cx, JSObject *obj, uintN argc, jsva
  *  download(url, localname)
  *
  * Dowloads a file from url and saves it to localname,
- * @include curl.js
+ * @include curl.sjs
  */
 static JSBool Download(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {

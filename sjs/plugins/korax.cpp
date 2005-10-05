@@ -65,7 +65,7 @@ static void ParserClass_finalize(JSContext *cx, JSObject *obj)
  *  Class parser()
  *
  * xml/cfg/ini parser class
- * @include ini2xml.js
+ * @include ini2xml.sjs
  */
 
 /**
@@ -263,7 +263,7 @@ static JSBool GetDate(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsv
  *  int random(start, end)
  *
  * Returns a random int number between start and end
- * @include simple-passgen.js
+ * @include simple-passgen.sjs
  */
 static JSBool Random(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {

@@ -37,7 +37,7 @@ static JSBool waitatend = JS_FALSE;
 static inline void usage(char *program)
 {
      printf("-- "SJS_VERSION" --\n");
-     printf("Usage: %s [-w] filename.js [scriptargs]\n", program);
+     printf("Usage: %s [-w] filename.sjs [scriptargs]\n", program);
 }
 
 /**
@@ -211,7 +211,7 @@ static JSBool BasePath(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
  *  array scriptargs()
  *
  * Returns an array with arguments passed to the script
- * @include scriptinfo.js
+ * @include scriptinfo.sjs
  */
 static JSBool ScriptArgs(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {

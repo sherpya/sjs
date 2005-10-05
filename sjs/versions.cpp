@@ -32,7 +32,7 @@ static JSObject *version = NULL;
  *  Class version()
  *
  * Static class to handle engine/plugins version strings
- * @include versions.js
+ * @include versions.sjs
  */
 static JSClass version_class =
 {

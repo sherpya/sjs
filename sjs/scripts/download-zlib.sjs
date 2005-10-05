@@ -1,7 +1,7 @@
 loadplugin("curl");
 loadplugin("zlib");
 
-include("progress_fun.js");
+include("progress_fun.sjs");
 
 verbose(1);
 mkdir("test");

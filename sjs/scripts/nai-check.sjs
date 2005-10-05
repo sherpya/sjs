@@ -1,7 +1,7 @@
 loadplugin("curl");
 loadplugin("korax");
 
-include("progress_fun.js");
+include("progress_fun.sjs");
 verbose(1);
 
 base = "ftp://ftp.nai.com/CommonUpdater"

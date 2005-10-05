@@ -11,7 +11,7 @@
 *.exe
 *.dll
 *.vcproj.*.user
-*.js
+*.sjs
 *.in
 *.zip
 sjs
