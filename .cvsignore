@@ -5,3 +5,4 @@ dist
 ssl
 gnutls
 *.old
+curl-nossl
