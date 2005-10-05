@@ -12,6 +12,9 @@
 ; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ; for more details.
 
+; Uncomment this to add ssl support to curl
+;!define SSL
+
 SetCompressor /solid lzma
 
 ; Modern interface settings
@@ -98,7 +101,6 @@ Var STARTMENU_FOLDER
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_STARTMENU Application $STARTMENU_FOLDER
 !insertmacro MUI_PAGE_INSTFILES
-;!insertmacro MUI_PAGE_FINISH
 
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
@@ -142,10 +144,14 @@ Section "Curl Plugin" SecPluginsCurl
 
     SetOutPath "$INSTDIR\plugins\"
     File "plugins\Release\curl.dll"
+!ifdef SSL
     File "..\curl\libcurl.dll"
     File "..\ssl\ssleay32.dll"
     File "..\ssl\libeay32.dll"
     File "..\zlib\zlib1.dll"
+!else
+    File "..\curl-nossl\libcurl.dll"
+!endif
 SectionEnd
 
 Section "Korax Plugin" SecPluginsKorax
@@ -168,19 +174,25 @@ SectionGroupEnd
 
 Section "Sample Scripts" Scripts
     SetOutPath "$INSTDIR\scripts\"
-    File "scripts\*.js"
+    File "scripts\*.sjs"
 SectionEnd
     
 Section -FinishSection
-    ; Backup Default Icon
-    ReadRegStr $0 HKCR "JSFile\DefaultIcon" ""
-    WriteRegExpandStr HKCR "JSFile\DefaultIcon.sjs" "" "$0"
+    WriteRegExpandStr HKCR "SJSFile\DefaultIcon" "" "$SYSDIR\sjs.exe,0"
 
-    WriteRegExpandStr HKCR "JSFile\DefaultIcon" "" "$SYSDIR\sjs.exe,0"
+    ; Register Extension
+    WriteRegStr HKCR ".sjs" "" "SJSFile"
+    WriteRegStr HKCR "SJSFile\Shell\Open" "" "Open with SJS"
+    WriteRegExpandStr HKCR "SJSFile\Shell\Open\Command" "" '"$SYSDIR\sjs.exe" -w "%1"'
 
-    ; Open With SJS
-    WriteRegStr HKCR "JSFile\Shell\SJS" "" "Open with SJS"
-    WriteRegExpandStr HKCR "JSFile\Shell\SJS\Command" "" '"$SYSDIR\sjs.exe" -w "%1"'
+    ; Edit, inherits from txtfile
+    WriteRegStr HKCR "SJSFile\Shell\Edit" "" "Edit Script"
+    ReadRegStr $0 HKCR "txtfile\Shell\Open\command"  ""
+    ; Someone scraped txtfile association ?
+    StrCmp $0 "" 0 +3
+        WriteRegExpandStr HKCR "SJSFile\Shell\Edit\command" "" 'notepad.exe "%1"'
+        Goto +2
+    WriteRegExpandStr HKCR "SJSFile\Shell\Edit\command" "" "$0"
 
     !insertmacro UpdateIcons
 
@@ -203,12 +215,9 @@ SectionEnd
 
 ; Uninstall section
 Section Uninstall
-    ; Restore Default Icon
-    ReadRegStr $0 HKCR "JSFile\DefaultIcon.sjs" ""
-    WriteRegExpandStr HKCR "JSFile\DefaultIcon" "" "$0"
-
     ; Remove from registry...
-    DeleteRegKey HKCR "JSFile\DefaultIcon.sjs"
+    DeleteRegKey HKCR ".sjs"
+    DeleteRegKey HKCR "SJSFile"
     DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
     DeleteRegKey HKLM "Software\Netfarm\${APPNAME}"
     DeleteRegKey /ifempty HKLM "Software\Netfarm"
@@ -245,8 +254,10 @@ Section Uninstall
     ; Clean up Curl
     Delete "$INSTDIR\plugins\curl.dll"
     Delete "$INSTDIR\plugins\libcurl"
+!ifdef SSL
     Delete "$INSTDIR\plugins\ssleay32.dll"
     Delete "$INSTDIR\plugins\libeay32.dll"
+!endif
 
     Delete "$INSTDIR\plugins\korax.dll"
     Delete "$INSTDIR\plugins\registry.dll"
