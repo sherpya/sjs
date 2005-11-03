@@ -2,6 +2,11 @@
 *.ncb
 *.opt
 *.plg
+*.suo
+*.vcproj.*.user
 Debug
 Release
 Makefile
+jscpucfg
+jsautocfg.h
+Linux_All_DBG.OBJ
