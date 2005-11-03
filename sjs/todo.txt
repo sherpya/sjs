@@ -22,4 +22,5 @@
  * - Automake/Autoconf stuff keep rebuilding .so (they are not native)
  * - SM includes check doesn't work
  * - Look at: http://wiki.debian.net/index.cgi?RpathIssue
+ * - libcurl-gnutls linkage problems on Debian Sid
  */
