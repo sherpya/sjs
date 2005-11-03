@@ -958,7 +958,7 @@
 			Name="Resource Files"
 			>
 			<File
-				RelativePath=".\js3240.rc"
+				RelativePath=".\spidermonkey.rc"
 				>
 			</File>
 		</Filter>

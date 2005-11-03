@@ -2,8 +2,6 @@
 *.ncb
 *.opt
 *.plg
-*.vcproj.*.user
 Debug
 Release
 Makefile
-Linux_All_DBG.OBJ
