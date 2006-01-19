@@ -2,7 +2,7 @@
  * Sherpya JavaScript Shell - Korax Utils plugin
  * See plugins/korax subdir for korax's readme/license
  *
- * Copyright (c) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
+ * Copyright (c) 2005-2006 Gianluigi Tiesi <sherpya@netfarm.it>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
