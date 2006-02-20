@@ -33,24 +33,15 @@ AC_SUBST(ZLIB)
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([pthread], [pthread_join])
 ### TODO params on sm js lib
-AC_CHECK_LIB([smjs], [JS_ShutDown])
+AC_CHECK_LIB([mozjs], [JS_ShutDown])
 
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h stddef.h stdint.h stdlib.h string.h unistd.h utime.h])
 
 # SpiderMonkey includes
-AC_ARG_WITH(smincludes, 
-            [  --with-sm-includes=DIR  DIR=path of SpiderMonkey includes directory],
-               if test [ x$withval != x ] -a [ -d $withval ]; then
-                  smincludes=$withval
-               fi ,
-               smincdir=/usr/include/smjs)
-
-AC_CHECK_HEADER($smincdir/jsautocfg.h, , 
-                echo "SpiderMonkey include directory does not contain jsautocfg.h!";
-                echo "Please specify a suitable SpiderMonkey include directory" ; exit 1)
-
+AC_CHECK_HEADERS([js.h])
+smincdir=/usr/include/mozjs
 AC_SUBST(smincdir)
 
 PLUGIN_LDFLAGS='-module -avoid-version -shared'
