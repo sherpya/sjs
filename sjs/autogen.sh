@@ -16,7 +16,7 @@ check_version ()
 
 echo -n "checking for autoconf >= $AUTOCONF_REQUIRED_VERSION ... "
 if autoconf --version >/dev/null; then
-    VER=$(autoconf --version | grep -iw autoconf | sed "s/.* \([0-9.]*\) [-a-z0-9]*$/\1/")
+    VER=$(autoconf --version | grep -iw "gnu autoconf" | sed "s/.* \([0-9.]*\)[-a-z0-9]*$/\1/")
     check_version $VER $AUTOCONF_REQUIRED_VERSION
 else
     echo "not found"
@@ -25,7 +25,7 @@ fi
 
 echo -n "checking for automake >= $AUTOMAKE_REQUIRED_VERSION ... "
 if automake --version >/dev/null; then
-    VER=$(automake --version | grep -iw automake | sed "s/.* \([0-9.]*\)[-a-z0-9]*$/\1/")
+    VER=$(automake --version | grep -iw "gnu automake" | sed "s/.* \([0-9.]*\)[-a-z0-9]*$/\1/")
     check_version $VER $AUTOMAKE_REQUIRED_VERSION
 else
     echo "not found"
