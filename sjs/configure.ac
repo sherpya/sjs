@@ -33,7 +33,8 @@ AC_SUBST(ZLIB)
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([pthread], [pthread_join])
 ### TODO params on sm js lib
-AC_CHECK_LIB([mozjs], [JS_ShutDown])
+AC_CHECK_LIB([mozjs], [JS_ShutDown], [LIBS="-lmozjs"])
+AC_SUBST(LIBS)
 
 # Checks for header files.
 AC_HEADER_STDC
