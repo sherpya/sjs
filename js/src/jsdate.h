@@ -46,6 +46,8 @@
 
 JS_BEGIN_EXTERN_C
 
+extern JSClass js_DateClass;
+
 extern JSObject *
 js_InitDateClass(JSContext *cx, JSObject *obj);
 
@@ -65,7 +67,7 @@ js_NewDateObjectMsec(JSContext* cx, jsdouble msec_time);
  */
 extern JS_FRIEND_API(JSObject*)
 js_NewDateObject(JSContext* cx, int year, int mon, int mday,
-				int hour, int min, int sec);
+                 int hour, int min, int sec);
 
 /*
  * Detect whether the internal date value is NaN.  (Because failure is

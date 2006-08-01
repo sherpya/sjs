@@ -49,7 +49,7 @@ LIBRARY_NAME	= mozjs
 LIB_IS_C_ONLY	= 1
 GRE_MODULE	= 1
 
-ifeq ($(OS_ARCH),WINNT)
+ifeq (,$(filter-out WINNT WINCE,$(OS_ARCH)))
 LIBRARY_NAME	= js$(MOZ_BITS)$(VERSION_NUMBER)
 RESFILE		= js$(MOZ_BITS)40.res
 endif
@@ -60,7 +60,10 @@ PACKAGE_FILE = js.pkg
 # other modules which are always built shared. Failure to do so results in
 # the js code getting copied into xpinstall and jsd as well as mozilla-bin,
 # and then the static data cells used for locking no longer work.
+
+ifndef JS_STATIC_BUILD
 FORCE_SHARED_LIB = 1
+endif
 
 CSRCS		= \
 		jsapi.c \
@@ -79,6 +82,7 @@ CSRCS		= \
 		jsgc.c \
 		jshash.c \
 		jsinterp.c \
+		jsiter.c \
 		jslock.c \
 		jslog2.c \
 		jslong.c \
@@ -95,11 +99,13 @@ CSRCS		= \
 		jsstr.c \
 		jsutil.c \
 		jsxdrapi.c \
+		jsxml.c \
 		prmjtime.c \
 		$(NULL)
 
 EXPORTS		= \
 		jsautocfg.h \
+		jsautokw.h \
 		js.msg \
 		jsapi.h \
 		jsarray.h \
@@ -119,6 +125,7 @@ EXPORTS		= \
 		jsgc.h \
 		jshash.h \
 		jsinterp.h \
+		jsiter.h \
 		jslock.h \
 		jslong.h \
 		jsmath.h \
@@ -130,25 +137,25 @@ EXPORTS		= \
 		jsotypes.h \
 		jsparse.h \
 		jsprf.h \
+		jsproto.tbl \
 		jsprvtd.h \
 		jspubtd.h \
 		jsregexp.h \
 		jsscan.h \
 		jsscope.h \
 		jsscript.h \
+		jsstddef.h \
 		jsstr.h \
 		jstypes.h \
 		jsutil.h \
 		jsxdrapi.h \
-		jsstddef.h \
+		jsxml.h \
 		$(NULL)
 
-ifeq ($(OS_ARCH),WINNT)
+ifeq (,$(filter-out WINNT WINCE,$(OS_ARCH)))
 EXPORTS		+= jscpucfg.h
 endif
 
-FDLIBM_LIBRARY	= fdlibm/$(LIB_PREFIX)fdm.$(LIB_SUFFIX)
-JSMATH_PRELINK	= jsmathtemp.o
 JS_SAFE_ARENA	= 1
 
 DASH_R		= -r
@@ -156,10 +163,6 @@ DASH_R		= -r
 include $(topsrcdir)/config/config.mk
 
 EXTRA_DSO_LDOPTS += $(NSPR_LIBS)
-
-ifeq (,$(filter-out OS2 WINNT,$(OS_ARCH)))
-SHARED_LIBRARY_LIBS += $(FDLIBM_LIBRARY)
-endif
 
 # When using gcc the assembly is inlined in the C-file (see jslock.c)
 ifeq ($(OS_ARCH),SunOS)
@@ -188,6 +191,11 @@ JSJAVA_CFLAGS	= \
 		-I$(topsrcdir)/sun-java/include \
 		$(JSJAVA_STUBHEADERS)
 
+# Define keyword generator before rules.mk, see bug 323979 comment 50
+
+HOST_SIMPLE_PROGRAMS += host_jskwgen$(HOST_BIN_SUFFIX)
+GARBAGE += jsautokw.h host_jskwgen$(HOST_BIN_SUFFIX)
+
 include $(topsrcdir)/config/rules.mk
 
 DEFINES		+= -DEXPORT_JS_API 
@@ -203,11 +211,11 @@ INCLUDES	+= -I$(srcdir)
 # are taken violates the ISO C and C++ standards.
 ifndef MOZ_DEBUG
 ifeq (_WINNT,$(GNU_CC)_$(OS_ARCH))
-LDFLAGS         += /OPT:NOICF
+LDFLAGS         += -OPT:NOICF
 endif
 endif
 
-GARBAGE		+= $(JSMATH_PRELINK) jscpucfg.o jsautocfg.h jsautocfg.tmp jscpucfg
+GARBAGE		+= jscpucfg.o jsautocfg.h jsautocfg.tmp jscpucfg
 
 ifneq (,$(CROSS_COMPILE)$(filter-out WINNT,$(OS_ARCH)))
 TARGETS		+= jscpucfg$(HOST_BIN_SUFFIX)
@@ -238,13 +246,17 @@ endif
 LDFLAGS		+= $(pathsubst -l%,$(NSPR_STATIC_PATH)/%.a,$(NSPR_LIBS))
 
 # BeOS and HP-UX do not require the extra linking of "-lm"
-ifeq (,$(filter BeOS HP-UX WINNT OpenVMS,$(OS_ARCH)))
+ifeq (,$(filter BeOS HP-UX WINNT WINCE OpenVMS,$(OS_ARCH)))
 LDFLAGS		+= -lm
 endif
 
 # Prevent floating point errors caused by VC++ optimizations
 ifeq ($(OS_ARCH)_$(GNU_CC),WINNT_)
-CFLAGS += /Op
+ifeq (,$(filter-out 1200 1300 1310,$(_MSC_VER)))
+CFLAGS += -Op
+else
+CFLAGS += -fp:precise
+endif
 endif # WINNT
 
 ifeq ($(OS_ARCH),FreeBSD)
@@ -282,13 +294,6 @@ LDFLAGS		+= -lposix4 -ldl -lnsl -lsocket
 endif
 endif
 
-ifeq ($(OS_ARCH),QNX)
-ifneq ($(OS_TARGET),NTO)
-# Don't use wildcard here, because we only want this resolved at link time.
-OBJS		+= fdlibm/*.o
-endif
-endif
-
 ifeq ($(OS_ARCH),IRIX)
 ifndef GNU_CC
 _COMPILE_CFLAGS  = $(patsubst -O%,-O1,$(COMPILE_CFLAGS))
@@ -297,31 +302,6 @@ jsapi.o jsarena.o jsarray.o jsatom.o jsemit.o jsfun.o jsinterp.o jsregexp.o jspa
 	@$(MAKE_DEPS_AUTO)
 	$(CC) -o $@ -c $(_COMPILE_CFLAGS) $<
 endif
-endif
-
-# On OS/2 & win32 we are already linking against fdlibm, so don't bother
-# creating jsmathtemp
-ifeq (,$(filter OS2 WINNT OpenVMS,$(OS_ARCH)))
-# special rule for jsmath.o since we want to incrementally link
-# against fdlibm to pull in only what is needed
-# Do this in a single step to avoid dependency problems
-jsmath.o: jsmath.c $(FDLIBM_LIBRARY) Makefile.in
-	$(REPORT_BUILD)
-	@$(MAKE_DEPS_AUTO)
-	$(ELOG) $(CC) $(OUTOPTION)$(JSMATH_PRELINK) -c $(COMPILE_CFLAGS) $<
-ifeq ($(OS_ARCH),QNX)
-ifneq ($(OS_TARGET),NTO)
-	@cp $(JSMATH_PRELINK) $@
-else
-	$(LD) $(DASH_R) -o $@ $(JSMATH_PRELINK) $(FDLIBM_LIBRARY)
-endif
-else
-	$(LD) $(DASH_R) -o $@ $(JSMATH_PRELINK) $(FDLIBM_LIBRARY)
-endif
-	@$(RM) -f $(JSMATH_PRELINK)
-else
-# Create dependency so we build fdlibm
-jsmath.o: $(FDLIBM_LIBRARY) Makefile.in
 endif
 
 # An AIX Optimization bug causes PR_dtoa() & JS_dtoa to produce wrong result.
@@ -337,12 +317,13 @@ jsdtoa.o: jsdtoa.c Makefile.in
 	$(CC) -o $@ -c $(filter-out $(MOZ_OPTIMIZE_FLAGS), $(COMPILE_CFLAGS)) $<
 endif
 
-$(FDLIBM_LIBRARY):
-	$(MAKE) -C $(@D) $(@F)
-
 jsopcode.h jsopcode.c: jsopcode.tbl
 
 ifeq (,$(CROSS_COMPILE)$(filter-out WINNT,$(OS_ARCH)))
+jsautocfg.h:
+	touch $@
+else
+ifeq ($(OS_ARCH),WINCE)
 jsautocfg.h:
 	touch $@
 else
@@ -351,25 +332,57 @@ jsautocfg.h: jscpucfg$(HOST_BIN_SUFFIX)
 	./jscpucfg > jsautocfg.tmp
 	mv jsautocfg.tmp $@
 endif
+endif
 
 # jscpucfg is a strange target
 # Needs to be built with the host compiler but needs to include
 # the mdcpucfg for the target so it needs the appropriate target defines
 ifdef HOST_NSPR_MDCPUCFG
 HOST_CC := $(HOST_CC) -DMDCPUCFG=$(TARGET_NSPR_MDCPUCFG)
+HOST_CFLAGS := $(patsubst -DXP_%,,$(HOST_CFLAGS))
+endif
+
+ifdef CROSS_COMPILE
+# jscpucfg needs to know when it's supposed to produce a config for the target
+JSCPUCFG_DEFINES = $(ACDEFINES)
+
+# This is incredibly hacky.  Darwin NSPR uses the same MDCPUCFG for multiple
+# processors, and determines which processor to configure for based on
+# #ifdef i386.  This macro is among the NSPR defines, but is also automatically
+# defined by the compiler when building for i386.  It therefore needs to be
+# defined here if targeting i386, and explicitly undefined otherwise.
+ifeq ($(OS_ARCH),Darwin)
+ifeq ($(TARGET_CPU),powerpc)
+JSCPUCFG_DEFINES += -Ui386
+else
+JSCPUCFG_DEFINES += -Di386=1
+endif
+endif
 endif
 
 ifeq ($(OS_ARCH),QNX)
 ifneq ($(OS_TARGET),NTO)
 # QNX's compiler apparently can't build a binary directly from a source file.
 jscpucfg.o: jscpucfg.c Makefile.in
-	$(HOST_CC) $(HOST_CFLAGS) -c $(DEFINES) $(NSPR_CFLAGS) -o $@ $<
+	$(HOST_CC) $(HOST_CFLAGS) -c $(JSCPUCFG_DEFINES) $(DEFINES) $(NSPR_CFLAGS) -o $@ $<
 
 jscpucfg: jscpucfg.o
-	$(HOST_CC) $(HOST_CFLAGS) $(DEFINES) -o $@ $<
+	$(HOST_CC) $(HOST_CFLAGS) $(JSCPUCFG_DEFINES) $(DEFINES) -o $@ $<
 endif
 else
+ifeq ($(OS_ARCH),WINCE)
+jscpucfg$(HOST_BIN_SUFFIX):
+	echo no need to build jscpucfg $<
+else
 jscpucfg$(HOST_BIN_SUFFIX): jscpucfg.c Makefile.in
-	$(HOST_CC) $(HOST_CFLAGS) $(DEFINES) $(NSPR_CFLAGS) $(OUTOPTION)$@ $<
+	$(HOST_CC) $(HOST_CFLAGS) $(JSCPUCFG_DEFINES) $(DEFINES) $(NSPR_CFLAGS) $(OUTOPTION)$@ $<
+endif
 endif
 
+# Extra dependancies and rules for keyword switch code
+jsscan.$(OBJ_SUFFIX): jsautokw.h jskeyword.tbl
+
+host_jskwgen.$(OBJ_SUFFIX): jsconfig.h jskeyword.tbl
+
+jsautokw.h: host_jskwgen$(HOST_BIN_SUFFIX)
+	./host_jskwgen$(HOST_BIN_SUFFIX) $@

@@ -48,9 +48,11 @@
 #include "prmon.h"
 #include "prlog.h"
 
+#include "nsXPCOM.h"
 #include "nsCLiveconnect.h"
 #include "nsCLiveconnectFactory.h"
 #include "nsIComponentManager.h"
+#include "nsIComponentRegistrar.h"
 
 static NS_DEFINE_IID(kISupportsIID,    NS_ISUPPORTS_IID);
 static NS_DEFINE_IID(kIFactoryIID,     NS_IFACTORY_IID);
@@ -89,13 +91,18 @@ NSCanUnload(nsISupports* serviceMgr)
 extern "C" NS_EXPORT nsresult
 JSJ_RegisterLiveConnectFactory()
 {
+    nsCOMPtr<nsIComponentRegistrar> registrar;
+    nsresult rv = NS_GetComponentRegistrar(getter_AddRefs(registrar));
+    if (NS_FAILED(rv))
+        return rv;
+      
     nsCOMPtr<nsIFactory> factory = new nsCLiveconnectFactory;
     if (factory) {
-        return nsComponentManager::RegisterFactory(kCLiveconnectCID, "LiveConnect",
-                                                  "@mozilla.org/liveconnect/liveconnect;1",
-                                                  factory, PR_TRUE);
+        return registrar->RegisterFactory(kCLiveconnectCID, "LiveConnect",
+                                          "@mozilla.org/liveconnect/liveconnect;1",
+                                          factory);
     }
-    return NS_ERROR_FACTORY_NOT_LOADED;
+    return NS_ERROR_OUT_OF_MEMORY;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -131,14 +138,14 @@ nsCLiveconnectFactory::CreateInstance(nsISupports *aOuter, REFNSIID aIID, void *
 
 	*aResult  = NULL;
 
-	if (aOuter && !aIID.Equals(kISupportsIID))
-		return NS_ERROR_INVALID_ARG;
+    NS_ENSURE_PROPER_AGGREGATION(aOuter, kISupportsIID);
 
 	nsCLiveconnect* liveconnect = new nsCLiveconnect(aOuter);
 	if (liveconnect == NULL)
 		return NS_ERROR_OUT_OF_MEMORY;
 		
-	nsresult result = liveconnect->AggregatedQueryInterface(aIID, aResult);
+    nsISupports* inner = liveconnect->InnerObject();
+    nsresult result = inner->QueryInterface(aIID, aResult);
 	if (NS_FAILED(result))
 		delete liveconnect;
 

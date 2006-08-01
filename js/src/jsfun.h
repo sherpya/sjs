@@ -48,37 +48,42 @@
 JS_BEGIN_EXTERN_C
 
 struct JSFunction {
-    jsrefcount	 nrefs;		/* number of referencing objects */
     JSObject     *object;       /* back-pointer to GC'ed object header */
-    union {
-        JSNative native;        /* native method pointer or null */
-        JSScript *script;       /* interpreted bytecode descriptor or null */
-    } u;
     uint16       nargs;         /* minimum number of actual arguments */
-    uint16       extra;         /* number of arg slots for local GC roots */
-    uint16       nvars;         /* number of local variables */
-    uint8        flags;         /* bound method and other flags, see jsapi.h */
-    JSPackedBool interpreted;   /* use u.script if true, u.native if false */
-    uint16       nregexps;      /* number of regular expressions literals */
-    uint16       spare;         /* reserved for future use */
+    uint16       flags;         /* bound method and other flags, see jsapi.h */
+    union {
+        struct {
+            uint16   extra;     /* number of arg slots for local GC roots */
+            uint16   spare;     /* reserved for future use */
+            JSNative native;    /* native method pointer or null */
+        } n;
+        struct {
+            uint16   nvars;     /* number of local variables */
+            uint16   nregexps;  /* number of regular expressions literals */
+            JSScript *script;   /* interpreted bytecode descriptor or null */
+        } i;
+    } u;
     JSAtom       *atom;         /* name for diagnostics and decompiling */
     JSClass      *clasp;        /* if non-null, constructor for this class */
 };
 
-#define FUN_NATIVE(fun)         ((fun)->interpreted ? NULL : (fun)->u.native)
-#define FUN_SCRIPT(fun)         ((fun)->interpreted ? (fun)->u.script : NULL)
+#define JSFUN_INTERPRETED    0x8000 /* use u.i if set, u.n if unset */
+
+#define FUN_INTERPRETED(fun) ((fun)->flags & JSFUN_INTERPRETED)
+#define FUN_NATIVE(fun)      (FUN_INTERPRETED(fun) ? NULL : (fun)->u.n.native)
+#define FUN_SCRIPT(fun)      (FUN_INTERPRETED(fun) ? (fun)->u.i.script : NULL)
 
 extern JSClass js_ArgumentsClass;
 extern JSClass js_CallClass;
 
-/* JS_FRIEND_DATA so that JSVAL_IS_FUNCTION is callable from outside */
+/* JS_FRIEND_DATA so that VALUE_IS_FUNCTION is callable from the shell. */
 extern JS_FRIEND_DATA(JSClass) js_FunctionClass;
 
 /*
  * NB: jsapi.h and jsobj.h must be included before any call to this macro.
  */
-#define JSVAL_IS_FUNCTION(cx, v)                                              \
-    (JSVAL_IS_OBJECT(v) && JSVAL_TO_OBJECT(v) &&                              \
+#define VALUE_IS_FUNCTION(cx, v)                                              \
+    (!JSVAL_IS_PRIMITIVE(v) &&                                                \
      OBJ_GET_CLASS(cx, JSVAL_TO_OBJECT(v)) == &js_FunctionClass)
 
 extern JSBool
@@ -99,7 +104,7 @@ js_InitCallClass(JSContext *cx, JSObject *obj);
 
 extern JSFunction *
 js_NewFunction(JSContext *cx, JSObject *funobj, JSNative native, uintN nargs,
-	       uintN flags, JSObject *parent, JSAtom *atom);
+               uintN flags, JSObject *parent, JSAtom *atom);
 
 extern JSObject *
 js_CloneFunctionObject(JSContext *cx, JSObject *funobj, JSObject *parent);
@@ -109,7 +114,7 @@ js_LinkFunctionObject(JSContext *cx, JSFunction *fun, JSObject *object);
 
 extern JSFunction *
 js_DefineFunction(JSContext *cx, JSObject *obj, JSAtom *atom, JSNative native,
-		  uintN nargs, uintN flags);
+                  uintN nargs, uintN flags);
 
 /*
  * Flags for js_ValueToFunction and js_ReportIsNotFunction.  We depend on the
@@ -117,10 +122,17 @@ js_DefineFunction(JSContext *cx, JSObject *obj, JSAtom *atom, JSNative native,
  * with #if/#error in jsfun.c.
  */
 #define JSV2F_CONSTRUCT         JSINVOKE_CONSTRUCT
-#define JSV2F_SEARCH_STACK      2
+#define JSV2F_ITERATOR          JSINVOKE_ITERATOR
+#define JSV2F_SEARCH_STACK      0x10000
 
 extern JSFunction *
 js_ValueToFunction(JSContext *cx, jsval *vp, uintN flags);
+
+extern JSObject *
+js_ValueToFunctionObject(JSContext *cx, jsval *vp, uintN flags);
+
+extern JSObject *
+js_ValueToCallableObject(JSContext *cx, jsval *vp, uintN flags);
 
 extern void
 js_ReportIsNotFunction(JSContext *cx, jsval *vp, uintN flags);

@@ -490,7 +490,7 @@ int main(int argc, char *argv[])
 
     JS_DefineFunctions(cx, global, sjs_functions);
 
-    JS_SetVersion(cx, JSVERSION_1_5);
+    JS_SetVersion(cx, JSVERSION_DEFAULT);
 
     rtd.verbose   = JS_FALSE;
     rtd.pluginapi = PLUGIN_API;

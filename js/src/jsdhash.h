@@ -47,6 +47,8 @@ JS_BEGIN_EXTERN_C
 
 #if defined(__GNUC__) && defined(__i386__) && (__GNUC__ >= 3) && !defined(XP_OS2)
 #define JS_DHASH_FASTCALL __attribute__ ((regparm (3),stdcall))
+#elif defined(XP_WIN)
+#define JS_DHASH_FASTCALL __fastcall
 #else
 #define JS_DHASH_FASTCALL
 #endif
@@ -439,7 +441,7 @@ JS_DHashTableInit(JSDHashTable *table, const JSDHashTableOps *ops, void *data,
  * we don't shrink on the very next remove after growing a table upon adding
  * an entry that brings entryCount past maxAlpha * tableSize.
  */
-JS_PUBLIC_API(void)
+extern JS_PUBLIC_API(void)
 JS_DHashTableSetAlphaBounds(JSDHashTable *table,
                             float maxAlpha,
                             float minAlpha);

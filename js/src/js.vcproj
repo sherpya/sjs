@@ -5,7 +5,6 @@
 	Name="js"
 	ProjectGUID="{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}"
 	RootNamespace="js"
-	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -20,7 +19,7 @@
 			OutputDirectory=".\Release"
 			IntermediateDirectory=".\Release"
 			ConfigurationType="2"
-			InheritedPropertySheets="UpgradeFromVC60.vsprops"
+			InheritedPropertySheets="..\..\..\..\Microsoft Visual Studio 8\VC\VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			>
@@ -120,7 +119,7 @@
 			OutputDirectory=".\Debug"
 			IntermediateDirectory=".\Debug"
 			ConfigurationType="2"
-			InheritedPropertySheets="UpgradeFromVC60.vsprops"
+			InheritedPropertySheets="..\..\..\..\Microsoft Visual Studio 8\VC\VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			>
@@ -580,6 +579,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\jsiter.c"
+				>
+			</File>
+			<File
 				RelativePath="jslock.c"
 				>
 				<FileConfiguration
@@ -930,6 +933,10 @@
 						UsePrecompiledHeader="0"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\jsxml.c"
+				>
 			</File>
 			<File
 				RelativePath="prmjtime.c"

@@ -52,21 +52,6 @@
 #endif
 #endif /* XP_WIN || XP_OS2 */
 
-#ifdef XP_MAC
-#define JS_HAVE_LONG_LONG
-
-JS_BEGIN_EXTERN_C
-
-#include <stddef.h>
-
-extern void* reallocSmaller(void* block, size_t newSize);
-
-extern char* strdup(const char* str);
-
-JS_END_EXTERN_C
-
-#endif /* XP_MAC */
-
 #ifdef XP_BEOS
 #define JS_HAVE_LONG_LONG
 #endif
@@ -77,7 +62,10 @@ JS_END_EXTERN_C
 /*
  * Get OS specific header information.
  */
-#if defined(AIXV3) || defined(AIX)
+#if defined(XP_MACOSX) || defined(DARWIN)
+#define JS_HAVE_LONG_LONG
+
+#elif defined(AIXV3) || defined(AIX)
 #define JS_HAVE_LONG_LONG
 
 #elif defined(BSDI)
