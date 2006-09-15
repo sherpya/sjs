@@ -1,5 +1,5 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * vim: set ts=8 sw=4 et tw=80:
+ * vim: set ts=8 sw=4 et tw=78:
  *
  * ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
@@ -652,19 +652,36 @@ JS_NewRuntime(uint32 maxbytes)
     JSRuntime *rt;
 
 #ifdef DEBUG
-    JS_BEGIN_MACRO
-    /*
-     * This code asserts that the numbers associated with the error names in
-     * jsmsg.def are monotonically increasing.  It uses values for the error
-     * names enumerated in jscntxt.c.  It's not a compiletime check, but it's
-     * better than nothing.
-     */
-    int errorNumber = 0;
-#define MSG_DEF(name, number, count, exception, format) \
+    static JSBool didFirstChecks;
+
+    if (!didFirstChecks) {
+        /*
+         * This code asserts that the numbers associated with the error names
+         * in jsmsg.def are monotonically increasing.  It uses values for the
+         * error names enumerated in jscntxt.c.  It's not a compile-time check
+         * but it's better than nothing.
+         */
+        int errorNumber = 0;
+#define MSG_DEF(name, number, count, exception, format)                       \
     JS_ASSERT(name == errorNumber++);
 #include "js.msg"
 #undef MSG_DEF
+
+#define MSG_DEF(name, number, count, exception, format)                       \
+    JS_BEGIN_MACRO                                                            \
+        uintN numfmtspecs = 0;                                                \
+        const char *fmt;                                                      \
+        for (fmt = format; *fmt != '\0'; fmt++) {                             \
+            if (*fmt == '{' && isdigit(fmt[1]))                               \
+                ++numfmtspecs;                                                \
+        }                                                                     \
+        JS_ASSERT(count == numfmtspecs);                                      \
     JS_END_MACRO;
+#include "js.msg"
+#undef MSG_DEF
+
+        didFirstChecks = JS_TRUE;
+    }
 #endif /* DEBUG */
 
     rt = (JSRuntime *) malloc(sizeof(JSRuntime));
@@ -762,13 +779,11 @@ JS_DestroyRuntime(JSRuntime *rt)
 #endif
     js_FinishPropertyTree(rt);
     free(rt);
-    JS_ArenaFinish();
 }
 
 JS_PUBLIC_API(void)
 JS_ShutDown(void)
 {
-    JS_ArenaShutDown();
     js_FinishDtoa();
 #ifdef JS_THREADSAFE
     js_CleanupLocks();
@@ -1211,6 +1226,7 @@ JS_InitStandardClasses(JSContext *cx, JSObject *obj)
 
     /* Initialize the rest of the standard objects and functions. */
     return js_InitArrayClass(cx, obj) &&
+           js_InitBlockClass(cx, obj) &&
            js_InitBooleanClass(cx, obj) &&
            js_InitCallClass(cx, obj) &&
            js_InitExceptionClasses(cx, obj) &&
@@ -1277,6 +1293,7 @@ static JSStdName standard_class_atoms[] = {
     {js_InitFunctionAndObjectClasses,   EAGER_ATOM_AND_CLASP(Function)},
     {js_InitFunctionAndObjectClasses,   EAGER_ATOM_AND_CLASP(Object)},
     {js_InitArrayClass,                 EAGER_ATOM_AND_CLASP(Array)},
+    {js_InitBlockClass,                 EAGER_ATOM_AND_CLASP(Block)},
     {js_InitBooleanClass,               EAGER_ATOM_AND_CLASP(Boolean)},
     {js_InitDateClass,                  EAGER_ATOM_AND_CLASP(Date)},
     {js_InitMathClass,                  EAGER_ATOM_AND_CLASP(Math)},
@@ -1350,7 +1367,6 @@ static JSStdName standard_class_names[] = {
 #if JS_HAS_GENERATORS
     {js_InitIteratorClasses,    EAGER_ATOM_AND_CLASP(Iterator)},
     {js_InitIteratorClasses,    EAGER_ATOM_AND_CLASP(Generator)},
-    {js_InitIteratorClasses,    EAGER_ATOM_AND_CLASP(GeneratorExit)},
 #endif
 
     {NULL,                      0, NULL, NULL}
@@ -1909,12 +1925,24 @@ JS_MarkGCThing(JSContext *cx, void *thing, const char *name, void *arg)
 JS_PUBLIC_API(void)
 JS_GC(JSContext *cx)
 {
+#if JS_HAS_GENERATORS
+    /* Run previously scheduled but delayed close hooks. */
+    js_RunCloseHooks(cx);
+#endif
+
     /* Don't nuke active arenas if executing or compiling. */
     if (cx->stackPool.current == &cx->stackPool.first)
         JS_FinishArenaPool(&cx->stackPool);
     if (cx->tempPool.current == &cx->tempPool.first)
         JS_FinishArenaPool(&cx->tempPool);
-    js_ForceGC(cx, 0);
+    js_GC(cx, GC_NORMAL);
+
+#if JS_HAS_GENERATORS
+    /*
+     * Run close hooks for objects that became unreachable after the last GC.
+     */
+    js_RunCloseHooks(cx);
+#endif
 }
 
 JS_PUBLIC_API(void)
@@ -1981,6 +2009,12 @@ JS_MaybeGC(JSContext *cx)
         rt->gcMallocBytes >= rt->gcMaxMallocBytes) {
         JS_GC(cx);
     }
+#if JS_HAS_GENERATORS
+    else {
+        /* Run scheduled but not yet executed close hooks. */
+        js_RunCloseHooks(cx);
+    }
+#endif
 #endif
 }
 

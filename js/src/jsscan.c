@@ -1011,10 +1011,8 @@ js_PeekTokenSameLine(JSContext *cx, JSTokenStream *ts)
 {
     JSTokenType tt;
 
-    JS_ASSERT(ts->lookahead == 0 ||
-              ON_CURRENT_LINE(ts, CURRENT_TOKEN(ts).pos) ||
-              ts->tokens[(ts->cursor + ts->lookahead) & NTOKENS_MASK].type
-                  == TOK_EOL);
+    if (!ON_CURRENT_LINE(ts, CURRENT_TOKEN(ts).pos))
+        return TOK_EOL;
     ts->flags |= TSF_NEWLINES;
     tt = js_PeekToken(cx, ts);
     ts->flags &= ~TSF_NEWLINES;
@@ -1088,10 +1086,6 @@ js_GetToken(JSContext *cx, JSTokenStream *ts)
 #define TRIM_TOKENBUF(i)    (ts->tokenbuf.ptr = ts->tokenbuf.base + i)
 #define NUL_TERM_TOKENBUF() (*ts->tokenbuf.ptr = 0)
 
-    /* If there was a fatal error, keep returning TOK_ERROR. */
-    if (ts->flags & TSF_ERROR)
-        return TOK_ERROR;
-
     /* Check for a pushed-back token resulting from mismatching lookahead. */
     while (ts->lookahead != 0) {
         JS_ASSERT(!(ts->flags & TSF_XMLTEXTMODE));
@@ -1101,6 +1095,10 @@ js_GetToken(JSContext *cx, JSTokenStream *ts)
         if (tt != TOK_EOL || (ts->flags & TSF_NEWLINES))
             return tt;
     }
+
+    /* If there was a fatal error, keep returning TOK_ERROR. */
+    if (ts->flags & TSF_ERROR)
+        return TOK_ERROR;
 
 #if JS_HAS_XML_SUPPORT
     if (ts->flags & TSF_XMLTEXTMODE) {
@@ -1313,8 +1311,7 @@ retry:
                                                  kw->chars)) {
                     goto error;
                 }
-            } else if (JS_VERSION_IS_ECMA(cx) ||
-                       kw->version <= (cx->version & JSVERSION_MASK)) {
+            } else if (kw->version <= JSVERSION_NUMBER(cx)) {
                 tt = kw->tokentype;
                 tp->t_op = (JSOp) kw->op;
                 goto out;
@@ -1697,19 +1694,21 @@ retry:
                     }
                     ADD_TO_TOKENBUF(c);
                 }
+                if (targetLength == 0)
+                    goto bad_xml_markup;
+                if (!TOKENBUF_OK())
+                    goto error;
                 if (contentIndex < 0) {
                     atom = cx->runtime->atomState.emptyAtom;
                 } else {
-                    if (!TOKENBUF_OK())
-                        goto error;
                     atom = js_AtomizeChars(cx,
                                            &TOKENBUF_CHAR(contentIndex),
                                            TOKENBUF_LENGTH() - contentIndex,
                                            0);
                     if (!atom)
                         goto error;
-                    TRIM_TOKENBUF(targetLength);
                 }
+                TRIM_TOKENBUF(targetLength);
                 tp->t_atom2 = atom;
                 tt = TOK_XMLPI;
 
@@ -2078,8 +2077,6 @@ void
 js_UngetToken(JSTokenStream *ts)
 {
     JS_ASSERT(ts->lookahead < NTOKENS_MASK);
-    if (ts->flags & TSF_ERROR)
-        return;
     ts->lookahead++;
     ts->cursor = (ts->cursor - 1) & NTOKENS_MASK;
 }

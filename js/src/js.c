@@ -922,11 +922,17 @@ SrcNotes(JSContext *cx, JSScript *script)
                    (uintN) js_GetSrcNoteOffset(sn, 1),
                    (uintN) js_GetSrcNoteOffset(sn, 2));
             break;
-          case SRC_COND:
           case SRC_IF_ELSE:
+            fprintf(gOutFile, " else %u elseif %u",
+                   (uintN) js_GetSrcNoteOffset(sn, 0),
+                   (uintN) js_GetSrcNoteOffset(sn, 1));
+            break;
+          case SRC_COND:
           case SRC_WHILE:
           case SRC_PCBASE:
           case SRC_PCDELTA:
+          case SRC_DECL:
+          case SRC_BRACE:
             fprintf(gOutFile, " offset %u", (uintN) js_GetSrcNoteOffset(sn, 0));
             break;
           case SRC_LABEL:
@@ -959,8 +965,12 @@ SrcNotes(JSContext *cx, JSScript *script)
             break;
           case SRC_CATCH:
             delta = (uintN) js_GetSrcNoteOffset(sn, 0);
-            if (delta)
-                fprintf(gOutFile, " guard size %u", delta);
+            if (delta) {
+                if (script->main[offset] == JSOP_LEAVEBLOCK)
+                    fprintf(gOutFile, " stack depth %u", delta);
+                else
+                    fprintf(gOutFile, " guard delta %u", delta);
+            }
             break;
           default:;
         }
@@ -1870,7 +1880,7 @@ static JSExtendedClass split_global_class = {
     NULL, NULL, NULL, NULL, NULL, NULL,
     split_mark, NULL},
     NULL, split_outerObject, split_innerObject,
-    JSCLASS_NO_RESERVED_MEMBERS
+    NULL, NULL, NULL, NULL, NULL
 };
 
 JSObject *

@@ -1212,7 +1212,7 @@ js_script_filename_marker(JSHashEntry *he, intN i, void *arg)
 }
 
 void
-js_MarkScriptFilenames(JSRuntime *rt, uintN gcflags)
+js_MarkScriptFilenames(JSRuntime *rt, JSBool keepAtoms)
 {
     JSCList *head, *link;
     ScriptFilenamePrefix *sfp;
@@ -1220,7 +1220,7 @@ js_MarkScriptFilenames(JSRuntime *rt, uintN gcflags)
     if (!rt->scriptFilenameTable)
         return;
 
-    if (gcflags & GC_KEEP_ATOMS) {
+    if (keepAtoms) {
         JS_HashTableEnumerateEntries(rt->scriptFilenameTable,
                                      js_script_filename_marker,
                                      rt);
@@ -1515,3 +1515,43 @@ js_GetScriptLineExtent(JSScript *script)
     }
     return 1 + lineno - script->lineno;
 }
+
+#if JS_HAS_GENERATORS
+
+jsbytecode *
+js_FindFinallyHandler(JSScript *script, jsbytecode *pc)
+{
+    JSTryNote *tn;
+    ptrdiff_t off;
+    JSOp op2;
+
+    tn = script->trynotes;
+    if (!tn)
+        return NULL;
+
+    off = pc - script->main;
+    if (off < 0)
+        return NULL;
+
+    JS_ASSERT(tn->catchStart != 0);
+    do {
+        if ((jsuword)(off - tn->start) < (jsuword)tn->length) {
+            /*
+             * We have a handler: is it the finally one, or a catch handler?
+             *
+             * Catch bytecode begins with:   JSOP_SETSP JSOP_ENTERBLOCK
+             * Finally bytecode begins with: JSOP_SETSP JSOP_(GOSUB|EXCEPTION)
+             */
+            pc = script->main + tn->catchStart;
+            JS_ASSERT(*pc == JSOP_SETSP);
+            op2 = pc[JSOP_SETSP_LENGTH];
+            if (op2 != JSOP_ENTERBLOCK) {
+                JS_ASSERT(op2 == JSOP_GOSUB || op2 == JSOP_EXCEPTION);
+                return pc;
+            }
+        }
+    } while ((++tn)->catchStart != 0);
+    return NULL;
+}
+
+#endif

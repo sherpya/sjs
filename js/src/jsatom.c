@@ -106,12 +106,15 @@ const char js_constructor_str[]     = "constructor";
 const char js_count_str[]           = "__count__";
 const char js_each_str[]            = "each";
 const char js_eval_str[]            = "eval";
+const char js_fileName_str[]        = "fileName";
 const char js_get_str[]             = "get";
 const char js_getter_str[]          = "getter";
 const char js_index_str[]           = "index";
 const char js_input_str[]           = "input";
 const char js_iterator_str[]        = "__iterator__";
 const char js_length_str[]          = "length";
+const char js_lineNumber_str[]      = "lineNumber";
+const char js_message_str[]         = "message";
 const char js_name_str[]            = "name";
 const char js_next_str[]            = "next";
 const char js_noSuchMethod_str[]    = "__noSuchMethod__";
@@ -120,6 +123,7 @@ const char js_parent_str[]          = "__parent__";
 const char js_proto_str[]           = "__proto__";
 const char js_setter_str[]          = "setter";
 const char js_set_str[]             = "set";
+const char js_stack_str[]           = "stack";
 const char js_toSource_str[]        = "toSource";
 const char js_toString_str[]        = "toString";
 const char js_toLocaleString_str[]  = "toLocaleString";
@@ -313,12 +317,15 @@ js_InitPinnedAtoms(JSContext *cx, JSAtomState *state)
     FROB(countAtom,               js_count_str);
     FROB(eachAtom,                js_each_str);
     FROB(evalAtom,                js_eval_str);
+    FROB(fileNameAtom,            js_fileName_str);
     FROB(getAtom,                 js_get_str);
     FROB(getterAtom,              js_getter_str);
     FROB(indexAtom,               js_index_str);
     FROB(inputAtom,               js_input_str);
     FROB(iteratorAtom,            js_iterator_str);
     FROB(lengthAtom,              js_length_str);
+    FROB(lineNumberAtom,          js_lineNumber_str);
+    FROB(messageAtom,             js_message_str);
     FROB(nameAtom,                js_name_str);
     FROB(nextAtom,                js_next_str);
     FROB(noSuchMethodAtom,        js_noSuchMethod_str);
@@ -326,6 +333,7 @@ js_InitPinnedAtoms(JSContext *cx, JSAtomState *state)
     FROB(protoAtom,               js_proto_str);
     FROB(setAtom,                 js_set_str);
     FROB(setterAtom,              js_setter_str);
+    FROB(stackAtom,               js_stack_str);
     FROB(toSourceAtom,            js_toSource_str);
     FROB(toStringAtom,            js_toString_str);
     FROB(toLocaleStringAtom,      js_toLocaleString_str);
@@ -417,7 +425,7 @@ js_FinishAtomState(JSAtomState *state)
 }
 
 typedef struct MarkArgs {
-    uintN           gcflags;
+    JSBool          keepAtoms;
     JSGCThingMarker mark;
     void            *data;
 } MarkArgs;
@@ -431,8 +439,7 @@ js_atom_marker(JSHashEntry *he, intN i, void *arg)
 
     atom = (JSAtom *)he;
     args = (MarkArgs *)arg;
-    if ((atom->flags & (ATOM_PINNED | ATOM_INTERNED)) ||
-        (args->gcflags & GC_KEEP_ATOMS)) {
+    if ((atom->flags & (ATOM_PINNED | ATOM_INTERNED)) || args->keepAtoms) {
         atom->flags |= ATOM_MARK;
         key = ATOM_KEY(atom);
         if (JSVAL_IS_GCTHING(key))
@@ -442,14 +449,14 @@ js_atom_marker(JSHashEntry *he, intN i, void *arg)
 }
 
 void
-js_MarkAtomState(JSAtomState *state, uintN gcflags, JSGCThingMarker mark,
+js_MarkAtomState(JSAtomState *state, JSBool keepAtoms, JSGCThingMarker mark,
                  void *data)
 {
     MarkArgs args;
 
     if (!state->table)
         return;
-    args.gcflags = gcflags;
+    args.keepAtoms = keepAtoms;
     args.mark = mark;
     args.data = data;
     JS_HashTableEnumerateEntries(state->table, js_atom_marker, &args);
@@ -741,6 +748,30 @@ js_AtomizeChars(JSContext *cx, const jschar *chars, size_t length, uintN flags)
     str->chars = (jschar *)chars;
     str->length = length;
     return js_AtomizeString(cx, str, ATOM_TMPSTR | flags);
+}
+
+JSAtom *
+js_GetExistingStringAtom(JSContext *cx, const jschar *chars, size_t length)
+{
+    JSString *str;
+    char buf[2 * ALIGNMENT(JSString)];
+    JSHashNumber keyHash;
+    jsval key;
+    JSAtomState *state;
+    JSHashTable *table;
+    JSHashEntry **hep;
+
+    str = ALIGN(buf, JSString);
+    str->chars = (jschar *)chars;
+    str->length = length;
+    keyHash = js_HashString(str);
+    key = STRING_TO_JSVAL(str);
+    state = &cx->runtime->atomState;
+    JS_LOCK(&state->lock, cx);
+    table = state->table;
+    hep = JS_HashTableRawLookup(table, keyHash, (void *)key);
+    JS_UNLOCK(&state->lock, cx);
+    return (hep) ? (JSAtom *)*hep : NULL;
 }
 
 JSAtom *

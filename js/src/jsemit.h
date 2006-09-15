@@ -1,4 +1,5 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ * vim: set ts=8 sw=4 et tw=78:
  *
  * ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
@@ -64,8 +65,8 @@ typedef enum JSStmtType {
     STMT_LABEL,                 /* labeled statement:  L: s */
     STMT_IF,                    /* if (then) statement */
     STMT_ELSE,                  /* else clause of if statement */
-    STMT_SWITCH,                /* switch statement */
     STMT_BLOCK,                 /* compound statement: { s1[;... sN] } */
+    STMT_SWITCH,                /* switch statement */
     STMT_WITH,                  /* with statement */
     STMT_CATCH,                 /* catch block */
     STMT_TRY,                   /* try block */
@@ -77,14 +78,22 @@ typedef enum JSStmtType {
     STMT_WHILE_LOOP             /* while loop statement */
 } JSStmtType;
 
-#define STMT_TYPE_MAYBE_SCOPE(type) \
-    ((type) >= STMT_BLOCK && (type) <= STMT_FINALLY)
+#define STMT_TYPE_IN_RANGE(t,b,e) ((uint)((t) - (b)) <= (uintN)((e) - (b)))
+
+#define STMT_TYPE_MAYBE_SCOPE(type)                                           \
+    (type != STMT_WITH &&                                                     \
+     STMT_TYPE_IN_RANGE(type, STMT_BLOCK, STMT_SUBROUTINE))
+#define STMT_TYPE_LINKS_SCOPE(type)                                           \
+    STMT_TYPE_IN_RANGE(type, STMT_WITH, STMT_CATCH)
+#define STMT_TYPE_IS_TRYING(type)                                             \
+    STMT_TYPE_IN_RANGE(type, STMT_TRY, STMT_SUBROUTINE)
+
 #define STMT_TYPE_IS_LOOP(type) ((type) >= STMT_DO_LOOP)
 
-#define STMT_MAYBE_SCOPE(stmt) STMT_TYPE_MAYBE_SCOPE((stmt)->type)
-#define STMT_IS_SCOPE(stmt) \
-    ((uintN)(((stmt)->type) - STMT_WITH) <= (uintN)(STMT_CATCH - STMT_WITH) ||\
-     ((stmt)->flags & SIF_SCOPE))
+#define STMT_MAYBE_SCOPE(stmt)  STMT_TYPE_MAYBE_SCOPE((stmt)->type)
+#define STMT_LINKS_SCOPE(stmt)  (STMT_TYPE_LINKS_SCOPE((stmt)->type) ||       \
+                                 ((stmt)->flags & SIF_SCOPE))
+#define STMT_IS_TRYING(stmt)    STMT_TYPE_IS_TRYING((stmt)->type)
 #define STMT_IS_LOOP(stmt)      STMT_TYPE_IS_LOOP((stmt)->type)
 
 typedef struct JSStmtInfo JSStmtInfo;
@@ -95,23 +104,31 @@ struct JSStmtInfo {
     ptrdiff_t       update;         /* loop update offset (top if none) */
     ptrdiff_t       breaks;         /* offset of last break in loop */
     ptrdiff_t       continues;      /* offset of last continue in loop */
-    ptrdiff_t       gosub;          /* offset of last GOSUB for this finally */
-    ptrdiff_t       catchJump;      /* offset of last end-of-catch jump */
-    JSAtom          *label;         /* name of LABEL or CATCH var */
+    JSAtom          *atom;          /* name of LABEL, or block scope object */
     JSStmtInfo      *down;          /* info for enclosing statement */
     JSStmtInfo      *downScope;     /* next enclosing lexical scope */
-    JSObject        *blockObj;      /* block object if BLOCK_SCOPE */
 };
 
-#define SIF_BODY_BLOCK  0x0001      /* STMT_BLOCK type is a function body */
-#define SIF_SCOPE       0x0002      /* This statement contains a scope. */
+#define SIF_SCOPE        0x0001     /* statement has its own lexical scope */
+#define SIF_BODY_BLOCK   0x0002     /* STMT_BLOCK type is a function body */
+
+/*
+ * To reuse space in JSStmtInfo, rename breaks and continues for use during
+ * try/catch/finally code generation and backpatching.  To match most common
+ * use cases, the macro argument is a struct, not a struct pointer.  Only a
+ * loop, switch, or label statement info record can have breaks and continues,
+ * and only a for loop has an update backpatch chain, so it's safe to overlay
+ * these for the "trying" JSStmtTypes.
+ */
+#define CATCHNOTE(stmt)  ((stmt).update)
+#define GOSUBS(stmt)     ((stmt).breaks)
+#define GUARDJUMP(stmt)  ((stmt).continues)
 
 #define AT_TOP_LEVEL(tc)                                                      \
     (!(tc)->topStmt || ((tc)->topStmt->flags & SIF_BODY_BLOCK))
 
 #define SET_STATEMENT_TOP(stmt, top)                                          \
-    ((stmt)->update = (top), (stmt)->breaks =                                 \
-     (stmt)->continues = (stmt)->catchJump = (stmt)->gosub = (-1))
+    ((stmt)->update = (top), (stmt)->breaks = (stmt)->continues = (-1))
 
 struct JSTreeContext {              /* tree context for semantic checks */
     uint16          flags;          /* statement state flags, see below */
@@ -121,7 +138,9 @@ struct JSTreeContext {              /* tree context for semantic checks */
     uint32          loopyGlobalUses;/* optimizable global var uses in loops */
     JSStmtInfo      *topStmt;       /* top of statement info stack */
     JSStmtInfo      *topScopeStmt;  /* top lexical scope statement */
-    JSObject        *blockChain;    /* compile time block scope chain */
+    JSObject        *blockChain;    /* compile time block scope chain (NB: one
+                                       deeper than the topScopeStmt/downScope
+                                       chain when in head of let block/expr) */
     JSParseNode     *blockNode;     /* parse node for a lexical scope.
                                        XXX combine with blockChain? */
     JSAtomList      decls;          /* function, const, and var declarations */
@@ -132,6 +151,7 @@ struct JSTreeContext {              /* tree context for semantic checks */
 #define TCF_IN_FUNCTION        0x02 /* parsing inside function body */
 #define TCF_RETURN_EXPR        0x04 /* function has 'return expr;' */
 #define TCF_RETURN_VOID        0x08 /* function has 'return;' */
+#define TCF_RETURN_FLAGS       0x0C /* propagate these out of blocks */
 #define TCF_IN_FOR_INIT        0x10 /* parsing init expr of for; exclude 'in' */
 #define TCF_FUN_CLOSURE_VS_VAR 0x20 /* function and var with same name */
 #define TCF_FUN_USES_NONLOCALS 0x40 /* function refers to non-local names */
@@ -139,6 +159,7 @@ struct JSTreeContext {              /* tree context for semantic checks */
 #define TCF_FUN_IS_GENERATOR  0x100 /* parsed yield statement in function */
 #define TCF_FUN_FLAGS         0x1E0 /* flags to propagate from FunctionBody */
 #define TCF_HAS_DEFXMLNS      0x200 /* default xml namespace = ...; parsed */
+#define TCF_HAS_FUNCTION_STMT 0x400 /* block contains a function statement */
 
 #define TREE_CONTEXT_INIT(tc)                                                 \
     ((tc)->flags = (tc)->numGlobalVars = 0,                                   \
@@ -252,6 +273,8 @@ struct JSCodeGenerator {
     ptrdiff_t       spanDepTodo;    /* offset from main.base of potentially
                                        unoptimized spandeps */
 
+    uintN           arrayCompSlot;  /* stack slot of array in comprehension */
+
     uintN           emitLevel;      /* js_EmitTree recursion level */
     JSAtomList      constList;      /* compile time constants */
     JSCodeGenerator *parent;        /* Enclosing function or global context */
@@ -349,9 +372,13 @@ js_InStatement(JSTreeContext *tc, JSStmtType type);
 /* Test whether we're in a with statement. */
 #define js_InWithStatement(tc)      js_InStatement(tc, STMT_WITH)
 
-/* Test whether we're in a catch block with exception named by atom. */
+/*
+ * Test whether atom refers to a global variable (or is a reference error).
+ * Return true in *loopyp if any loops enclose the lexical reference, false
+ * otherwise.
+ */
 extern JSBool
-js_InCatchBlock(JSTreeContext *tc, JSAtom *atom);
+js_IsGlobalReference(JSTreeContext *tc, JSAtom *atom, JSBool *loopyp);
 
 /*
  * Push the C-stack-allocated struct at stmt onto the stmtInfo stack.
@@ -361,12 +388,12 @@ js_PushStatement(JSTreeContext *tc, JSStmtInfo *stmt, JSStmtType type,
                  ptrdiff_t top);
 
 /*
- * Push a block scope statement and link blockObj into tc->blockChain.  To pop
- * this statement info record, use js_PopStatement as usual, or if appropriate
- * (if generating code), js_PopStatementCG.
+ * Push a block scope statement and link blockAtom's object-valued key into
+ * tc->blockChain.  To pop this statement info record, use js_PopStatement as
+ * usual, or if appropriate (if generating code), js_PopStatementCG.
  */
 extern void
-js_PushBlockScope(JSTreeContext *tc, JSStmtInfo *stmt, JSObject *blockObj,
+js_PushBlockScope(JSTreeContext *tc, JSStmtInfo *stmt, JSAtom *blockAtom,
                   ptrdiff_t top);
 
 /*
@@ -377,7 +404,8 @@ extern void
 js_PopStatement(JSTreeContext *tc);
 
 /*
- * Like js_PopStatement(&cg->treeContext), also patch breaks and continues.
+ * Like js_PopStatement(&cg->treeContext), also patch breaks and continues
+ * unless the top statement info record represents a try-catch-finally suite.
  * May fail if a jump offset overflows.
  */
 extern JSBool
@@ -402,6 +430,24 @@ js_DefineCompileTimeConstant(JSContext *cx, JSCodeGenerator *cg, JSAtom *atom,
 extern JSBool
 js_LookupCompileTimeConstant(JSContext *cx, JSCodeGenerator *cg, JSAtom *atom,
                              jsval *vp);
+
+/*
+ * Find a lexically scoped variable (one declared by let, catch, or an array
+ * comprehension) named by atom, looking in tc's compile-time scopes.
+ *
+ * If a WITH statement is reached along the scope stack, return its statement
+ * info record, so callers can tell that atom is ambiguous.  If slotp is not
+ * null, then if atom is found, set *slotp to its stack slot, otherwise to -1.
+ * This means that if slotp is not null, all the block objects on the lexical
+ * scope chain must have had their depth slots computed by the code generator,
+ * so the caller must be under js_EmitTree.
+ *
+ * In any event, directly return the statement info record in which atom was
+ * found.  Otherwise return null.
+ */
+extern JSStmtInfo *
+js_LexicalLookup(JSTreeContext *tc, JSAtom *atom, jsint *slotp,
+                 JSBool letdecl);
 
 /*
  * Emit code into cg for the tree rooted at pn.
@@ -455,7 +501,8 @@ typedef enum JSSrcNoteType {
                                    gets and sets */
     SRC_ASSIGNOP    = 8,        /* += or another assign-op follows */
     SRC_COND        = 9,        /* JSOP_IFEQ is from conditional ?: operator */
-    SRC_UNQUOTE     = 10,       /* don't quote a JSOP_STRING */
+    SRC_BRACE       = 10,       /* mandatory brace, for scope or to avoid
+                                   dangling else */
     SRC_HIDDEN      = 11,       /* opcode shouldn't be decompiled */
     SRC_PCBASE      = 12,       /* distance back from annotated get- or setprop
                                    op to first obj.prop.subprop bytecode */
@@ -468,13 +515,21 @@ typedef enum JSSrcNoteType {
                                    2nd off to first JSOP_CASE if condswitch */
     SRC_FUNCDEF     = 19,       /* JSOP_NOP for function f() with atomid */
     SRC_CATCH       = 20,       /* catch block has guard */
-    SRC_UNUSED21    = 21,       /* Unused source note */
+    SRC_UNUSED21    = 21,       /* unused */
     SRC_NEWLINE     = 22,       /* bytecode follows a source newline */
     SRC_SETLINE     = 23,       /* a file-absolute source line number note */
     SRC_XDELTA      = 24        /* 24-31 are for extended delta notes */
 } JSSrcNoteType;
 
-/* Constants for the SRC_DECL source note. */
+/*
+ * Constants for the SRC_DECL source note.  Note that span-dependent bytecode
+ * selection means that any SRC_DECL offset greater than SRC_DECL_LET may need
+ * to be adjusted, but these "offsets" are too small to span a span-dependent
+ * instruction, so can be used to denote distinct declaration syntaxes to the
+ * decompiler.
+ *
+ * NB: the var_prefix array in jsopcode.c depends on these dense indexes.
+ */
 #define SRC_DECL_VAR             0
 #define SRC_DECL_CONST           1
 #define SRC_DECL_LET             2

@@ -555,8 +555,8 @@ js_CompileTokenStream(JSContext *cx, JSObject *chain, JSTokenStream *ts,
 static int
 HasFinalReturn(JSParseNode *pn)
 {
-    uintN rv, rv2, hasDefault;
     JSParseNode *pn2, *pn3;
+    uintN rv, rv2, hasDefault;
 
     switch (pn->pn_type) {
       case TOK_LC:
@@ -601,7 +601,10 @@ HasFinalReturn(JSParseNode *pn)
       case TOK_SWITCH:
         rv = ENDS_IN_RETURN;
         hasDefault = ENDS_IN_OTHER;
-        for (pn2 = pn->pn_kid2->pn_head; rv && pn2; pn2 = pn2->pn_next) {
+        pn2 = pn->pn_right;
+        if (pn2->pn_type == TOK_LEXICALSCOPE)
+            pn2 = pn2->pn_expr;
+        for (pn2 = pn2->pn_head; rv && pn2; pn2 = pn2->pn_next) {
             if (pn2->pn_type == TOK_DEFAULT)
                 hasDefault = ENDS_IN_RETURN;
             pn3 = pn2->pn_right;
@@ -628,6 +631,7 @@ HasFinalReturn(JSParseNode *pn)
         return ENDS_IN_RETURN;
 
       case TOK_COLON:
+      case TOK_LEXICALSCOPE:
         return HasFinalReturn(pn->pn_expr);
 
       case TOK_THROW:
@@ -643,16 +647,22 @@ HasFinalReturn(JSParseNode *pn)
 
         /* Else check the try block and any and all catch statements. */
         rv = HasFinalReturn(pn->pn_kid1);
-        if (pn->pn_kid2)
-            rv &= HasFinalReturn(pn->pn_kid2);
+        if (pn->pn_kid2) {
+            JS_ASSERT(pn->pn_kid2->pn_arity == PN_LIST);
+            for (pn2 = pn->pn_kid2->pn_head; pn2; pn2 = pn2->pn_next)
+                rv &= HasFinalReturn(pn2);
+        }
         return rv;
 
       case TOK_CATCH:
-        /* Check this block's code and iterate over further catch blocks. */
-        rv = HasFinalReturn(pn->pn_kid3);
-        for (pn2 = pn->pn_kid2; pn2; pn2 = pn2->pn_kid2)
-            rv &= HasFinalReturn(pn2->pn_kid3);
-        return rv;
+        /* Check this catch block's body. */
+        return HasFinalReturn(pn->pn_kid3);
+
+      case TOK_LET:
+        /* Non-binary let statements are let declarations. */
+        if (pn->pn_arity != PN_BINARY)
+            return ENDS_IN_OTHER;
+        return HasFinalReturn(pn->pn_right);
 
       default:
         return ENDS_IN_OTHER;
@@ -692,7 +702,7 @@ FunctionBody(JSContext *cx, JSTokenStream *ts, JSFunction *fun,
     JSStackFrame *fp, frame;
     JSObject *funobj;
     JSStmtInfo stmtInfo;
-    uintN oldflags;
+    uintN oldflags, firstLine;
     JSParseNode *pn;
 
     fp = cx->fp;
@@ -708,12 +718,25 @@ FunctionBody(JSContext *cx, JSTokenStream *ts, JSFunction *fun,
         cx->fp = &frame;
     }
 
+    /*
+     * Set interpreted early so js_EmitTree can test it to decide whether to
+     * eliminate useless expressions.
+     */
+    fun->flags |= JSFUN_INTERPRETED;
+
     js_PushStatement(tc, &stmtInfo, STMT_BLOCK, -1);
     stmtInfo.flags = SIF_BODY_BLOCK;
 
     oldflags = tc->flags;
     tc->flags &= ~(TCF_RETURN_EXPR | TCF_RETURN_VOID);
     tc->flags |= TCF_IN_FUNCTION;
+
+    /*
+     * Save the body's first line, and store it in pn->pn_pos.begin.lineno
+     * later, because we may have not peeked in ts yet, so Statements won't
+     * acquire a valid pn->pn_pos.begin from the current token.
+     */
+    firstLine = ts->lineno;
     pn = Statements(cx, ts, tc);
 
     js_PopStatement(tc);
@@ -729,14 +752,17 @@ FunctionBody(JSContext *cx, JSTokenStream *ts, JSFunction *fun,
      * function's code.  We must do this here, not in js_CompileFunctionBody,
      * in order to detect TCF_IN_FUNCTION among tc->flags.
      */
-    if (pn && (tc->flags & TCF_COMPILING)) {
-        JSCodeGenerator *cg = (JSCodeGenerator *) tc;
+    if (pn) {
+        pn->pn_pos.begin.lineno = firstLine;
+        if ((tc->flags & TCF_COMPILING)) {
+            JSCodeGenerator *cg = (JSCodeGenerator *) tc;
 
-        if (!js_FoldConstants(cx, pn, tc) ||
-            !js_AllocTryNotes(cx, cg) ||
-            !js_EmitTree(cx, cg, pn) ||
-            js_Emit1(cx, cg, JSOP_STOP) < 0) {
-            pn = NULL;
+            if (!js_FoldConstants(cx, pn, tc) ||
+                !js_AllocTryNotes(cx, cg) ||
+                !js_EmitTree(cx, cg, pn) ||
+                js_Emit1(cx, cg, JSOP_STOP) < 0) {
+                pn = NULL;
+            }
         }
     }
 
@@ -797,13 +823,18 @@ js_CompileFunctionBody(JSContext *cx, JSTokenStream *ts, JSFunction *fun)
     CURRENT_TOKEN(ts).type = TOK_LC;
     pn = FunctionBody(cx, ts, fun, &funcg.treeContext);
     if (pn) {
-        fun->u.i.script = js_NewScriptFromCG(cx, &funcg, fun);
-        if (!fun->u.i.script) {
+        if (!js_MatchToken(cx, ts, TOK_EOF)) {
+            js_ReportCompileErrorNumber(cx, ts, JSREPORT_TS | JSREPORT_ERROR,
+                                        JSMSG_SYNTAX_ERROR);
             pn = NULL;
         } else {
-            fun->flags |= JSFUN_INTERPRETED;
-            if (funcg.treeContext.flags & TCF_FUN_HEAVYWEIGHT)
-                fun->flags |= JSFUN_HEAVYWEIGHT;
+            fun->u.i.script = js_NewScriptFromCG(cx, &funcg, fun);
+            if (!fun->u.i.script) {
+                pn = NULL;
+            } else {
+                if (funcg.treeContext.flags & TCF_FUN_HEAVYWEIGHT)
+                    fun->flags |= JSFUN_HEAVYWEIGHT;
+            }
         }
     }
 
@@ -816,21 +847,217 @@ js_CompileFunctionBody(JSContext *cx, JSTokenStream *ts, JSFunction *fun)
     return pn != NULL;
 }
 
+/*
+ * Parameter block types for the several Binder functions.  We use a common
+ * helper function signature in order to share code among destructuring and
+ * simple variable declaration parsers.  In the destructuring case, the binder
+ * function is called indirectly from the variable declaration parser by way
+ * of CheckDestructuring and its subroutines.
+ */
+typedef struct BindData BindData;
+
+typedef JSBool
+(*Binder)(JSContext *cx, BindData *data, JSAtom *atom, JSTreeContext *tc);
+
+struct BindData {
+    JSParseNode             *pn;                /* error source coordinate */
+    JSTokenStream           *ts;                /* fallback if pn is null */
+    JSObject                *obj;               /* the variable object */
+    JSOp                    op;                 /* prolog bytecode or nop */
+    Binder                  binder;             /* binder, discriminates u */
+    union {
+        struct {
+            JSFunction      *fun;               /* must come first! see next */
+        } arg;
+        struct {
+            JSFunction      *fun;               /* this overlays u.arg.fun */
+            JSClass         *clasp;
+            JSPropertyOp    getter;
+            JSPropertyOp    setter;
+            uintN           attrs;
+        } var;
+        struct {
+            jsuint          index;
+            uintN           overflow;
+        } let;
+    } u;
+};
+
+/*
+ * Given BindData *data and JSREPORT_* flags, expand to the second and third
+ * actual parameters to js_ReportCompileErrorNumber.  Prefer reporting via pn
+ * to reporting via ts, for better destructuring error pointers.
+ */
+#define BIND_DATA_REPORT_ARGS(data, flags)                                    \
+    (data)->pn ? (void *)(data)->pn : (void *)(data)->ts,                     \
+    ((data)->pn ? JSREPORT_PN : JSREPORT_TS) | (flags)
+
+static JSBool
+BumpFormalCount(JSContext *cx, JSFunction *fun)
+{
+    if (fun->nargs == JS_BITMASK(16)) {
+        JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
+                             JSMSG_TOO_MANY_FUN_ARGS);
+        return JS_FALSE;
+    }
+    fun->nargs++;
+    return JS_TRUE;
+}
+
+static JSBool
+BindArg(JSContext *cx, BindData *data, JSAtom *atom, JSTreeContext *tc)
+{
+    JSObject *obj, *pobj;
+    JSProperty *prop;
+    JSBool ok;
+    uintN dupflag;
+    JSFunction *fun;
+    const char *name;
+
+    obj = data->obj;
+    ok = js_LookupHiddenProperty(cx, obj, ATOM_TO_JSID(atom), &pobj, &prop);
+    if (!ok)
+        return JS_FALSE;
+
+    dupflag = 0;
+    if (prop) {
+        JS_ASSERT(pobj == obj);
+        name = js_AtomToPrintableString(cx, atom);
+
+        /*
+         * A duplicate parameter name, a "feature" required by ECMA-262.
+         * We force a duplicate node on the SCOPE_LAST_PROP(scope) list
+         * with the same id, distinguished by the SPROP_IS_DUPLICATE flag,
+         * and not mapped by an entry in scope.
+         */
+        ok = name &&
+             js_ReportCompileErrorNumber(cx,
+                                         BIND_DATA_REPORT_ARGS(data,
+                                             JSREPORT_WARNING |
+                                             JSREPORT_STRICT),
+                                         JSMSG_DUPLICATE_FORMAL,
+                                         name);
+
+        OBJ_DROP_PROPERTY(cx, pobj, prop);
+        if (!ok)
+            return JS_FALSE;
+
+        dupflag = SPROP_IS_DUPLICATE;
+    }
+
+    fun = data->u.arg.fun;
+    if (!js_AddHiddenProperty(cx, data->obj, ATOM_TO_JSID(atom),
+                              js_GetArgument, js_SetArgument,
+                              SPROP_INVALID_SLOT,
+                              JSPROP_PERMANENT | JSPROP_SHARED,
+                              dupflag | SPROP_HAS_SHORTID,
+                              fun->nargs)) {
+        return JS_FALSE;
+    }
+
+    return BumpFormalCount(cx, fun);
+}
+
+static JSBool
+BindLocalVariable(JSContext *cx, BindData *data, JSAtom *atom)
+{
+    JSFunction *fun;
+
+    fun = data->u.var.fun;
+    if (!js_AddHiddenProperty(cx, data->obj, ATOM_TO_JSID(atom),
+                              data->u.var.getter, data->u.var.setter,
+                              SPROP_INVALID_SLOT,
+                              data->u.var.attrs | JSPROP_SHARED,
+                              SPROP_HAS_SHORTID, fun->u.i.nvars)) {
+        return JS_FALSE;
+    }
+    if (fun->u.i.nvars == JS_BITMASK(16)) {
+        JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
+                             JSMSG_TOO_MANY_FUN_VARS);
+        return JS_FALSE;
+    }
+    fun->u.i.nvars++;
+    return JS_TRUE;
+}
+
+#if JS_HAS_DESTRUCTURING
+/*
+ * Forward declaration to maintain top-down presentation.
+ */
+static JSBool
+CheckDestructuring(JSContext *cx, BindData *data,
+                   JSParseNode *left, JSParseNode *right,
+                   JSTreeContext *tc);
+
+static JSBool
+BindDestructuringArg(JSContext *cx, BindData *data, JSAtom *atom,
+                     JSTreeContext *tc)
+{
+    JSAtomListElement *ale;
+    JSFunction *fun;
+    JSObject *obj, *pobj;
+    JSProperty *prop;
+    const char *name;
+
+    ATOM_LIST_SEARCH(ale, &tc->decls, atom);
+    if (!ale) {
+        ale = js_IndexAtom(cx, atom, &tc->decls);
+        if (!ale)
+            return JS_FALSE;
+        ALE_SET_JSOP(ale, data->op);
+    }
+
+    fun = data->u.var.fun;
+    obj = data->obj;
+    if (!js_LookupHiddenProperty(cx, obj, ATOM_TO_JSID(atom), &pobj, &prop))
+        return JS_FALSE;
+
+    if (prop) {
+        JS_ASSERT(pobj == obj && OBJ_IS_NATIVE(pobj));
+        name = js_AtomToPrintableString(cx, atom);
+        if (!name ||
+            !js_ReportCompileErrorNumber(cx,
+                                         BIND_DATA_REPORT_ARGS(data,
+                                             JSREPORT_WARNING |
+                                             JSREPORT_STRICT),
+                                         JSMSG_DUPLICATE_FORMAL,
+                                         name)) {
+            return JS_FALSE;
+        }
+        OBJ_DROP_PROPERTY(cx, pobj, prop);
+    } else {
+        /*
+         * Don't bind a variable with hidden name 'arguments', per ECMA-262.
+         * Instead, var arguments always restates the predefined property of
+         * the activation objects with unhidden name 'arguments'.  Assignment
+         * to such a variable must be handled specially.
+         */
+        if (atom != cx->runtime->atomState.argumentsAtom &&
+            !BindLocalVariable(cx, data, atom)) {
+            return JS_FALSE;
+        }
+    }
+    return JS_TRUE;
+}
+#endif /* JS_HAS_DESTRUCTURING */
+
 static JSParseNode *
 FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             JSBool lambda)
 {
     JSOp op, prevop;
     JSParseNode *pn, *body, *result;
-    JSAtom *funAtom, *objAtom, *argAtom;
+    JSTokenType tt;
+    JSAtom *funAtom, *objAtom;
     JSStackFrame *fp;
     JSObject *varobj, *pobj;
     JSAtomListElement *ale;
     JSProperty *prop;
     JSFunction *fun;
-    uintN dupflag;
-    JSBool ok;
     JSTreeContext funtc;
+#if JS_HAS_DESTRUCTURING
+    JSParseNode *item, *list = NULL;
+#endif
 
     /* Make a TOK_FUNCTION node. */
 #if JS_HAS_GETTER_SETTER
@@ -841,7 +1068,15 @@ FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
         return NULL;
 
     /* Scan the optional function name into funAtom. */
-    funAtom = js_MatchToken(cx, ts, TOK_NAME) ? CURRENT_TOKEN(ts).t_atom : NULL;
+    ts->flags |= TSF_KEYWORD_IS_NAME;
+    tt = js_GetToken(cx, ts);
+    ts->flags &= ~TSF_KEYWORD_IS_NAME;
+    if (tt == TOK_NAME) {
+        funAtom = CURRENT_TOKEN(ts).t_atom;
+    } else {
+        funAtom = NULL;
+        js_UngetToken(ts);
+    }
 
     /* Find the nearest variable-declaring scope and use it as our parent. */
     fp = cx->fp;
@@ -889,12 +1124,14 @@ FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
          * local variable to bind its name to its value, and not an activation
          * object property (it might also need the activation property, if the
          * outer function contains with statements, e.g., but the stack slot
-         * wins when jsemit.c's LookupArgOrVar can optimize a JSOP_NAME into a
+         * wins when jsemit.c's BindNameToSlot can optimize a JSOP_NAME into a
          * JSOP_GETVAR bytecode).
          */
         if (AT_TOP_LEVEL(tc) && (tc->flags & TCF_IN_FUNCTION)) {
+            JSScopeProperty *sprop;
+
             /*
-             * Define a property on the outer function so that LookupArgOrVar
+             * Define a property on the outer function so that BindNameToSlot
              * can properly optimize accesses.
              */
             JS_ASSERT(OBJ_GET_CLASS(cx, varobj) == &js_FunctionClass);
@@ -905,16 +1142,26 @@ FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             }
             if (prop)
                 OBJ_DROP_PROPERTY(cx, pobj, prop);
+            sprop = NULL;
             if (!prop ||
                 pobj != varobj ||
-                ((JSScopeProperty *)prop)->getter != js_GetLocalVariable) {
+                (sprop = (JSScopeProperty *)prop,
+                 sprop->getter != js_GetLocalVariable)) {
+                uintN sflags;
+
+                /*
+                 * Use SPROP_IS_DUPLICATE if there is a formal argument of the
+                 * same name, so the decompiler can find the parameter name.
+                 */
+                sflags = (sprop && sprop->getter == js_GetArgument)
+                         ? SPROP_IS_DUPLICATE | SPROP_HAS_SHORTID
+                         : SPROP_HAS_SHORTID;
                 if (!js_AddHiddenProperty(cx, varobj, ATOM_TO_JSID(funAtom),
                                           js_GetLocalVariable,
                                           js_SetLocalVariable,
                                           SPROP_INVALID_SLOT,
                                           JSPROP_PERMANENT | JSPROP_SHARED,
-                                          SPROP_HAS_SHORTID,
-                                          fp->fun->u.i.nvars)) {
+                                          sflags, fp->fun->u.i.nvars)) {
                     return NULL;
                 }
                 if (fp->fun->u.i.nvars == JS_BITMASK(16)) {
@@ -936,13 +1183,6 @@ FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
         fun->flags |= (op == JSOP_GETTER) ? JSPROP_GETTER : JSPROP_SETTER;
 #endif
 
-
-    /*
-     * Set interpreted early so js_EmitTree can test it to decide whether to
-     * eliminate useless expressions.
-     */
-    fun->flags |= JSFUN_INTERPRETED;
-
     /*
      * Atomize fun->object early to protect against a last-ditch GC under
      * js_LookupHiddenProperty.
@@ -957,59 +1197,106 @@ FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
     if (!objAtom)
         return NULL;
 
+    /* Initialize early for possible flags mutation via CheckDestructuring. */
+    TREE_CONTEXT_INIT(&funtc);
+
     /* Now parse formal argument list and compute fun->nargs. */
     MUST_MATCH_TOKEN(TOK_LP, JSMSG_PAREN_BEFORE_FORMAL);
     if (!js_MatchToken(cx, ts, TOK_RP)) {
+        BindData data;
+
+        data.pn = NULL;
+        data.ts = ts;
+        data.obj = fun->object;
+        data.op = JSOP_NOP;
+        data.binder = BindArg;
+        data.u.arg.fun = fun;
+
         do {
-            MUST_MATCH_TOKEN(TOK_NAME, JSMSG_MISSING_FORMAL);
-            argAtom = CURRENT_TOKEN(ts).t_atom;
-            pobj = NULL;
-            if (!js_LookupHiddenProperty(cx, fun->object, ATOM_TO_JSID(argAtom),
-                                         &pobj, &prop)) {
-                return NULL;
-            }
-            dupflag = 0;
-            if (prop) {
-                ok = JS_TRUE;
-                if (pobj == fun->object &&
-                    ((JSScopeProperty *) prop)->getter == js_GetArgument) {
-                    const char *name = js_AtomToPrintableString(cx, argAtom);
+            tt = js_GetToken(cx, ts);
+            switch (tt) {
+#if JS_HAS_DESTRUCTURING
+              case TOK_LB:
+              case TOK_LC:
+              {
+                JSParseNode *lhs, *rhs;
+                jsint slot;
 
-                    /*
-                     * A duplicate parameter name. We force a duplicate node
-                     * on the SCOPE_LAST_PROP(scope) list with the same id,
-                     * distinguished by the SPROP_IS_DUPLICATE flag, and not
-                     * mapped by an entry in scope.
-                     */
-                    ok = name &&
-                         js_ReportCompileErrorNumber(cx, ts,
-                                                     JSREPORT_TS |
-                                                     JSREPORT_WARNING |
-                                                     JSREPORT_STRICT,
-                                                     JSMSG_DUPLICATE_FORMAL,
-                                                     name);
-
-                    dupflag = SPROP_IS_DUPLICATE;
-                }
-                OBJ_DROP_PROPERTY(cx, pobj, prop);
-                if (!ok)
+                lhs = PrimaryExpr(cx, ts, tc, tt, JS_FALSE);
+                if (!lhs)
                     return NULL;
-                prop = NULL;
-            }
-            if (!js_AddHiddenProperty(cx, fun->object, ATOM_TO_JSID(argAtom),
-                                      js_GetArgument, js_SetArgument,
-                                      SPROP_INVALID_SLOT,
-                                      JSPROP_PERMANENT | JSPROP_SHARED,
-                                      dupflag | SPROP_HAS_SHORTID,
-                                      fun->nargs)) {
+
+                /*
+                 * A destructuring formal parameter turns into one or more
+                 * local variables initialized from properties of a single
+                 * anonymous positional parameter, so here we must tweak our
+                 * binder and its data.
+                 */
+                data.op = JSOP_DEFVAR;
+                data.binder = BindDestructuringArg;
+                data.u.var.clasp = &js_FunctionClass;
+                data.u.var.getter = js_GetLocalVariable;
+                data.u.var.setter = js_SetLocalVariable;
+                data.u.var.attrs = JSPROP_PERMANENT;
+
+                if (!CheckDestructuring(cx, &data, lhs, NULL, &funtc))
+                    return NULL;
+
+                /*
+                 * Restore the formal parameter binder in case there are more
+                 * non-destructuring formals in the parameter list.
+                 */
+                data.binder = BindArg;
+
+                /*
+                 * Adjust fun->nargs to count the single anonymous positional
+                 * parameter that is to be destructured.
+                 */
+                slot = fun->nargs;
+                if (!BumpFormalCount(cx, fun))
+                    return NULL;
+
+                /*
+                 * Synthesize a destructuring assignment from the single
+                 * anonymous positional parameter into the destructuring
+                 * left-hand-side expression and accumulate it in list.
+                 */
+                rhs = NewParseNode(cx, ts, PN_NAME, tc);
+                if (!rhs)
+                    return NULL;
+                rhs->pn_type = TOK_NAME;
+                rhs->pn_op = JSOP_GETARG;
+                rhs->pn_atom = cx->runtime->atomState.emptyAtom;
+                rhs->pn_expr = NULL;
+                rhs->pn_slot = slot;
+                rhs->pn_attrs = 0;
+
+                item = NewBinary(cx, TOK_ASSIGN, JSOP_NOP, lhs, rhs, tc);
+                if (!item)
+                    return NULL;
+                if (!list) {
+                    list = NewParseNode(cx, ts, PN_LIST, tc);
+                    if (!list)
+                        return NULL;
+                    list->pn_type = TOK_COMMA;
+                    PN_INIT_LIST(list);
+                }
+                PN_APPEND(list, item);
+                break;
+              }
+#endif /* JS_HAS_DESTRUCTURING */
+
+              case TOK_NAME:
+                if (!data.binder(cx, &data, CURRENT_TOKEN(ts).t_atom, tc))
+                    return NULL;
+                break;
+
+              default:
+                js_ReportCompileErrorNumber(cx, ts,
+                                            JSREPORT_TS | JSREPORT_ERROR,
+                                            JSMSG_MISSING_FORMAL);
                 return NULL;
             }
-            if (fun->nargs == JS_BITMASK(16)) {
-                JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
-                                     JSMSG_TOO_MANY_FUN_ARGS);
-                return NULL;
-            }
-            fun->nargs++;
         } while (js_MatchToken(cx, ts, TOK_COMMA));
 
         MUST_MATCH_TOKEN(TOK_RP, JSMSG_PAREN_AFTER_FORMAL);
@@ -1018,13 +1305,34 @@ FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
     MUST_MATCH_TOKEN(TOK_LC, JSMSG_CURLY_BEFORE_BODY);
     pn->pn_pos.begin = CURRENT_TOKEN(ts).pos.begin;
 
-    TREE_CONTEXT_INIT(&funtc);
     body = FunctionBody(cx, ts, fun, &funtc);
     if (!body)
         return NULL;
 
     MUST_MATCH_TOKEN(TOK_RC, JSMSG_CURLY_AFTER_BODY);
     pn->pn_pos.end = CURRENT_TOKEN(ts).pos.end;
+
+#if JS_HAS_DESTRUCTURING
+    /*
+     * If there were destructuring formal parameters, prepend the initializing
+     * comma expression that we synthesized to body.
+     */
+    if (list) {
+        JS_ASSERT(body->pn_arity == PN_LIST);
+        item = NewParseNode(cx, ts, PN_UNARY, tc);
+        if (!item)
+            return NULL;
+
+        item->pn_type = TOK_SEMI;
+        item->pn_pos.begin = item->pn_pos.end = body->pn_pos.begin;
+        item->pn_kid = list;
+        item->pn_next = body->pn_head;
+        body->pn_head = item;
+        if (body->pn_tail == &body->pn_head)
+            body->pn_tail = &item->pn_next;
+        ++body->pn_count;
+    }
+#endif
 
     /*
      * If we collected flags that indicate nested heavyweight functions, or
@@ -1135,6 +1443,10 @@ Statements(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             return NULL;
         }
         ts->flags |= TSF_OPERAND;
+
+        /* Detect a function statement for the TOK_LC case in Statement. */
+        if (pn2->pn_type == TOK_FUNCTION && !AT_TOP_LEVEL(tc))
+            tc->flags |= TCF_HAS_FUNCTION_STMT;
 
         /* If compiling top-level statements, emit as we go to save space. */
         if (!tc->topStmt && (tc->flags & TCF_COMPILING)) {
@@ -1290,6 +1602,8 @@ ImportExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             if (js_MatchToken(cx, ts, TOK_STAR)) {
                 pn2->pn_op = JSOP_IMPORTALL;
                 pn2->pn_atom = NULL;
+                pn2->pn_slot = -1;
+                pn2->pn_attrs = 0;
             } else {
                 MUST_MATCH_TOKEN(TOK_NAME, JSMSG_NAME_AFTER_DOT);
                 pn2->pn_op = JSOP_GETPROP;
@@ -1339,61 +1653,42 @@ ImportExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
 }
 #endif /* JS_HAS_EXPORT_IMPORT */
 
-typedef struct BindVarArgs {
-    JSTokenStream   *ts;
-    JSObject        *obj;
-    JSBool          let;
-    JSOp            op;
-    union {
-        struct {
-            JSFunction      *fun;
-            JSClass         *clasp;
-            JSPropertyOp    getter;
-            JSPropertyOp    setter;
-            uintN           attrs;
-        } var;
-        struct {
-            jsuint          index;
-            uintN           overflow;
-        } let;
-    } u;
-} BindVarArgs;
-
-#if JS_HAS_BLOCK_SCOPE
-
 static JSBool
-DeclareLetVar(JSContext *cx, JSAtom *atom, BindVarArgs *args)
+BindLet(JSContext *cx, BindData *data, JSAtom *atom, JSTreeContext *tc)
 {
     JSObject *blockObj;
-    JSScope *scope;
     JSScopeProperty *sprop;
+    JSAtomListElement *ale;
 
-    JS_ASSERT(args->let);
-
-    blockObj = args->obj;
-    scope = OBJ_SCOPE(blockObj);
-    sprop = SCOPE_GET_PROPERTY(scope, ATOM_TO_JSID(atom));
-    if (sprop) {
+    blockObj = data->obj;
+    sprop = SCOPE_GET_PROPERTY(OBJ_SCOPE(blockObj), ATOM_TO_JSID(atom));
+    ATOM_LIST_SEARCH(ale, &tc->decls, atom);
+    if (sprop || (ale && ALE_JSOP(ale) == JSOP_DEFCONST)) {
         const char *name;
 
-        JS_ASSERT(sprop->flags & SPROP_HAS_SHORTID);
-        JS_ASSERT((uint16)sprop->shortid < args->u.let.index);
-        OBJ_DROP_PROPERTY(cx, blockObj, (JSProperty *) sprop);
+        if (sprop) {
+            JS_ASSERT(sprop->flags & SPROP_HAS_SHORTID);
+            JS_ASSERT((uint16)sprop->shortid < data->u.let.index);
+        }
 
         name = js_AtomToPrintableString(cx, atom);
         if (name) {
-            js_ReportCompileErrorNumber(cx, args->ts,
-                                        JSREPORT_TS | JSREPORT_ERROR,
-                                        JSMSG_REDECLARED_VAR, "variable",
+            js_ReportCompileErrorNumber(cx,
+                                        BIND_DATA_REPORT_ARGS(data,
+                                                              JSREPORT_ERROR),
+                                        JSMSG_REDECLARED_VAR,
+                                        (ale && ALE_JSOP(ale) == JSOP_DEFCONST)
+                                        ? js_const_str
+                                        : "variable",
                                         name);
         }
         return JS_FALSE;
     }
 
-    if (args->u.let.index == JS_BIT(16)) {
-        js_ReportCompileErrorNumber(cx, args->ts,
-                                    JSREPORT_TS | JSREPORT_ERROR,
-                                    args->u.let.overflow);
+    if (data->u.let.index == JS_BIT(16)) {
+        js_ReportCompileErrorNumber(cx,
+                                    BIND_DATA_REPORT_ARGS(data, JSREPORT_ERROR),
+                                    data->u.let.overflow);
         return JS_FALSE;
     }
 
@@ -1402,15 +1697,14 @@ DeclareLetVar(JSContext *cx, JSAtom *atom, BindVarArgs *args)
                                    JSVAL_VOID, NULL, NULL,
                                    JSPROP_ENUMERATE | JSPROP_PERMANENT,
                                    SPROP_HAS_SHORTID,
-                                   (intN)args->u.let.index++,
+                                   (intN)data->u.let.index++,
                                    NULL);
 }
 
-#endif
-
 static JSBool
-BindVariable(JSContext *cx, BindVarArgs *args, JSAtom *atom, JSTreeContext *tc)
+BindVarOrConst(JSContext *cx, BindData *data, JSAtom *atom, JSTreeContext *tc)
 {
+    JSStmtInfo *stmt;
     JSAtomListElement *ale;
     JSOp op, prevop;
     const char *name;
@@ -1421,25 +1715,23 @@ BindVariable(JSContext *cx, BindVarArgs *args, JSAtom *atom, JSTreeContext *tc)
     JSPropertyOp currentGetter, currentSetter;
     JSScopeProperty *sprop;
 
-    if (args->let)
-        return DeclareLetVar(cx, atom, args);
-
+    stmt = js_LexicalLookup(tc, atom, NULL, JS_FALSE);
     ATOM_LIST_SEARCH(ale, &tc->decls, atom);
-    op = args->op;
-    if (ale) {
-        prevop = ALE_JSOP(ale);
+    op = data->op;
+    if ((stmt && stmt->type != STMT_WITH) || ale) {
+        prevop = ale ? ALE_JSOP(ale) : JSOP_DEFVAR;
         if (JS_HAS_STRICT_OPTION(cx)
             ? op != JSOP_DEFVAR || prevop != JSOP_DEFVAR
             : op == JSOP_DEFCONST || prevop == JSOP_DEFCONST) {
             name = js_AtomToPrintableString(cx, atom);
             if (!name ||
-                !js_ReportCompileErrorNumber(cx, args->ts,
-                                             (op != JSOP_DEFCONST &&
-                                              prevop != JSOP_DEFCONST)
-                                             ? JSREPORT_TS |
-                                               JSREPORT_WARNING |
-                                               JSREPORT_STRICT
-                                             : JSREPORT_TS | JSREPORT_ERROR,
+                !js_ReportCompileErrorNumber(cx,
+                                             BIND_DATA_REPORT_ARGS(data,
+                                                 (op != JSOP_DEFCONST &&
+                                                  prevop != JSOP_DEFCONST)
+                                                 ? JSREPORT_WARNING |
+                                                   JSREPORT_STRICT
+                                                 : JSREPORT_ERROR),
                                              JSMSG_REDECLARED_VAR,
                                              (prevop == JSOP_DEFFUN ||
                                               prevop == JSOP_CLOSURE)
@@ -1453,15 +1745,16 @@ BindVariable(JSContext *cx, BindVarArgs *args, JSAtom *atom, JSTreeContext *tc)
         }
         if (op == JSOP_DEFVAR && prevop == JSOP_CLOSURE)
             tc->flags |= TCF_FUN_CLOSURE_VS_VAR;
-    } else {
+    }
+    if (!ale) {
         ale = js_IndexAtom(cx, atom, &tc->decls);
         if (!ale)
             return JS_FALSE;
     }
     ALE_SET_JSOP(ale, op);
 
-    fun = args->u.var.fun;
-    obj = args->obj;
+    fun = data->u.var.fun;
+    obj = data->obj;
     if (!fun) {
         /* Don't lookup global variables at compile time. */
         prop = NULL;
@@ -1474,8 +1767,8 @@ BindVariable(JSContext *cx, BindVarArgs *args, JSAtom *atom, JSTreeContext *tc)
     }
 
     ok = JS_TRUE;
-    currentGetter = args->u.var.getter;
-    currentSetter = args->u.var.setter;
+    currentGetter = data->u.var.getter;
+    currentSetter = data->u.var.setter;
 
     if (prop && pobj == obj && OBJ_IS_NATIVE(pobj)) {
         sprop = (JSScopeProperty *)prop;
@@ -1484,29 +1777,30 @@ BindVariable(JSContext *cx, BindVarArgs *args, JSAtom *atom, JSTreeContext *tc)
             if (!name) {
                 ok = JS_FALSE;
             } else if (op == JSOP_DEFCONST) {
-                js_ReportCompileErrorNumber(cx, args->ts,
-                                            JSREPORT_TS | JSREPORT_ERROR,
+                js_ReportCompileErrorNumber(cx,
+                                            BIND_DATA_REPORT_ARGS(data,
+                                                JSREPORT_ERROR),
                                             JSMSG_REDECLARED_PARAM,
                                             name);
                 ok = JS_FALSE;
             } else {
                 currentGetter = js_GetArgument;
                 currentSetter = js_SetArgument;
-                ok = js_ReportCompileErrorNumber(cx, args->ts,
-                                                 JSREPORT_TS |
-                                                 JSREPORT_WARNING |
-                                                 JSREPORT_STRICT,
+                ok = js_ReportCompileErrorNumber(cx,
+                                                 BIND_DATA_REPORT_ARGS(data,
+                                                     JSREPORT_WARNING |
+                                                     JSREPORT_STRICT),
                                                  JSMSG_VAR_HIDES_ARG,
                                                  name);
             }
         } else {
             if (fun) {
                 /* Not an argument, must be a redeclared local var. */
-                if (args->u.var.clasp == &js_FunctionClass) {
+                if (data->u.var.clasp == &js_FunctionClass) {
                     JS_ASSERT(sprop->getter == js_GetLocalVariable);
                     JS_ASSERT((sprop->flags & SPROP_HAS_SHORTID) &&
                               (uint16) sprop->shortid < fun->u.i.nvars);
-                } else if (args->u.var.clasp == &js_CallClass) {
+                } else if (data->u.var.clasp == &js_CallClass) {
                     if (sprop->getter == js_GetCallVariable) {
                         /*
                          * Referencing a name introduced by a var statement in
@@ -1543,8 +1837,8 @@ BindVariable(JSContext *cx, BindVarArgs *args, JSAtom *atom, JSTreeContext *tc)
          * variable before.  Define a new local variable by adding a property
          * to the function's scope, allocating one slot in the function's vars
          * frame.  Global variables and any locals declared in with statement
-         * bodies are handled at runtime, by script prolog JSOP_DEFVAR
-         * bytecodes generated for slot-less vars.
+         * bodies are handled at runtime, by script prolog JSOP_DEFVAR opcodes
+         * generated for slot-less vars.
          */
         sprop = NULL;
         if (prop) {
@@ -1553,26 +1847,15 @@ BindVariable(JSContext *cx, BindVarArgs *args, JSAtom *atom, JSTreeContext *tc)
         }
         if (currentGetter == js_GetCallVariable) {
             /* Can't increase fun->nvars in an active frame! */
-            currentGetter = args->u.var.clasp->getProperty;
-            currentSetter = args->u.var.clasp->setProperty;
+            currentGetter = data->u.var.clasp->getProperty;
+            currentSetter = data->u.var.clasp->setProperty;
         }
         if (currentGetter == js_GetLocalVariable &&
             atom != cx->runtime->atomState.argumentsAtom &&
             cx->fp->scopeChain == obj &&
-            !js_InWithStatement(tc)) {
-            if (!js_AddHiddenProperty(cx, obj, ATOM_TO_JSID(atom),
-                                      currentGetter, currentSetter,
-                                      SPROP_INVALID_SLOT,
-                                      args->u.var.attrs | JSPROP_SHARED,
-                                      SPROP_HAS_SHORTID, fun->u.i.nvars)) {
-                return JS_FALSE;
-            }
-            if (fun->u.i.nvars == JS_BITMASK(16)) {
-                JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
-                                     JSMSG_TOO_MANY_FUN_VARS);
-                return JS_FALSE;
-            }
-            fun->u.i.nvars++;
+            !js_InWithStatement(tc) &&
+            !BindLocalVariable(cx, data, atom)) {
+            return JS_FALSE;
         }
     }
     return ok;
@@ -1581,7 +1864,7 @@ BindVariable(JSContext *cx, BindVarArgs *args, JSAtom *atom, JSTreeContext *tc)
 #if JS_HAS_DESTRUCTURING
 
 static JSBool
-BindDestructuringVar(JSContext *cx, BindVarArgs *args, JSParseNode *pn,
+BindDestructuringVar(JSContext *cx, BindData *data, JSParseNode *pn,
                      JSTreeContext *tc)
 {
     JSAtom *atom;
@@ -1596,8 +1879,10 @@ BindDestructuringVar(JSContext *cx, BindVarArgs *args, JSParseNode *pn,
     if (atom == cx->runtime->atomState.argumentsAtom)
         tc->flags |= TCF_FUN_HEAVYWEIGHT;
 
-    if (!BindVariable(cx, args, atom, tc))
+    data->pn = pn;
+    if (!data->binder(cx, data, atom, tc))
         return JS_FALSE;
+    data->pn = NULL;
 
     /*
      * Select the appropriate name-setting opcode, which may be specialized
@@ -1605,10 +1890,10 @@ BindDestructuringVar(JSContext *cx, BindVarArgs *args, JSParseNode *pn,
      * point, we can't select the optimal final opcode, yet we must preserve
      * the CONST bit and convey "set", not "get".
      */
-    pn->pn_op = (args->op == JSOP_DEFCONST)
+    pn->pn_op = (data->op == JSOP_DEFCONST)
                 ? JSOP_SETCONST
                 : JSOP_SETNAME;
-    pn->pn_attrs = args->u.var.attrs;
+    pn->pn_attrs = data->u.var.attrs;
     return JS_TRUE;
 }
 
@@ -1810,22 +2095,28 @@ FindPropertyValue(JSParseNode *pn, JSParseNode *pnid, FindPropValData *data)
 }
 
 /*
- * If args is null, the caller is AssignExpr and instead of binding variables,
+ * If data is null, the caller is AssignExpr and instead of binding variables,
  * we specialize lvalues in the propery value positions of the left-hand side.
  * If right is null, just check for well-formed lvalues.
  */
 static JSBool
-CheckDestructuring(JSContext *cx, BindVarArgs *args,
+CheckDestructuring(JSContext *cx, BindData *data,
                    JSParseNode *left, JSParseNode *right,
                    JSTreeContext *tc)
 {
     JSBool ok;
-    FindPropValData data;
+    FindPropValData fpvd;
     JSParseNode *lhs, *rhs, *pn, *pn2;
     uint32 count;
 
+    if (left->pn_type == TOK_ARRAYCOMP) {
+        js_ReportCompileErrorNumber(cx, left, JSREPORT_PN | JSREPORT_ERROR,
+                                    JSMSG_ARRAY_COMP_LEFTSIDE);
+        return JS_FALSE;
+    }
+
     ok = JS_TRUE;
-    data.table.ops = NULL;
+    fpvd.table.ops = NULL;
     lhs = left->pn_head;
     if (left->pn_count == 0 || lhs->pn_type == TOK_DEFSHARP) {
         pn = left;
@@ -1840,7 +2131,7 @@ CheckDestructuring(JSContext *cx, BindVarArgs *args,
         count = 0;
         while (lhs) {
             pn = lhs, pn2 = rhs;
-            if (!args) {
+            if (!data) {
                 /* Skip parenthesization if not in a variable declaration. */
                 while (pn->pn_type == TOK_RP)
                     pn = pn->pn_kid;
@@ -1852,13 +2143,13 @@ CheckDestructuring(JSContext *cx, BindVarArgs *args,
 
             if (pn->pn_type != TOK_COMMA) {
                 if (pn->pn_type == TOK_RB || pn->pn_type == TOK_RC) {
-                    ok = CheckDestructuring(cx, args, pn, pn2, tc);
+                    ok = CheckDestructuring(cx, data, pn, pn2, tc);
                 } else {
-                    if (args) {
+                    if (data) {
                         if (pn->pn_type != TOK_NAME)
                             goto no_var_name;
 
-                        ok = BindDestructuringVar(cx, args, pn, tc);
+                        ok = BindDestructuringVar(cx, data, pn, tc);
                     } else {
                         ok = BindDestructuringLHS(cx, pn, tc);
                     }
@@ -1879,14 +2170,14 @@ CheckDestructuring(JSContext *cx, BindVarArgs *args,
         }
     } else {
         JS_ASSERT(left->pn_type == TOK_RC);
-        data.numvars = left->pn_count;
-        data.maxstep = 0;
+        fpvd.numvars = left->pn_count;
+        fpvd.maxstep = 0;
         rhs = NULL;
 
         while (lhs) {
             JS_ASSERT(lhs->pn_type == TOK_COLON);
             pn = lhs->pn_right;
-            if (!args) {
+            if (!data) {
                 /* Skip parenthesization if not in a variable declaration. */
                 while (pn->pn_type == TOK_RP)
                     pn = pn->pn_kid;
@@ -1894,19 +2185,19 @@ CheckDestructuring(JSContext *cx, BindVarArgs *args,
 
             if (pn->pn_type == TOK_RB || pn->pn_type == TOK_RC) {
                 if (right) {
-                    rhs = FindPropertyValue(right, lhs->pn_left, &data);
-                    if (rhs && !args) {
+                    rhs = FindPropertyValue(right, lhs->pn_left, &fpvd);
+                    if (rhs && !data) {
                         while (rhs->pn_type == TOK_RP)
                             rhs = rhs->pn_kid;
                     }
                 }
 
-                ok = CheckDestructuring(cx, args, pn, rhs, tc);
-            } else if (args) {
+                ok = CheckDestructuring(cx, data, pn, rhs, tc);
+            } else if (data) {
                 if (pn->pn_type != TOK_NAME)
                     goto no_var_name;
 
-                ok = BindDestructuringVar(cx, args, pn, tc);
+                ok = BindDestructuringVar(cx, data, pn, tc);
             } else {
                 ok = BindDestructuringLHS(cx, pn, tc);
             }
@@ -1918,8 +2209,8 @@ CheckDestructuring(JSContext *cx, BindVarArgs *args,
     }
 
 out:
-    if (data.table.ops)
-        JS_DHashTableFinish(&data.table);
+    if (fpvd.table.ops)
+        JS_DHashTableFinish(&fpvd.table);
     return ok;
 
 no_var_name:
@@ -2054,7 +2345,6 @@ ReturnOrYield(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
 }
 
 #if JS_HAS_BLOCK_SCOPE
-
 static JSStmtInfo *
 FindMaybeScopeStatement(JSTreeContext *tc)
 {
@@ -2068,45 +2358,44 @@ FindMaybeScopeStatement(JSTreeContext *tc)
     }
     return NULL;
 }
+#endif
 
-static JSBool
-SetupLexicalBlock(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
-                  JSStmtInfo *stmtInfo, JSParseNode **pnp, JSObject **objp)
+static JSParseNode *
+PushLexicalScope(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
+                 JSStmtInfo *stmtInfo)
 {
     JSParseNode *pn;
-    JSAtom *atom;
     JSObject *obj;
+    JSAtom *atom;
 
     pn = NewParseNode(cx, ts, PN_NAME, tc);
     if (!pn)
-        return JS_FALSE;
+        return NULL;
 
     obj = js_NewBlockObject(cx);
     if (!obj)
-        return JS_FALSE;
+        return NULL;
 
     atom = js_AtomizeObject(cx, obj, 0);
     if (!atom)
-        return JS_FALSE;
+        return NULL;
 
-    js_PushBlockScope(tc, stmtInfo, obj, -1);
+    js_PushBlockScope(tc, stmtInfo, atom, -1);
     pn->pn_type = TOK_LEXICALSCOPE;
-    pn->pn_op = JSOP_NOP;
+    pn->pn_op = JSOP_LEAVEBLOCK;
     pn->pn_atom = atom;
     pn->pn_expr = NULL;
-    pn->pn_extra = 0;
-
-    *pnp = pn;
-    *objp = obj;
-
-    return JS_TRUE;
+    pn->pn_slot = -1;
+    pn->pn_attrs = 0;
+    return pn;
 }
+
+#if JS_HAS_BLOCK_SCOPE
 
 static JSParseNode *
 LetBlock(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc, JSBool statement)
 {
     JSParseNode *pn, *pnblock, *pnlet;
-    JSObject *obj;
     JSStmtInfo stmtInfo;
 
     JS_ASSERT(CURRENT_TOKEN(ts).type == TOK_LET);
@@ -2118,8 +2407,9 @@ LetBlock(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc, JSBool statement)
 
     MUST_MATCH_TOKEN(TOK_LP, JSMSG_PAREN_BEFORE_LET);
 
-    /* This is a let block of the form: let (a, b, c) { ... }. */
-    if (!SetupLexicalBlock(cx, ts, tc, &stmtInfo, &pnblock, &obj))
+    /* This is a let block or expression of the form: let (a, b, c) .... */
+    pnblock = PushLexicalScope(cx, ts, tc, &stmtInfo);
+    if (!pnblock)
         return NULL;
     pn = pnblock;
     pn->pn_expr = pnlet;
@@ -2131,33 +2421,39 @@ LetBlock(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc, JSBool statement)
 
     MUST_MATCH_TOKEN(TOK_RP, JSMSG_PAREN_AFTER_LET);
 
+    ts->flags |= TSF_OPERAND;
     if (statement && !js_MatchToken(cx, ts, TOK_LC)) {
-        JSParseNode *pn1;
-
         /*
          * If this is really an expression in let statement guise, then we
          * need to wrap the TOK_LET node in a TOK_SEMI node so that we pop
          * the return value of the expression.
          */
-        pn1 = NewParseNode(cx, ts, PN_UNARY, tc);
-        if (!pn1)
+        pn = NewParseNode(cx, ts, PN_UNARY, tc);
+        if (!pn)
             return NULL;
-        pn1->pn_type = TOK_SEMI;
-        pn1->pn_num = -1;
-        pn1->pn_kid = pn;
-        pn = pn1;
+        pn->pn_type = TOK_SEMI;
+        pn->pn_num = -1;
+        pn->pn_kid = pnblock;
 
         statement = JS_FALSE;
     }
+    ts->flags &= ~TSF_OPERAND;
 
-    pnlet->pn_right = statement ? Statements(cx, ts, tc) : Expr(cx, ts, tc);
-    if (!pnlet->pn_right)
-        return NULL;
-
-    if (statement)
+    if (statement) {
+        pnlet->pn_right = Statements(cx, ts, tc);
+        if (!pnlet->pn_right)
+            return NULL;
         MUST_MATCH_TOKEN(TOK_RC, JSMSG_CURLY_AFTER_LET);
-    else
-        pnblock->pn_extra = PNX_BLOCKEXPR;
+    } else {
+        /*
+         * Change pnblock's opcode to the variant that propagates the last
+         * result down after popping the block, and clear statement.
+         */
+        pnblock->pn_op = JSOP_LEAVEBLOCKEXPR;
+        pnlet->pn_right = Expr(cx, ts, tc);
+        if (!pnlet->pn_right)
+            return NULL;
+    }
 
     js_PopStatement(tc);
     return pn;
@@ -2235,7 +2531,10 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
 
       case TOK_FUNCTION:
 #if JS_HAS_XML_SUPPORT
-        if (js_PeekToken(cx, ts) == TOK_DBLCOLON)
+        ts->flags |= TSF_KEYWORD_IS_NAME;
+        tt = js_PeekToken(cx, ts);
+        ts->flags &= ~TSF_KEYWORD_IS_NAME;
+        if (tt == TOK_DBLCOLON)
             goto expression;
 #endif
         return FunctionStmt(cx, ts, tc);
@@ -2270,7 +2569,7 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
 
       case TOK_SWITCH:
       {
-        JSParseNode *pn5;
+        JSParseNode *pn5, *saveBlock;
         JSBool seenDefault = JS_FALSE;
 
         pn = NewParseNode(cx, ts, PN_BINARY, tc);
@@ -2290,6 +2589,8 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         pn2 = NewParseNode(cx, ts, PN_LIST, tc);
         if (!pn2)
             return NULL;
+        saveBlock = tc->blockNode;
+        tc->blockNode = pn2;
         PN_INIT_LIST(pn2);
 
         js_PushStatement(tc, &stmtInfo, STMT_SWITCH, -1);
@@ -2364,11 +2665,20 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             pn3->pn_right = pn4;
         }
 
+        /*
+         * Handle the case where there was a let declaration in any case in
+         * the switch body, but not within an inner block.  If it replaced
+         * tc->blockNode with a new block node then we must refresh pn2 and
+         * then restore tc->blockNode.
+         */
+        if (tc->blockNode != pn2)
+            pn2 = tc->blockNode;
+        tc->blockNode = saveBlock;
         js_PopStatement(tc);
 
         pn->pn_pos.end = pn2->pn_pos.end = CURRENT_TOKEN(ts).pos.end;
-        pn->pn_kid1 = pn1;
-        pn->pn_kid2 = pn2;
+        pn->pn_left = pn1;
+        pn->pn_right = pn2;
         return pn;
       }
 
@@ -2420,8 +2730,7 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
       {
 #if JS_HAS_BLOCK_SCOPE
         JSParseNode *pnlet;
-        JSObject *obj;
-        JSStmtInfo block;
+        JSStmtInfo blockInfo;
 
         pnlet = NULL;
 #endif
@@ -2432,53 +2741,61 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             return NULL;
         js_PushStatement(tc, &stmtInfo, STMT_FOR_LOOP, -1);
 
-#if JS_HAS_XML_SUPPORT
-        pn->pn_op = JSOP_NOP;
+        pn->pn_op = JSOP_FORIN;
         if (js_MatchToken(cx, ts, TOK_NAME)) {
             if (CURRENT_TOKEN(ts).t_atom == cx->runtime->atomState.eachAtom)
                 pn->pn_op = JSOP_FOREACH;
             else
                 js_UngetToken(ts);
         }
-#endif
 
         MUST_MATCH_TOKEN(TOK_LP, JSMSG_PAREN_AFTER_FOR);
         ts->flags |= TSF_OPERAND;
         tt = js_PeekToken(cx, ts);
         ts->flags &= ~TSF_OPERAND;
         if (tt == TOK_SEMI) {
-#if JS_HAS_XML_SUPPORT
             if (pn->pn_op == JSOP_FOREACH)
                 goto bad_for_each;
-#endif
 
             /* No initializer -- set first kid of left sub-node to null. */
             pn1 = NULL;
         } else {
-            /* Set pn1 to a var list or an initializing expression. */
             /*
+             * Set pn1 to a var list or an initializing expression.
+             *
              * Set the TCF_IN_FOR_INIT flag during parsing of the first clause
              * of the for statement.  This flag will be used by the RelExpr
              * production; if it is set, then the 'in' keyword will not be
              * recognized as an operator, leaving it available to be parsed as
-             * part of a for/in loop.  A side effect of this restriction is
-             * that (unparenthesized) expressions involving an 'in' operator
-             * are illegal in the init clause of an ordinary for loop.
+             * part of a for/in loop.
+             *
+             * A side effect of this restriction is that (unparenthesized)
+             * expressions involving an 'in' operator are illegal in the init
+             * clause of an ordinary for loop.
              */
             tc->flags |= TCF_IN_FOR_INIT;
             if (tt == TOK_VAR) {
                 (void) js_GetToken(cx, ts);
                 pn1 = Variables(cx, ts, tc);
-            } else {
 #if JS_HAS_BLOCK_SCOPE
-                if (tt == TOK_LET) {
-                    (void) js_GetToken(cx, ts);
-                    if (!SetupLexicalBlock(cx, ts, tc, &block, &pnlet, &obj))
+            } else if (tt == TOK_LET) {
+                (void) js_GetToken(cx, ts);
+                if (js_PeekToken(cx, ts) == TOK_LP) {
+                    pn1 = LetBlock(cx, ts, tc, JS_FALSE);
+                    tt = TOK_LEXICALSCOPE;
+                } else {
+                    pnlet = PushLexicalScope(cx, ts, tc, &blockInfo);
+                    if (!pnlet)
                         return NULL;
                     pn1 = Variables(cx, ts, tc);
-                } else
+                }
 #endif
-                    pn1 = Expr(cx, ts, tc);
+            } else {
+                pn1 = Expr(cx, ts, tc);
+                if (pn1) {
+                    while (pn1->pn_type == TOK_RP)
+                        pn1 = pn1->pn_kid;
+                }
             }
             tc->flags &= ~TCF_IN_FOR_INIT;
             if (!pn1)
@@ -2495,9 +2812,8 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             stmtInfo.type = STMT_FOR_IN_LOOP;
 
             /* Check that the left side of the 'in' is valid. */
-            while (pn1->pn_type == TOK_RP)
-                pn1 = pn1->pn_kid;
-            if (TOKEN_TYPE_IS_DECL(pn1->pn_type)
+            JS_ASSERT(!TOKEN_TYPE_IS_DECL(tt) || pn1->pn_type == tt);
+            if (TOKEN_TYPE_IS_DECL(tt)
                 ? (pn1->pn_count > 1 || pn1->pn_op == JSOP_DEFCONST)
                 : (pn1->pn_type != TOK_NAME &&
                    pn1->pn_type != TOK_DOT &&
@@ -2518,11 +2834,15 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
                 return NULL;
             }
 
-            if (TOKEN_TYPE_IS_DECL(pn1->pn_type)) {
+            if (TOKEN_TYPE_IS_DECL(tt)) {
                 /* Tell js_EmitTree(TOK_VAR) that pn1 is part of a for/in. */
                 pn1->pn_extra |= PNX_FORINVAR;
 
-                /* Generate a final POP only if the var has an initializer. */
+                /*
+                 * Generate a final POP only if the variable is a simple name
+                 * (which means it is not a destructuring left-hand side) and
+                 * it has an initializer.
+                 */
                 pn2 = pn1->pn_head;
                 if (pn2->pn_type == TOK_NAME && pn2->pn_expr)
                     pn1->pn_extra |= PNX_POPVAR;
@@ -2557,7 +2877,8 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
                     return NULL;
 
                 /* Destructuring for-in requires [key, value] enumeration. */
-                pn->pn_op = JSOP_FOREACHKEYVAL;
+                if (pn->pn_op != JSOP_FOREACH)
+                    pn->pn_op = JSOP_FOREACHKEYVAL;
                 break;
 #endif
 
@@ -2570,10 +2891,9 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
                 return NULL;
             pn->pn_left = pn2;
         } else {
-#if JS_HAS_XML_SUPPORT
             if (pn->pn_op == JSOP_FOREACH)
                 goto bad_for_each;
-#endif
+            pn->pn_op = JSOP_NOP;
 
             /* Parse the loop condition or null into pn2. */
             MUST_MATCH_TOKEN(TOK_SEMI, JSMSG_SEMI_AFTER_FOR_INIT);
@@ -2634,34 +2954,32 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         js_PopStatement(tc);
         return pn;
 
-#if JS_HAS_XML_SUPPORT
       bad_for_each:
         js_ReportCompileErrorNumber(cx, pn,
                                     JSREPORT_PN | JSREPORT_ERROR,
                                     JSMSG_BAD_FOR_EACH_LOOP);
         return NULL;
-#endif
       }
 
       case TOK_TRY: {
-        JSParseNode *catchtail = NULL;
+        JSParseNode *catchList, *lastCatch;
+
         /*
          * try nodes are ternary.
          * kid1 is the try Statement
-         * kid2 is the catch node
+         * kid2 is the catch node list or null
          * kid3 is the finally Statement
          *
          * catch nodes are ternary.
-         * kid1 is the discriminant
-         * kid2 is the next catch node, or NULL
-         * kid3 is the catch block (on kid3 so that we can always append a
-         *                          new catch pn on catchtail->kid2)
+         * kid1 is the lvalue (TOK_NAME, TOK_LB, or TOK_LC)
+         * kid2 is the catch guard or null if no guard
+         * kid3 is the catch block
          *
-         * catch discriminant nodes are binary
-         * atom is the receptacle
-         * expr is the discriminant code
+         * catch lvalue nodes are either:
+         *   TOK_NAME for a single identifier
+         *   TOK_RB or TOK_RC for a destructuring left-hand side
          *
-         * finally nodes are unary (just the finally expression)
+         * finally nodes are TOK_LC Statement lists.
          */
         pn = NewParseNode(cx, ts, PN_TERNARY, tc);
         if (!pn)
@@ -2676,69 +2994,128 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         MUST_MATCH_TOKEN(TOK_RC, JSMSG_CURLY_AFTER_TRY);
         js_PopStatement(tc);
 
-        catchtail = pn;
-        while (js_PeekToken(cx, ts) == TOK_CATCH) {
-            /* check for another catch after unconditional catch */
-            if (catchtail != pn && !catchtail->pn_kid1->pn_expr) {
-                js_ReportCompileErrorNumber(cx, ts,
-                                            JSREPORT_TS | JSREPORT_ERROR,
-                                            JSMSG_CATCH_AFTER_GENERAL);
+        catchList = NULL;
+        tt = js_GetToken(cx, ts);
+        if (tt == TOK_CATCH) {
+            catchList = NewParseNode(cx, ts, PN_LIST, tc);
+            if (!catchList)
                 return NULL;
-            }
+            catchList->pn_type = TOK_RESERVED;
+            PN_INIT_LIST(catchList);
+            lastCatch = NULL;
 
-            /*
-             * legal catch forms are:
-             * catch (v)
-             * catch (v if <boolean_expression>)
-             * (the latter is legal only #ifdef JS_HAS_CATCH_GUARD)
-             */
-            (void) js_GetToken(cx, ts); /* eat `catch' */
-            pn2 = NewParseNode(cx, ts, PN_TERNARY, tc);
-            if (!pn2)
-                return NULL;
+            do {
+                JSParseNode *pnblock;
+                BindData data;
 
-            /*
-             * We use a PN_NAME for the discriminant (catchguard) node
-             * with the actual discriminant code in the initializer spot
-             */
-            MUST_MATCH_TOKEN(TOK_LP, JSMSG_PAREN_BEFORE_CATCH);
-            MUST_MATCH_TOKEN(TOK_NAME, JSMSG_CATCH_IDENTIFIER);
-            pn3 = NewParseNode(cx, ts, PN_NAME, tc);
-            if (!pn3)
-                return NULL;
-
-            pn3->pn_atom = CURRENT_TOKEN(ts).t_atom;
-            pn3->pn_expr = NULL;
-#if JS_HAS_CATCH_GUARD
-            /*
-             * We use `catch (x if x === 5)' (not `catch (x : x === 5)') to
-             * avoid conflicting with the JS2/ECMA2 proposed catchguard syntax.
-             */
-            if (js_PeekToken(cx, ts) == TOK_IF) {
-                (void)js_GetToken(cx, ts); /* eat `if' */
-                pn3->pn_expr = Expr(cx, ts, tc);
-                if (!pn3->pn_expr)
+                /* Check for another catch after unconditional catch. */
+                if (lastCatch && !lastCatch->pn_kid2) {
+                    js_ReportCompileErrorNumber(cx, ts,
+                                                JSREPORT_TS | JSREPORT_ERROR,
+                                                JSMSG_CATCH_AFTER_GENERAL);
                     return NULL;
-            }
+                }
+
+                /*
+                 * Create a lexical scope node around the whole catch clause,
+                 * including the head.
+                 */
+                pnblock = PushLexicalScope(cx, ts, tc, &stmtInfo);
+                if (!pnblock)
+                    return NULL;
+                stmtInfo.type = STMT_CATCH;
+
+                /*
+                 * Legal catch forms are:
+                 *   catch (lhs)
+                 *   catch (lhs if <boolean_expression>)
+                 * where lhs is a name or a destructuring left-hand side.
+                 * (the latter is legal only #ifdef JS_HAS_CATCH_GUARD)
+                 */
+                pn2 = NewParseNode(cx, ts, PN_TERNARY, tc);
+                if (!pn2)
+                    return NULL;
+                pnblock->pn_expr = pn2;
+                MUST_MATCH_TOKEN(TOK_LP, JSMSG_PAREN_BEFORE_CATCH);
+
+                /*
+                 * Contrary to ECMA Ed. 3, the catch variable is lexically
+                 * scoped, not a property of a new Object instance.  This is
+                 * an intentional change that anticipates ECMA Ed. 4.
+                 */
+                data.pn = NULL;
+                data.ts = ts;
+                data.obj = tc->blockChain;
+                data.op = JSOP_NOP;
+                data.binder = BindLet;
+                data.u.let.index = 0;
+                data.u.let.overflow = JSMSG_TOO_MANY_CATCH_VARS;
+
+                tt = js_GetToken(cx, ts);
+                switch (tt) {
+#if JS_HAS_DESTRUCTURING
+                  case TOK_LB:
+                  case TOK_LC:
+                    pn3 = PrimaryExpr(cx, ts, tc, tt, JS_FALSE);
+                    if (!pn3)
+                        return NULL;
+
+                    if (!CheckDestructuring(cx, &data, pn3, NULL, tc))
+                        return NULL;
+                    break;
 #endif
-            pn2->pn_kid1 = pn3;
 
-            MUST_MATCH_TOKEN(TOK_RP, JSMSG_PAREN_AFTER_CATCH);
+                  case TOK_NAME:
+                    label = CURRENT_TOKEN(ts).t_atom;
+                    if (!data.binder(cx, &data, label, tc))
+                        return NULL;
 
-            MUST_MATCH_TOKEN(TOK_LC, JSMSG_CURLY_BEFORE_CATCH);
-            js_PushStatement(tc, &stmtInfo, STMT_CATCH, -1);
-            stmtInfo.label = pn3->pn_atom;
-            pn2->pn_kid3 = Statements(cx, ts, tc);
-            if (!pn2->pn_kid3)
-                return NULL;
-            MUST_MATCH_TOKEN(TOK_RC, JSMSG_CURLY_AFTER_CATCH);
-            js_PopStatement(tc);
+                    pn3 = NewParseNode(cx, ts, PN_NAME, tc);
+                    if (!pn3)
+                        return NULL;
+                    pn3->pn_atom = label;
+                    pn3->pn_expr = NULL;
+                    pn3->pn_slot = 0;
+                    pn3->pn_attrs = 0;
+                    break;
 
-            catchtail = catchtail->pn_kid2 = pn2;
+                  default:
+                    js_ReportCompileErrorNumber(cx, ts,
+                                                JSREPORT_TS | JSREPORT_ERROR,
+                                                JSMSG_CATCH_IDENTIFIER);
+                    return NULL;
+                }
+
+                pn2->pn_kid1 = pn3;
+                pn2->pn_kid2 = NULL;
+#if JS_HAS_CATCH_GUARD
+                /*
+                 * We use 'catch (x if x === 5)' (not 'catch (x : x === 5)')
+                 * to avoid conflicting with the JS2/ECMAv4 type annotation
+                 * catchguard syntax.
+                 */
+                if (js_MatchToken(cx, ts, TOK_IF)) {
+                    pn2->pn_kid2 = Expr(cx, ts, tc);
+                    if (!pn2->pn_kid2)
+                        return NULL;
+                }
+#endif
+                MUST_MATCH_TOKEN(TOK_RP, JSMSG_PAREN_AFTER_CATCH);
+
+                MUST_MATCH_TOKEN(TOK_LC, JSMSG_CURLY_BEFORE_CATCH);
+                pn2->pn_kid3 = Statements(cx, ts, tc);
+                if (!pn2->pn_kid3)
+                    return NULL;
+                MUST_MATCH_TOKEN(TOK_RC, JSMSG_CURLY_AFTER_CATCH);
+                js_PopStatement(tc);
+
+                PN_APPEND(catchList, pnblock);
+                lastCatch = pn2;
+            } while ((tt = js_GetToken(cx, ts)) == TOK_CATCH);
         }
-        catchtail->pn_kid2 = NULL;
+        pn->pn_kid2 = catchList;
 
-        if (js_MatchToken(cx, ts, TOK_FINALLY)) {
+        if (tt == TOK_FINALLY) {
             tc->tryCount++;
             MUST_MATCH_TOKEN(TOK_LC, JSMSG_CURLY_BEFORE_FINALLY);
             js_PushStatement(tc, &stmtInfo, STMT_FINALLY, -1);
@@ -2748,9 +3125,10 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             MUST_MATCH_TOKEN(TOK_RC, JSMSG_CURLY_AFTER_FINALLY);
             js_PopStatement(tc);
         } else {
+            js_UngetToken(ts);
             pn->pn_kid3 = NULL;
         }
-        if (!pn->pn_kid2 && !pn->pn_kid3) {
+        if (!catchList && !pn->pn_kid3) {
             js_ReportCompileErrorNumber(cx, ts, JSREPORT_TS | JSREPORT_ERROR,
                                         JSMSG_CATCH_OR_FINALLY);
             return NULL;
@@ -2811,7 +3189,7 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
                                                 JSMSG_LABEL_NOT_FOUND);
                     return NULL;
                 }
-                if (stmt->type == STMT_LABEL && stmt->label == label)
+                if (stmt->type == STMT_LABEL && stmt->atom == label)
                     break;
             }
         } else {
@@ -2847,7 +3225,7 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
                     return NULL;
                 }
                 if (stmt->type == STMT_LABEL) {
-                    if (stmt->label == label) {
+                    if (stmt->atom == label) {
                         if (!stmt2 || !STMT_IS_LOOP(stmt2)) {
                             js_ReportCompileErrorNumber(cx, ts,
                                                         JSREPORT_TS |
@@ -2917,9 +3295,12 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         /* Check for a let statement or let expression. */
         if (js_PeekToken(cx, ts) == TOK_LP) {
             pn = LetBlock(cx, ts, tc, JS_TRUE);
-            if (!pn || !(pn->pn_extra & PNX_BLOCKEXPR))
+            if (!pn || pn->pn_op == JSOP_LEAVEBLOCK)
                 return pn;
+
             /* Let expressions require automatic semicolon insertion. */
+            JS_ASSERT(pn->pn_type == TOK_SEMI ||
+                      pn->pn_op == JSOP_LEAVEBLOCKEXPR);
             break;
         }
 
@@ -2933,18 +3314,19 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
          */
         stmt = FindMaybeScopeStatement(tc);
         if (stmt && (stmt->flags & SIF_SCOPE)) {
-            JS_ASSERT(stmt->blockObj);
-            obj = stmt->blockObj;
+            JS_ASSERT(tc->blockChain == ATOM_TO_OBJECT(stmt->atom));
+            obj = tc->blockChain;
         } else {
             if (!stmt) {
                 /*
-                 * XXX This is a hard case that requires more work. In
-                 * particular, in many cases, we're trying to emit code as
-                 * we go. However, this means that we haven't necessarily
-                 * finished processing all let declarations in the
-                 * implicit top-level block when we emit a reference to
-                 * one of them.  For now, punt on this and pretend this is
-                 * a var declaration.
+                 * FIXME: https://bugzilla.mozilla.org/show_bug.cgi?id=346749
+                 *
+                 * This is a hard case that requires more work. In particular,
+                 * in many cases, we're trying to emit code as we go. However,
+                 * this means that we haven't necessarily finished processing
+                 * all let declarations in the implicit top-level block when
+                 * we emit a reference to one of them.  For now, punt on this
+                 * and pretend this is a var declaration.
                  */
                 CURRENT_TOKEN(ts).type = TOK_VAR;
                 CURRENT_TOKEN(ts).t_op = JSOP_DEFVAR;
@@ -2960,6 +3342,10 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             obj = js_NewBlockObject(cx);
             if (!obj)
                 return NULL;
+            atom = js_AtomizeObject(cx, obj, 0);
+            if (!atom)
+                return NULL;
+
             JS_ASSERT(!(stmt->flags & SIF_SCOPE));
             stmt->flags |= SIF_SCOPE;
             if (!stmt->downScope) {
@@ -2969,28 +3355,28 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
                 JS_ASSERT(stmt == tc->topScopeStmt);
             }
             obj->slots[JSSLOT_PARENT] = OBJECT_TO_JSVAL(tc->blockChain);
-            tc->blockChain = stmt->blockObj = obj;
+            tc->blockChain = obj;
+            stmt->atom = atom;
 
+#ifdef DEBUG
             pn1 = tc->blockNode;
-            JS_ASSERT(!tc->blockNode ||
-                      tc->blockNode->pn_type != TOK_LEXICALSCOPE);
+            JS_ASSERT(!pn1 || pn1->pn_type != TOK_LEXICALSCOPE);
+#endif
 
             /* Create a new lexical scope node for these statements. */
             pn1 = NewParseNode(cx, ts, PN_NAME, tc);
             if (!pn1)
                 return NULL;
 
-            atom = js_AtomizeObject(cx, obj, 0);
-            if (!atom)
-                return NULL;
             pn1->pn_type = TOK_LEXICALSCOPE;
+            pn1->pn_op = JSOP_LEAVEBLOCK;
             pn1->pn_pos = tc->blockNode->pn_pos;
             pn1->pn_atom = atom;
             pn1->pn_expr = tc->blockNode;
-            pn1->pn_extra = 0;
+            pn1->pn_slot = -1;
+            pn1->pn_attrs = 0;
             tc->blockNode = pn1;
         }
-
 
         pn = Variables(cx, ts, tc);
         if (!pn)
@@ -2998,7 +3384,7 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         pn->pn_extra = PNX_POPVAR;
         break;
       }
-#endif
+#endif /* JS_HAS_BLOCK_SCOPE */
 
       case TOK_RETURN:
         pn = ReturnOrYield(cx, ts, tc, Expr);
@@ -3007,6 +3393,11 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         break;
 
       case TOK_LC:
+      {
+        uintN oldflags;
+
+        oldflags = tc->flags;
+        tc->flags = oldflags & ~TCF_HAS_FUNCTION_STMT;
         js_PushStatement(tc, &stmtInfo, STMT_BLOCK, -1);
         pn = Statements(cx, ts, tc);
         if (!pn)
@@ -3014,7 +3405,18 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
 
         MUST_MATCH_TOKEN(TOK_RC, JSMSG_CURLY_IN_COMPOUND);
         js_PopStatement(tc);
+
+        /*
+         * If we contain a function statement and our container is top-level
+         * or another block, flag pn to preserve braces when decompiling.
+         */
+        if ((tc->flags & TCF_HAS_FUNCTION_STMT) &&
+            (!tc->topStmt || tc->topStmt->type == STMT_BLOCK)) {
+            pn->pn_extra |= PNX_NEEDBRACES;
+        }
+        tc->flags = oldflags | (tc->flags & (TCF_FUN_FLAGS | TCF_RETURN_FLAGS));
         return pn;
+      }
 
       case TOK_EOL:
       case TOK_SEMI:
@@ -3081,7 +3483,7 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             }
             label = pn2->pn_atom;
             for (stmt = tc->topStmt; stmt; stmt = stmt->down) {
-                if (stmt->type == STMT_LABEL && stmt->label == label) {
+                if (stmt->type == STMT_LABEL && stmt->atom == label) {
                     js_ReportCompileErrorNumber(cx, ts,
                                                 JSREPORT_TS | JSREPORT_ERROR,
                                                 JSMSG_DUPLICATE_LABEL);
@@ -3092,10 +3494,17 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
 
             /* Push a label struct and parse the statement. */
             js_PushStatement(tc, &stmtInfo, STMT_LABEL, -1);
-            stmtInfo.label = label;
+            stmtInfo.atom = label;
             pn = Statement(cx, ts, tc);
             if (!pn)
                 return NULL;
+
+            /* Normalize empty statement to empty block for the decompiler. */
+            if (pn->pn_type == TOK_SEMI && !pn->pn_kid) {
+                pn->pn_type = TOK_LC;
+                pn->pn_arity = PN_LIST;
+                PN_INIT_LIST(pn);
+            }
 
             /* Pop the label, set pn_expr, and return early. */
             js_PopStatement(tc);
@@ -3133,11 +3542,12 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
 static JSParseNode *
 Variables(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
 {
-    BindVarArgs args;
+    JSTokenType tt;
     JSBool let;
+    JSStmtInfo *scopeStmt;
+    BindData data;
     JSParseNode *pn, *pn2;
     JSStackFrame *fp;
-    JSTokenType tt;
     JSAtom *atom;
 
     /*
@@ -3146,20 +3556,28 @@ Variables(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
      * - TOK_LP: We are parsing the head of a let block.
      * - Otherwise, we're parsing var declarations.
      */
-    let = (CURRENT_TOKEN(ts).type == TOK_LET ||
-           CURRENT_TOKEN(ts).type == TOK_LP);
-    JS_ASSERT(let || CURRENT_TOKEN(ts).type == TOK_VAR);
+    tt = CURRENT_TOKEN(ts).type;
+    let = (tt == TOK_LET || tt == TOK_LP);
+    JS_ASSERT(let || tt == TOK_VAR);
 
     /* Make sure that Statement set the tree context up correctly. */
-    JS_ASSERT(!let || tc->topStmt == tc->topScopeStmt);
+    scopeStmt = tc->topScopeStmt;
+    if (let) {
+        while (scopeStmt && !(scopeStmt->flags & SIF_SCOPE)) {
+            JS_ASSERT(!STMT_MAYBE_SCOPE(scopeStmt));
+            scopeStmt = scopeStmt->downScope;
+        }
+        JS_ASSERT(scopeStmt);
+    }
 
-    args.ts = ts;
-    args.let = let;
-    args.op = CURRENT_TOKEN(ts).t_op;
+    data.pn = NULL;
+    data.ts = ts;
+    data.op = CURRENT_TOKEN(ts).t_op;
+    data.binder = let ? BindLet : BindVarOrConst;
     pn = NewParseNode(cx, ts, PN_LIST, tc);
     if (!pn)
         return NULL;
-    pn->pn_op = let ? JSOP_NOP : args.op;
+    pn->pn_op = let ? JSOP_NOP : data.op;
     PN_INIT_LIST(pn);
 
     /*
@@ -3172,30 +3590,31 @@ Variables(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
      * Fortunately, we can avoid doing this for let declared variables.
      */
     fp = cx->fp;
-    if (!let) {
-        args.obj = fp->varobj;
-        args.u.var.fun = fp->fun;
-        args.u.var.clasp = OBJ_GET_CLASS(cx, args.obj);
-        if (args.u.var.fun && args.u.var.clasp == &js_FunctionClass) {
+    if (let) {
+        JS_ASSERT(tc->blockChain == ATOM_TO_OBJECT(scopeStmt->atom));
+        data.obj = tc->blockChain;
+        data.u.let.index = OBJ_BLOCK_COUNT(cx, data.obj);
+        data.u.let.overflow = JSMSG_TOO_MANY_FUN_VARS;
+    } else {
+        data.obj = fp->varobj;
+        data.u.var.fun = fp->fun;
+        data.u.var.clasp = OBJ_GET_CLASS(cx, data.obj);
+        if (data.u.var.fun && data.u.var.clasp == &js_FunctionClass) {
             /* We are compiling code inside a function */
-            args.u.var.getter = js_GetLocalVariable;
-            args.u.var.setter = js_SetLocalVariable;
-        } else if (args.u.var.fun && args.u.var.clasp == &js_CallClass) {
+            data.u.var.getter = js_GetLocalVariable;
+            data.u.var.setter = js_SetLocalVariable;
+        } else if (data.u.var.fun && data.u.var.clasp == &js_CallClass) {
             /* We are compiling code from an eval inside a function */
-            args.u.var.getter = js_GetCallVariable;
-            args.u.var.setter = js_SetCallVariable;
+            data.u.var.getter = js_GetCallVariable;
+            data.u.var.setter = js_SetCallVariable;
         } else {
-            args.u.var.getter = args.u.var.clasp->getProperty;
-            args.u.var.setter = args.u.var.clasp->setProperty;
+            data.u.var.getter = data.u.var.clasp->getProperty;
+            data.u.var.setter = data.u.var.clasp->setProperty;
         }
 
-        args.u.var.attrs = (args.op == JSOP_DEFCONST)
+        data.u.var.attrs = (data.op == JSOP_DEFCONST)
                            ? JSPROP_PERMANENT | JSPROP_READONLY
                            : JSPROP_PERMANENT;
-    } else {
-        args.obj = tc->topScopeStmt->blockObj;
-        args.u.let.index = OBJ_BLOCK_COUNT(cx, args.obj);
-        args.u.let.overflow = JSMSG_TOO_MANY_FUN_VARS;
     }
 
     do {
@@ -3208,7 +3627,7 @@ Variables(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
 
             if ((tc->flags & TCF_IN_FOR_INIT) &&
                 js_PeekToken(cx, ts) == TOK_IN) {
-                if (!CheckDestructuring(cx, &args, pn2, NULL, tc))
+                if (!CheckDestructuring(cx, &data, pn2, NULL, tc))
                     return NULL;
                 PN_APPEND(pn, pn2);
                 continue;
@@ -3222,7 +3641,7 @@ Variables(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
                             pn2, AssignExpr(cx, ts, tc),
                             tc);
             if (!pn2 ||
-                !CheckDestructuring(cx, &args,
+                !CheckDestructuring(cx, &data,
                                     pn2->pn_left, pn2->pn_right,
                                     tc)) {
                 return NULL;
@@ -3238,7 +3657,7 @@ Variables(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             return NULL;
         }
         atom = CURRENT_TOKEN(ts).t_atom;
-        if (!BindVariable(cx, &args, atom, tc))
+        if (!data.binder(cx, &data, atom, tc))
             return NULL;
 
         pn2 = NewParseNode(cx, ts, PN_NAME, tc);
@@ -3248,7 +3667,7 @@ Variables(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         pn2->pn_atom = atom;
         pn2->pn_expr = NULL;
         pn2->pn_slot = -1;
-        pn2->pn_attrs = !let ? args.u.var.attrs : 0;
+        pn2->pn_attrs = let ? 0 : data.u.var.attrs;
         PN_APPEND(pn, pn2);
 
         if (js_MatchToken(cx, ts, TOK_ASSIGN)) {
@@ -3258,7 +3677,7 @@ Variables(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             pn2->pn_expr = AssignExpr(cx, ts, tc);
             if (!pn2->pn_expr)
                 return NULL;
-            pn2->pn_op = (!let && args.op == JSOP_DEFCONST)
+            pn2->pn_op = (!let && data.op == JSOP_DEFCONST)
                          ? JSOP_SETCONST
                          : JSOP_SETNAME;
             if (!let && atom == cx->runtime->atomState.argumentsAtom)
@@ -3289,6 +3708,15 @@ Expr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         PN_INIT_LIST_1(pn2, pn);
         pn = pn2;
         do {
+#if JS_HAS_GENERATORS
+            pn2 = PN_LAST(pn);
+            if (pn2->pn_type == TOK_YIELD) {
+                js_ReportCompileErrorNumber(cx, pn2,
+                                            JSREPORT_PN | JSREPORT_ERROR,
+                                            JSMSG_BAD_YIELD_SYNTAX);
+                return NULL;
+            }
+#endif
             pn2 = AssignExpr(cx, ts, tc);
             if (!pn2)
                 return NULL;
@@ -3366,7 +3794,7 @@ AssignExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
 #endif
 #if JS_HAS_LVALUE_RETURN
       case TOK_LP:
-        JS_ASSERT(pn->pn_op == JSOP_CALL || pn->pn_op == JSOP_EVAL);
+        JS_ASSERT(pn2->pn_op == JSOP_CALL || pn2->pn_op == JSOP_EVAL);
         pn2->pn_op = JSOP_SETCALL;
         break;
 #endif
@@ -3713,6 +4141,12 @@ UnaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         while (pn2->pn_type == TOK_RP)
             pn2 = pn2->pn_kid;
         pn->pn_kid = pn2;
+#if JS_HAS_LVALUE_RETURN
+        if (pn2->pn_type == TOK_LP) {
+            JS_ASSERT(pn2->pn_op == JSOP_CALL || pn2->pn_op == JSOP_EVAL);
+            pn2->pn_op = JSOP_SETCALL;
+        }
+#endif
         break;
 
       case TOK_ERROR:
@@ -3757,6 +4191,14 @@ ArgumentList(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             JSParseNode *argNode = AssignExpr(cx, ts, tc);
             if (!argNode)
                 return JS_FALSE;
+#if JS_HAS_GENERATORS
+            if (argNode->pn_type == TOK_YIELD) {
+                js_ReportCompileErrorNumber(cx, argNode,
+                                            JSREPORT_PN | JSREPORT_ERROR,
+                                            JSMSG_BAD_YIELD_SYNTAX);
+                return JS_FALSE;
+            }
+#endif
             PN_APPEND(listNode, argNode);
         } while (js_MatchToken(cx, ts, TOK_COMMA));
 
@@ -3818,6 +4260,9 @@ MemberExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             pn2->pn_arity = PN_UNARY;
             pn2->pn_kid = pn;
             pn2->pn_next = NULL;
+#if JS_HAS_XML_SUPPORT
+            pn2->pn_ts = ts;
+#endif
             pn = pn2;
         }
     }
@@ -3827,6 +4272,8 @@ MemberExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             pn2 = NewParseNode(cx, ts, PN_NAME, tc);
             if (!pn2)
                 return NULL;
+            pn2->pn_slot = -1;
+            pn2->pn_attrs = 0;
 #if JS_HAS_XML_SUPPORT
             ts->flags |= TSF_OPERAND | TSF_KEYWORD_IS_NAME;
             tt = js_GetToken(cx, ts);
@@ -3891,7 +4338,7 @@ MemberExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             if (tt == TOK_NAME) {
                 pn3->pn_type = TOK_STRING;
                 pn3->pn_arity = PN_NULLARY;
-                pn3->pn_op = JSOP_STRING;
+                pn3->pn_op = JSOP_QNAMEPART;
             } else if (!TOKEN_TYPE_IS_XML(tt)) {
                 js_ReportCompileErrorNumber(cx, ts,
                                             JSREPORT_TS | JSREPORT_ERROR,
@@ -4442,7 +4889,6 @@ XMLElementOrList(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
                  JSBool allowList)
 {
     JSParseNode *pn, *pn2, *list;
-    JSBool hadSpace;
     JSTokenType tt;
     JSAtom *startAtom, *endAtom;
 
@@ -4452,7 +4898,6 @@ XMLElementOrList(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
         return NULL;
 
     ts->flags |= TSF_XMLTAGMODE;
-    hadSpace = js_MatchToken(cx, ts, TOK_XMLSPACE);
     tt = js_GetToken(cx, ts);
     if (tt == TOK_ERROR)
         return NULL;
@@ -4514,7 +4959,6 @@ XMLElementOrList(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             if (!XMLElementContent(cx, ts, pn, tc))
                 return NULL;
 
-            js_MatchToken(cx, ts, TOK_XMLSPACE);
             tt = js_GetToken(cx, ts);
             XML_CHECK_FOR_ERROR_AND_EOF(tt, NULL);
             if (tt != TOK_XMLNAME && tt != TOK_LC) {
@@ -4565,7 +5009,7 @@ XMLElementOrList(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
 
         /* Set pn_op now that pn has been updated to its final value. */
         pn->pn_op = JSOP_TOXML;
-    } else if (!hadSpace && allowList && tt == TOK_XMLTAGC) {
+    } else if (allowList && tt == TOK_XMLTAGC) {
         /* XMLList Initialiser. */
         pn->pn_type = TOK_XMLLIST;
         pn->pn_op = JSOP_TOXMLLIST;
@@ -4684,7 +5128,9 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
     switch (tt) {
       case TOK_FUNCTION:
 #if JS_HAS_XML_SUPPORT
+        ts->flags |= TSF_KEYWORD_IS_NAME;
         if (js_MatchToken(cx, ts, TOK_DBLCOLON)) {
+            ts->flags &= ~TSF_KEYWORD_IS_NAME;
             pn2 = NewParseNode(cx, ts, PN_NULLARY, tc);
             if (!pn2)
                 return NULL;
@@ -4694,6 +5140,7 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
                 return NULL;
             break;
         }
+        ts->flags &= ~TSF_KEYWORD_IS_NAME;
 #endif
         pn = FunctionExpr(cx, ts, tc);
         if (!pn)
@@ -4804,8 +5251,8 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
                 pn->pn_count != 0 &&
                 js_MatchToken(cx, ts, TOK_FOR)) {
                 JSParseNode **pnp, *pnexp, *pntop, *pnlet;
-                BindVarArgs args;
-                JSObject *obj;
+                BindData data;
+                JSRuntime *rt;
                 JSStmtInfo stmtInfo;
                 JSAtom *atom;
 
@@ -4828,17 +5275,20 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
                  * Make a parse-node and literal object representing the array
                  * comprehension's block scope.
                  */
-                if (!SetupLexicalBlock(cx, ts, tc, &stmtInfo, &pntop, &obj))
+                pntop = PushLexicalScope(cx, ts, tc, &stmtInfo);
+                if (!pntop)
                     return NULL;
                 pnp = &pntop->pn_expr;
 
-                args.ts = ts;
-                args.obj = obj;
-                args.let = JS_TRUE;
-                args.op = JSOP_NOP;
-                args.u.let.index = 0;
-                args.u.let.overflow = JSMSG_ARRAY_INIT_TOO_BIG;
+                data.pn = NULL;
+                data.ts = ts;
+                data.obj = tc->blockChain;
+                data.op = JSOP_NOP;
+                data.binder = BindLet;
+                data.u.let.index = 0;
+                data.u.let.overflow = JSMSG_ARRAY_INIT_TOO_BIG;
 
+                rt = cx->runtime;
                 do {
                     /*
                      * FOR node is binary, left is control and right is body.
@@ -4849,28 +5299,61 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
                     if (!pn2)
                         return NULL;
 
+                    pn2->pn_op = JSOP_FORIN;
+                    if (js_MatchToken(cx, ts, TOK_NAME)) {
+                        if (CURRENT_TOKEN(ts).t_atom == rt->atomState.eachAtom)
+                            pn2->pn_op = JSOP_FOREACH;
+                        else
+                            js_UngetToken(ts);
+                    }
                     MUST_MATCH_TOKEN(TOK_LP, JSMSG_PAREN_AFTER_FOR);
-                    MUST_MATCH_TOKEN(TOK_NAME, JSMSG_NAME_AFTER_FOR_PAREN);
-                    atom = CURRENT_TOKEN(ts).t_atom;
 
-                    if (!DeclareLetVar(cx, atom, &args))
-                        return NULL;
+                    tt = js_GetToken(cx, ts);
+                    switch (tt) {
+#if JS_HAS_DESTRUCTURING
+                      case TOK_LB:
+                      case TOK_LC:
+                        pnlet = PrimaryExpr(cx, ts, tc, tt, JS_FALSE);
+                        if (!pnlet)
+                            return NULL;
 
-                    /*
-                     * Create a name node with op JSOP_NAME.  We can't set op
-                     * JSOP_GETLOCAL here, because we don't yet know the block
-                     * depth in the operand stack frame.  The code generator
-                     * computes that, and it tries to bind all names to slots,
-                     * so we must let it do this optimization.
-                     */
-                    pnlet = NewParseNode(cx, ts, PN_NAME, tc);
-                    if (!pnlet)
+                        if (!CheckDestructuring(cx, &data, pnlet, NULL, tc))
+                            return NULL;
+
+                        /* Destructuring requires [key, value] enumeration. */
+                        if (pn2->pn_op != JSOP_FOREACH)
+                            pn2->pn_op = JSOP_FOREACHKEYVAL;
+                        break;
+#endif
+
+                      case TOK_NAME:
+                        atom = CURRENT_TOKEN(ts).t_atom;
+                        if (!data.binder(cx, &data, atom, tc))
+                            return NULL;
+
+                        /*
+                         * Create a name node with op JSOP_NAME.  We can't set
+                         * op to JSOP_GETLOCAL here, because we don't yet know
+                         * the block's depth in the operand stack frame.  The
+                         * code generator computes that, and it tries to bind
+                         * all names to slots, so we must let it do the deed.
+                         */
+                        pnlet = NewParseNode(cx, ts, PN_NAME, tc);
+                        if (!pnlet)
+                            return NULL;
+                        pnlet->pn_op = JSOP_NAME;
+                        pnlet->pn_atom = atom;
+                        pnlet->pn_expr = NULL;
+                        pnlet->pn_slot = -1;
+                        pnlet->pn_attrs = 0;
+                        break;
+
+                      default:
+                        js_ReportCompileErrorNumber(cx, ts,
+                                                    JSREPORT_TS|JSREPORT_ERROR,
+                                                    JSMSG_NO_VARIABLE_NAME);
                         return NULL;
-                    pnlet->pn_op = JSOP_NAME;
-                    pnlet->pn_atom = atom;
-                    pnlet->pn_expr = NULL;
-                    pnlet->pn_slot = -1;
-                    pnlet->pn_attrs = 0;
+                    }
 
                     MUST_MATCH_TOKEN(TOK_IN, JSMSG_IN_AFTER_FOR_NAME);
                     pn3 = NewBinary(cx, TOK_IN, JSOP_NOP, pnlet,
@@ -4903,7 +5386,6 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
                 pn2->pn_type = TOK_ARRAYPUSH;
                 pn2->pn_op = JSOP_ARRAYPUSH;
                 pn2->pn_kid = pnexp;
-                pn2->pn_array = pn;
                 *pnp = pn2;
                 PN_APPEND(pn, pntop);
 
@@ -4923,7 +5405,7 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
         if (!pn)
             return NULL;
         break;
-#endif /* JS_HAS_BLOCK_SCOPE */
+#endif
 
       case TOK_LC:
         pn = NewParseNode(cx, ts, PN_LIST, tc);
@@ -4969,6 +5451,8 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
                                 return NULL;
                             pn3->pn_atom = CURRENT_TOKEN(ts).t_atom;
                             pn3->pn_expr = NULL;
+                            pn3->pn_slot = -1;
+                            pn3->pn_attrs = 0;
 
                             /* We have to fake a 'function' token here. */
                             CURRENT_TOKEN(ts).t_op = JSOP_NOP;
@@ -5074,9 +5558,22 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             return NULL;
 
         MUST_MATCH_TOKEN(TOK_RP, JSMSG_PAREN_IN_PAREN);
-        pn->pn_type = TOK_RP;
-        pn->pn_pos.end = CURRENT_TOKEN(ts).pos.end;
-        pn->pn_kid = pn2;
+        if (pn2->pn_type == TOK_RP) {
+            /*
+             * Avoid redundant JSOP_GROUP opcodes, for efficiency and mainly
+             * to help the decompiler look ahead from a JSOP_ENDINIT to see a
+             * JSOP_GROUP followed by a POP or POPV.  That sequence means the
+             * parentheses are mandatory, to disambiguate object initialisers
+             * as expression statements from block statements.
+             */
+            pn->pn_kid = NULL;
+            RecycleTree(pn, tc);
+            pn = pn2;
+        } else {
+            pn->pn_type = TOK_RP;
+            pn->pn_pos.end = CURRENT_TOKEN(ts).pos.end;
+            pn->pn_kid = pn2;
+        }
         break;
 
 #if JS_HAS_XML_SUPPORT
@@ -5169,22 +5666,17 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             } else {
                 JSAtomListElement *ale;
                 JSStackFrame *fp;
-                JSStmtInfo *stmt;
+                JSBool loopy;
 
                 /* Measure optimizable global variable uses. */
                 ATOM_LIST_SEARCH(ale, &tc->decls, pn->pn_atom);
                 if (ale &&
                     !(fp = cx->fp)->fun &&
                     fp->scopeChain == fp->varobj &&
-                    !js_InWithStatement(tc) &&
-                    !js_InCatchBlock(tc, pn->pn_atom)) {
+                    js_IsGlobalReference(tc, pn->pn_atom, &loopy)) {
                     tc->globalUses++;
-                    for (stmt = tc->topStmt; stmt; stmt = stmt->down) {
-                        if (STMT_IS_LOOP(stmt)) {
-                            tc->loopyGlobalUses++;
-                            break;
-                        }
-                    }
+                    if (loopy)
+                        tc->loopyGlobalUses++;
                 }
             }
         }
@@ -5523,6 +6015,45 @@ FoldXMLConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
 
 #endif /* JS_HAS_XML_SUPPORT */
 
+static JSBool
+StartsWith(JSParseNode *pn, JSTokenType tt)
+{
+#define TAIL_RECURSE(pn2) JS_BEGIN_MACRO pn = (pn2); goto recur; JS_END_MACRO
+
+recur:
+    if (pn->pn_type == tt)
+        return JS_TRUE;
+    switch (pn->pn_arity) {
+      case PN_FUNC:
+        return  tt == TOK_FUNCTION;
+      case PN_LIST:
+        if (pn->pn_head)
+            TAIL_RECURSE(pn->pn_head);
+        break;
+      case PN_TERNARY:
+        if (pn->pn_kid1)
+            TAIL_RECURSE(pn->pn_kid1);
+        break;
+      case PN_BINARY:
+        if (pn->pn_left)
+            TAIL_RECURSE(pn->pn_left);
+        break;
+      case PN_UNARY:
+        /* A parenthesized expression starts with a left parenthesis. */
+        if (pn->pn_type == TOK_RP)
+            return tt == TOK_LP;
+        if (pn->pn_kid)
+            TAIL_RECURSE(pn->pn_kid);
+        break;
+      case PN_NAME:
+        if (pn->pn_type == TOK_DOT || pn->pn_type == TOK_DBLDOT)
+            TAIL_RECURSE(pn->pn_expr);
+        /* FALL THROUGH */
+    }
+    return JS_FALSE;
+#undef TAIL_RECURSE
+}
+
 JSBool
 js_FoldConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
 {
@@ -5654,6 +6185,8 @@ js_FoldConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
 
       case TOK_HOOK:
         /* Reduce 'if (C) T; else E' into T for true C, E for false. */
+        while (pn1->pn_type == TOK_RP)
+            pn1 = pn1->pn_kid;
         switch (pn1->pn_type) {
           case TOK_NUMBER:
             if (pn1->pn_dval == 0)
@@ -5677,18 +6210,49 @@ js_FoldConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
         }
 
         if (pn2) {
-            /* pn2 is the then- or else-statement subtree to compile. */
-            PN_MOVE_NODE(pn, pn2);
-        } else {
-            /* False condition and no else: make pn an empty statement. */
-            pn->pn_type = TOK_SEMI;
-            pn->pn_arity = PN_UNARY;
-            pn->pn_kid = NULL;
+            /*
+             * pn2 is the then- or else-statement subtree to compile.  Take
+             * care not to expose an object initialiser, which would be parsed
+             * as a block, to the Statement parser via eval(uneval(e)) where e
+             * is '1 ? {p:2, q:3}[i] : r;' or the like.
+             */
+            if (pn->pn_type == TOK_HOOK && StartsWith(pn2, TOK_RC)) {
+                pn->pn_type = TOK_RP;
+                pn->pn_arity = PN_UNARY;
+                pn->pn_kid = pn2;
+            } else {
+                PN_MOVE_NODE(pn, pn2);
+            }
+        }
+        if (!pn2 || (pn->pn_type == TOK_SEMI && !pn->pn_kid)) {
+            /*
+             * False condition and no else, or an empty then-statement was
+             * moved up over pn.  Either way, make pn an empty block (not an
+             * empty statement, which does not decompile, even when labeled).
+             * NB: pn must be a TOK_IF as TOK_HOOK can never have a null kid
+             * or an empty statement for a child.
+             */
+            pn->pn_type = TOK_LC;
+            pn->pn_arity = PN_LIST;
+            PN_INIT_LIST(pn);
         }
         RecycleTree(pn2, tc);
         if (pn3 && pn3 != pn2)
             RecycleTree(pn3, tc);
         break;
+
+      case TOK_ASSIGN:
+        /*
+         * Compound operators such as *= should be subject to folding, in case
+         * the left-hand side is constant, and so that the decompiler produces
+         * the same string that you get from decompiling a script or function
+         * compiled from that same string.  As with +, += is special.
+         */
+        if (pn->pn_op == JSOP_NOP)
+            break;
+        if (pn->pn_op != JSOP_ADD)
+            goto do_binary_op;
+        /* FALL THROUGH */
 
       case TOK_PLUS:
         if (pn->pn_arity == PN_LIST) {
@@ -5792,6 +6356,8 @@ js_FoldConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
             for (pn2 = pn1; pn2; pn2 = pn2->pn_next) {
                 if (!FoldType(cx, pn2, TOK_NUMBER))
                     return JS_FALSE;
+            }
+            for (pn2 = pn1; pn2; pn2 = pn2->pn_next) {
                 /* XXX fold only if all operands convert to number */
                 if (pn2->pn_type != TOK_NUMBER)
                     break;
@@ -5823,6 +6389,8 @@ js_FoldConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
         break;
 
       case TOK_UNARYOP:
+        while (pn1->pn_type == TOK_RP)
+            pn1 = pn1->pn_kid;
         if (pn1->pn_type == TOK_NUMBER) {
             jsdouble d;
             int32 i;

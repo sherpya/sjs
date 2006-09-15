@@ -248,7 +248,7 @@ JS_FRIEND_DATA(JSExtendedClass) js_NamespaceClass = {
     NULL,              NULL,              NULL,              NULL,
     NULL,              NULL,              namespace_mark,    NULL },
     namespace_equality,NULL,              NULL,              NULL,
-    JSCLASS_NO_RESERVED_MEMBERS
+    NULL,              NULL,              NULL,              NULL
 };
 
 #define NAMESPACE_ATTRS                                                       \
@@ -451,7 +451,7 @@ JS_FRIEND_DATA(JSExtendedClass) js_QNameClass = {
     NULL,              NULL,              NULL,              NULL,
     NULL,              NULL,              qname_mark,        NULL },
     qname_equality,    NULL,              NULL,              NULL,
-    JSCLASS_NO_RESERVED_MEMBERS
+    NULL,              NULL,              NULL,              NULL
 };
 
 /*
@@ -2166,9 +2166,7 @@ ToXMLList(JSContext *cx, jsval v)
         list = (JSXML *) JS_GetPrivate(cx, listobj);
         for (i = 0; i < length; i++) {
             kid = OrphanXMLChild(cx, xml, i);
-            if (!kid)
-                return NULL;
-            if (!Append(cx, list, kid)) {
+            if (!kid || !Append(cx, list, kid)) {
                 listobj = NULL;
                 break;
             }
@@ -2505,6 +2503,20 @@ GeneratePrefix(JSContext *cx, JSString *uri, JSXMLArray *decls)
     JS_ASSERT(!IS_EMPTY(uri));
 
     /*
+     * If there are no *declared* namespaces, skip all collision detection and
+     * return a short prefix quickly; an example of such a situation:
+     *
+     *   var x = <f/>;
+     *   var n = new Namespace("http://example.com/");
+     *   x.@n::att = "val";
+     *   x.toXMLString();
+     *
+     * This is necessary for various log10 uses below to be valid.
+     */
+    if (decls->length == 0)
+        return JS_NewStringCopyZ(cx, "a");
+
+    /*
      * Try peeling off the last filename suffix or pathname component till
      * we have a valid XML name.  This heuristic will prefer "xul" given
      * ".../there.is.only.xul", "xbl" given ".../xbl", and "xbl2" given any
@@ -2515,7 +2527,8 @@ GeneratePrefix(JSContext *cx, JSString *uri, JSXMLArray *decls)
     while (--cp > start) {
         if (*cp == '.' || *cp == '/' || *cp == ':') {
             ++cp;
-            if (IsXMLName(cp, PTRDIFF(end, cp, jschar)))
+            length = PTRDIFF(end, cp, jschar);
+            if (IsXMLName(cp, length) && !STARTS_WITH_XML(cp, length))
                 break;
             end = --cp;
         }
@@ -2523,23 +2536,40 @@ GeneratePrefix(JSContext *cx, JSString *uri, JSXMLArray *decls)
     length = PTRDIFF(end, cp, jschar);
 
     /*
+     * If the namespace consisted only of non-XML names or names that begin
+     * case-insensitively with "xml", arbitrarily create a prefix consisting
+     * of 'a's of size length (allowing dp-calculating code to work with or
+     * without this branch executing) plus the space for storing a hyphen and
+     * the serial number (avoiding reallocation if a collision happens).
+     */
+    bp = (jschar *) cp;
+    newlength = length;
+    if (STARTS_WITH_XML(cp, length) || !IsXMLName(cp, length)) {
+        newlength = length + 2 + (size_t) log10(decls->length);
+        bp = (jschar *)
+             JS_malloc(cx, (newlength + 1) * sizeof(jschar));
+        if (!bp)
+            return NULL;
+
+        bp[newlength] = 0;
+        for (i = 0; i < newlength; i++)
+             bp[i] = 'a';
+    }
+
+    /*
      * Now search through decls looking for a collision.  If we collide with
      * an existing prefix, start tacking on a hyphen and a serial number.
      */
     serial = 0;
-    bp = NULL;
-#ifdef __GNUC__         /* suppress bogus gcc warnings */
-    newlength = 0;
-#endif
     do {
         done = JS_TRUE;
         for (i = 0, n = decls->length; i < n; i++) {
             ns = XMLARRAY_MEMBER(decls, i, JSXMLNamespace);
             if (ns->prefix &&
-                JSSTRING_LENGTH(ns->prefix) == length &&
-                !memcmp(JSSTRING_CHARS(ns->prefix), cp,
-                        length * sizeof(jschar))) {
-                if (!bp) {
+                JSSTRING_LENGTH(ns->prefix) == newlength &&
+                !memcmp(JSSTRING_CHARS(ns->prefix), bp,
+                        newlength * sizeof(jschar))) {
+                if (bp == cp) {
                     newlength = length + 2 + (size_t) log10(n);
                     bp = (jschar *)
                          JS_malloc(cx, (newlength + 1) * sizeof(jschar));
@@ -2563,7 +2593,7 @@ GeneratePrefix(JSContext *cx, JSString *uri, JSXMLArray *decls)
         }
     } while (!done);
 
-    if (!bp) {
+    if (bp == cp) {
         offset = PTRDIFF(cp, start, jschar);
         prefix = js_NewDependentString(cx, uri, offset, length, 0);
     } else {
@@ -2788,31 +2818,6 @@ XMLToXMLString(JSContext *cx, JSXML *xml, const JSXMLArray *ancestorNSes,
      * faster code and less data overhead.
      */
 
-    /* Step 17(c): append XML namespace declarations. */
-    for (i = 0, n = decls.length; i < n; i++) {
-        ns2 = XMLARRAY_MEMBER(&decls, i, JSXMLNamespace);
-        JS_ASSERT(ns2->declared);
-
-        js_AppendCString(&sb, " xmlns");
-
-        /* 17(c)(ii): NULL means *undefined* here. */
-        if (!ns2->prefix) {
-            prefix = GeneratePrefix(cx, ns2->uri, &ancdecls);
-            if (!prefix)
-                goto out;
-            ns2->prefix = prefix;
-        }
-
-        /* 17(c)(iii). */
-        if (!IS_EMPTY(ns2->prefix)) {
-            js_AppendChar(&sb, ':');
-            js_AppendJSString(&sb, ns2->prefix);
-        }
-
-        /* 17(d-g). */
-        AppendAttributeValue(cx, &sb, ns2->uri);
-    }
-
     /* Step 17(b): append attributes. */
     for (i = 0, n = xml->xml_attrs.length; i < n; i++) {
         attr = XMLARRAY_MEMBER(&xml->xml_attrs, i, JSXML);
@@ -2856,6 +2861,31 @@ XMLToXMLString(JSContext *cx, JSXML *xml, const JSXMLArray *ancestorNSes,
 
         /* 17(d-g). */
         AppendAttributeValue(cx, &sb, attr->xml_value);
+    }
+
+    /* Step 17(c): append XML namespace declarations. */
+    for (i = 0, n = decls.length; i < n; i++) {
+        ns2 = XMLARRAY_MEMBER(&decls, i, JSXMLNamespace);
+        JS_ASSERT(ns2->declared);
+
+        js_AppendCString(&sb, " xmlns");
+
+        /* 17(c)(ii): NULL means *undefined* here. */
+        if (!ns2->prefix) {
+            prefix = GeneratePrefix(cx, ns2->uri, &ancdecls);
+            if (!prefix)
+                goto out;
+            ns2->prefix = prefix;
+        }
+
+        /* 17(c)(iii). */
+        if (!IS_EMPTY(ns2->prefix)) {
+            js_AppendChar(&sb, ':');
+            js_AppendJSString(&sb, ns2->prefix);
+        }
+
+        /* 17(d-g). */
+        AppendAttributeValue(cx, &sb, ns2->uri);
     }
 
     /* Step 18: handle point tags. */
@@ -7932,9 +7962,9 @@ js_FilterXMLList(JSContext *cx, JSObject *obj, jsbytecode *pc, jsval *vp)
 {
     JSBool ok, match;
     JSStackFrame *fp;
+    uint32 flags, i, n;
     JSObject *scobj, *listobj, *resobj, *withobj, *kidobj;
     JSXML *xml, *list, *result, *kid;
-    uint32 i, n;
 
     ok = js_EnterLocalRootScope(cx);
     if (!ok)
@@ -7943,7 +7973,8 @@ js_FilterXMLList(JSContext *cx, JSObject *obj, jsbytecode *pc, jsval *vp)
     /* All control flow after this point must exit via label out or bad. */
     *vp = JSVAL_NULL;
     fp = cx->fp;
-    fp->flags |= JSFRAME_FILTERING;
+    flags = fp->flags;
+    fp->flags = flags | JSFRAME_FILTERING;
     scobj = js_GetScopeChain(cx, fp);
     withobj = NULL;
     if (!scobj)
@@ -7994,7 +8025,7 @@ js_FilterXMLList(JSContext *cx, JSObject *obj, jsbytecode *pc, jsval *vp)
     *vp = OBJECT_TO_JSVAL(resobj);
 
 out:
-    fp->flags &= ~JSFRAME_FILTERING;
+    fp->flags = flags;
     if (withobj) {
         fp->scopeChain = scobj;
         JS_SetPrivate(cx, withobj, NULL);

@@ -176,12 +176,15 @@ struct JSAtomState {
     JSAtom              *eachAtom;
     JSAtom              *etagoAtom;
     JSAtom              *evalAtom;
+    JSAtom              *fileNameAtom;
     JSAtom              *getAtom;
     JSAtom              *getterAtom;
     JSAtom              *indexAtom;
     JSAtom              *inputAtom;
     JSAtom              *iteratorAtom;
     JSAtom              *lengthAtom;
+    JSAtom              *lineNumberAtom;
+    JSAtom              *messageAtom;
     JSAtom              *nameAtom;
     JSAtom              *namespaceAtom;
     JSAtom              *nextAtom;
@@ -193,6 +196,7 @@ struct JSAtomState {
     JSAtom              *setAtom;
     JSAtom              *setterAtom;
     JSAtom              *spaceAtom;
+    JSAtom              *stackAtom;
     JSAtom              *stagoAtom;
     JSAtom              *starAtom;
     JSAtom              *starQualifierAtom;
@@ -269,12 +273,15 @@ extern const char   js_count_str[];
 extern const char   js_etago_str[];
 extern const char   js_each_str[];
 extern const char   js_eval_str[];
+extern const char   js_fileName_str[];
 extern const char   js_get_str[];
 extern const char   js_getter_str[];
 extern const char   js_index_str[];
 extern const char   js_input_str[];
 extern const char   js_iterator_str[];
 extern const char   js_length_str[];
+extern const char   js_lineNumber_str[];
+extern const char   js_message_str[];
 extern const char   js_name_str[];
 extern const char   js_namespace_str[];
 extern const char   js_next_str[];
@@ -289,6 +296,7 @@ extern const char   js_send_str[];
 extern const char   js_setter_str[];
 extern const char   js_set_str[];
 extern const char   js_space_str[];
+extern const char   js_stack_str[];
 extern const char   js_stago_str[];
 extern const char   js_star_str[];
 extern const char   js_starQualifier_str[];
@@ -343,7 +351,7 @@ typedef void
 (*JSGCThingMarker)(void *thing, void *data);
 
 extern void
-js_MarkAtomState(JSAtomState *state, uintN gcflags, JSGCThingMarker mark,
+js_MarkAtomState(JSAtomState *state, JSBool keepAtoms, JSGCThingMarker mark,
                  void *data);
 
 extern void
@@ -395,6 +403,13 @@ js_Atomize(JSContext *cx, const char *bytes, size_t length, uintN flags);
 
 extern JS_FRIEND_API(JSAtom *)
 js_AtomizeChars(JSContext *cx, const jschar *chars, size_t length, uintN flags);
+
+/*
+ * Return an existing atom for the given char array or null if the char
+ * sequence is currently not atomized.
+ */
+extern JSAtom *
+js_GetExistingStringAtom(JSContext *cx, const jschar *chars, size_t length);
 
 /*
  * This variant handles all value tag types.

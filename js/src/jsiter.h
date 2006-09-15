@@ -1,5 +1,5 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * vim: set ts=8 sw=4 et tw=80:
+ * vim: set ts=8 sw=4 et tw=78:
  *
  * ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1 *
@@ -92,13 +92,42 @@ js_CallIteratorNext(JSContext *cx, JSObject *iterobj, uintN flags,
 extern JSBool
 js_ThrowStopIteration(JSContext *cx, JSObject *obj);
 
+#if JS_HAS_GENERATORS
+
+/*
+ * Generator state codes.
+ */
+typedef enum JSGeneratorState {
+    JSGEN_NEWBORN,  /* not yet started */
+    JSGEN_OPEN,     /* started by a .next() or .send(undefined) call */
+    JSGEN_RUNNING,  /* currently executing via .next(), etc., call */
+    JSGEN_CLOSING,  /* close method is doing asynchronous return */
+    JSGEN_CLOSED    /* closed, cannot be started or closed again */
+} JSGeneratorState;
+
+struct JSGenerator {
+    JSGenerator         *next;
+    JSObject            *obj;
+    JSGeneratorState    state;
+    JSStackFrame        frame;
+    JSArena             arena;
+    jsval               stack[1];
+};
+
+#define FRAME_TO_GENERATOR(fp) \
+    ((JSGenerator *) ((uint8 *)(fp) - offsetof(JSGenerator, frame)))
+
 extern JSObject *
 js_NewGenerator(JSContext *cx, JSStackFrame *fp);
 
-extern JSExtendedClass  js_GeneratorClass;
+extern JSBool
+js_CloseGeneratorObject(JSContext *cx, JSGenerator *gen);
+
+#endif
+
+extern JSClass          js_GeneratorClass;
 extern JSClass          js_IteratorClass;
 extern JSClass          js_StopIterationClass;
-extern JSClass          js_GeneratorExitClass;
 
 extern JSObject *
 js_InitIteratorClasses(JSContext *cx, JSObject *obj);

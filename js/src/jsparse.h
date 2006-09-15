@@ -82,7 +82,10 @@ JS_BEGIN_EXTERN_C
  * TOK_IF       ternary     pn_kid1: cond, pn_kid2: then, pn_kid3: else or null
  * TOK_SWITCH   binary      pn_left: discriminant
  *                          pn_right: list of TOK_CASE nodes, with at most one
- *                            TOK_DEFAULT node
+ *                            TOK_DEFAULT node, or if there are let bindings
+ *                            in the top level of the switch body's cases, a
+ *                            TOK_LEXICALSCOPE node that contains the list of
+ *                            TOK_CASE nodes.
  * TOK_CASE,    binary      pn_left: case expr or null if TOK_DEFAULT
  * TOK_DEFAULT              pn_right: TOK_LC node for this case's statements
  *                          pn_val: constant value if lookup or table switch
@@ -102,11 +105,13 @@ JS_BEGIN_EXTERN_C
  *                          pn_right: body
  * TOK_THROW    unary       pn_op: JSOP_THROW, pn_kid: exception
  * TOK_TRY      ternary     pn_kid1: try block
- *                          pn_kid2: catch blocks or null
- *                          pn_kid3: finally block or null
- * TOK_CATCH    ternary     pn_kid1: PN_NAME node for catch var (with pn_expr
- *                                   null or the catch guard expression)
- *                          pn_kid2: more catch blocks or null
+ *                          pn_kid2: null or TOK_RESERVED list of
+ *                          TOK_LEXICALSCOPE nodes, each with pn_expr pointing
+ *                          to a TOK_CATCH node
+ *                          pn_kid3: null or finally block
+ * TOK_CATCH    ternary     pn_kid1: TOK_NAME, TOK_RB, or TOK_RC catch var node
+ *                                   (TOK_RB or TOK_RC if destructuring)
+ *                          pn_kid2: null or the catch guard expression
  *                          pn_kid3: catch block statements
  * TOK_BREAK    name        pn_atom: label or null
  * TOK_CONTINUE name        pn_atom: label or null
@@ -243,7 +248,8 @@ JS_BEGIN_EXTERN_C
  *
  * Label              Variant   Members
  * -----              -------   -------
- * TOK_LEXICALSCOPE   name      pn_atom: block object
+ * TOK_LEXICALSCOPE   name      pn_op: JSOP_LEAVEBLOCK or JSOP_LEAVEBLOCKEXPR
+ *                              pn_atom: block object
  *                              pn_expr: block body
  * TOK_ARRAYCOMP      list      pn_head: list of pn_count (1 or 2) elements
  *                              if pn_count is 2, first element is #n=[...]
@@ -252,7 +258,6 @@ JS_BEGIN_EXTERN_C
  *                              pn_extra: stack slot, used during code gen
  * TOK_ARRAYPUSH      unary     pn_op: JSOP_ARRAYCOMP
  *                              pn_kid: array comprehension expression
- *                              pn_array: link to TOK_ARRAYCOMP
  */
 typedef enum JSParseNodeArity {
     PN_FUNC     = -3,
@@ -281,7 +286,7 @@ struct JSParseNode {
             JSParseNode *head;          /* first node in list */
             JSParseNode **tail;         /* ptr to ptr to last node in list */
             uint32      count;          /* number of nodes in list */
-            uint32      extra;          /* extra comma flag for [1,2,,] */
+            uint32      extra;          /* extra flags, see below */
         } list;
         struct {                        /* ternary: if, for(;;), ?: */
             JSParseNode *kid1;          /* condition, discriminant, etc. */
@@ -296,7 +301,6 @@ struct JSParseNode {
         struct {                        /* one kid if unary */
             JSParseNode *kid;
             jsint       num;            /* -1 or sharp variable number */
-            JSParseNode *array;         /* cyclic link to array comprehension */
         } unary;
         struct {                        /* name, labeled statement, etc. */
             JSAtom      *atom;          /* name or label atom, null if slot */
@@ -332,7 +336,6 @@ struct JSParseNode {
 #define pn_val          pn_u.binary.val
 #define pn_kid          pn_u.unary.kid
 #define pn_num          pn_u.unary.num
-#define pn_array        pn_u.unary.array
 #define pn_atom         pn_u.name.atom
 #define pn_expr         pn_u.name.expr
 #define pn_slot         pn_u.name.slot
@@ -348,8 +351,8 @@ struct JSParseNode {
                                            which is left kid of TOK_FOR */
 #define PNX_ENDCOMMA    0x10            /* array literal has comma at end */
 #define PNX_XMLROOT     0x20            /* top-most node in XML literal tree */
-#define PNX_BLOCKEXPR   0x40            /* this block is an expression */
-#define PNX_GROUPINIT   0x80            /* var [a, b] = [c, d]; unit list */
+#define PNX_GROUPINIT   0x40            /* var [a, b] = [c, d]; unit list */
+#define PNX_NEEDBRACES  0x80            /* braces necessary due to closure */
 
 /*
  * Move pn2 into pn, preserving pn->pn_pos and pn->pn_offset and handing off

@@ -54,6 +54,7 @@
 #include "jsprvtd.h"
 #include "jspubtd.h"
 #include "jsregexp.h"
+#include "jsutil.h"
 
 JS_BEGIN_EXTERN_C
 
@@ -78,6 +79,11 @@ struct JSThread {
      * locks on each JS_malloc.
      */
     uint32              gcMallocBytes;
+
+#if JS_HAS_GENERATORS
+    /* Flag indicating that the current thread is executing close hooks. */
+    JSBool              gcRunningCloseHooks;
+#endif
 };
 
 extern void JS_DLL_CALLBACK
@@ -145,8 +151,7 @@ struct JSRuntime {
      */
     JSPackedBool        gcPoke;
     JSPackedBool        gcRunning;
-    JSPackedBool        gcClosePhase;
-    uint8               gcPadding;
+    uint16              gcPadding;
 
     JSGCCallback        gcCallback;
     uint32              gcMallocBytes;
@@ -169,16 +174,15 @@ struct JSRuntime {
     uint32              gcPrivateBytes;
 
     /*
-     * Table for tracking objects of extended classes that have non-null close
-     * hooks, and need the GC to perform two-phase finalization.
-     */
-    JSPtrTable          gcCloseTable;
-
-    /*
      * Table for tracking iterators to ensure that we close iterator's state
      * before finalizing the iterable object.
      */
     JSPtrTable          gcIteratorTable;
+
+#if JS_HAS_GENERATORS
+    /* Runtime state to support close hooks. */
+    JSGCCloseState      gcCloseState;
+#endif
 
 #ifdef JS_GCMETER
     JSGCStats           gcStats;
@@ -677,6 +681,33 @@ struct JSContext {
 };
 
 #define JS_THREAD_ID(cx)            ((cx)->thread ? (cx)->thread->id : 0)
+
+#ifdef __cplusplus
+/* FIXME(bug 332648): Move this into a public header. */
+class JSAutoTempValueRooter
+{
+  public:
+    JSAutoTempValueRooter(JSContext *cx, size_t len, jsval *vec)
+        : mContext(cx) {
+        JS_PUSH_TEMP_ROOT(mContext, len, vec, &mTvr);
+    }
+    JSAutoTempValueRooter(JSContext *cx, jsval v)
+        : mContext(cx) {
+        JS_PUSH_SINGLE_TEMP_ROOT(mContext, v, &mTvr);
+    }
+
+    ~JSAutoTempValueRooter() {
+        JS_POP_TEMP_ROOT(mContext, &mTvr);
+    }
+
+  private:
+    static void *operator new(size_t);
+    static void operator delete(void *, size_t);
+
+    JSContext *mContext;
+    JSTempValueRooter mTvr;
+};
+#endif
 
 /*
  * Slightly more readable macros for testing per-context option settings (also

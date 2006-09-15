@@ -100,8 +100,7 @@ js_GetCurrentThread(JSRuntime *rt)
 
     thread = (JSThread *)PR_GetThreadPrivate(rt->threadTPIndex);
     if (!thread) {
-        /* New memory is set to 0 so that elements in gcFreeLists are NULL. */
-        thread = (JSThread *) calloc(1, sizeof(JSThread));
+        thread = (JSThread *) malloc(sizeof(JSThread));
         if (!thread)
             return NULL;
 
@@ -112,6 +111,16 @@ js_GetCurrentThread(JSRuntime *rt)
 
         JS_INIT_CLIST(&thread->contextList);
         thread->id = js_CurrentThreadId();
+
+        /* js_SetContextThread initialize gcFreeLists as necessary. */
+#ifdef DEBUG
+        memset(thread->gcFreeLists, JS_FREE_PATTERN,
+               sizeof(thread->gcFreeLists));
+#endif
+        thread->gcMallocBytes = 0;
+#if JS_HAS_GENERATORS
+        thread->gcRunningCloseHooks = JS_FALSE;
+#endif
     }
     return thread;
 }
@@ -130,6 +139,14 @@ js_SetContextThread(JSContext *cx)
         JS_ReportOutOfMemory(cx);
         return JS_FALSE;
     }
+
+    /*
+     * Clear gcFreeLists on each transition from 0 to 1 context active on the
+     * current thread. See bug 351602.
+     */
+    if (JS_CLIST_IS_EMPTY(&thread->contextList))
+        memset(thread->gcFreeLists, 0, sizeof(thread->gcFreeLists));
+
     cx->thread = thread;
     JS_REMOVE_LINK(&cx->threadLinks);
     JS_APPEND_LINK(&cx->threadLinks, &thread->contextList);
@@ -140,8 +157,14 @@ js_SetContextThread(JSContext *cx)
 void
 js_ClearContextThread(JSContext *cx)
 {
+    JS_REMOVE_AND_INIT_LINK(&cx->threadLinks);
+#ifdef DEBUG
+    if (JS_CLIST_IS_EMPTY(&cx->thread->contextList)) {
+        memset(cx->thread->gcFreeLists, JS_FREE_PATTERN,
+               sizeof(cx->thread->gcFreeLists));
+    }
+#endif
     cx->thread = NULL;
-    JS_REMOVE_LINK(&cx->threadLinks);
 }
 
 #endif /* JS_THREADSAFE */
@@ -358,12 +381,7 @@ js_DestroyContext(JSContext *cx, JSDestroyContextMode mode)
 #endif
 
     if (last) {
-        /* Always force, so we wait for any racing GC to finish. */
-        js_ForceGC(cx, GC_LAST_CONTEXT);
-
-        /* Iterate until no JSGC_END-status callback creates more garbage. */
-        while (rt->gcPoke)
-            js_GC(cx, GC_LAST_CONTEXT);
+        js_GC(cx, GC_LAST_CONTEXT);
 
         /* Try to free atom state, now that no unrooted scripts survive. */
         if (rt->atomState.liveAtoms == 0)
@@ -386,7 +404,7 @@ js_DestroyContext(JSContext *cx, JSDestroyContextMode mode)
         JS_UNLOCK_GC(rt);
     } else {
         if (mode == JSDCM_FORCE_GC)
-            js_ForceGC(cx, 0);
+            js_GC(cx, GC_NORMAL);
         else if (mode == JSDCM_MAYBE_GC)
             JS_MaybeGC(cx);
     }
@@ -394,6 +412,7 @@ js_DestroyContext(JSContext *cx, JSDestroyContextMode mode)
     /* Free the stuff hanging off of cx. */
     JS_FinishArenaPool(&cx->stackPool);
     JS_FinishArenaPool(&cx->tempPool);
+
     if (cx->lastMessage)
         free(cx->lastMessage);
 

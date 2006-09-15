@@ -257,9 +257,6 @@ typedef JSBool
  * Finalize obj, which the garbage collector has determined to be unreachable
  * from other live objects or from GC roots.  Obviously, finalizers must never
  * store a reference to obj.
- *
- * This is also the type of the JSExtendedClass.close hook, which is stubbed
- * with NULL if not needed.
  */
 typedef void
 (* JS_DLL_CALLBACK JSFinalizeOp)(JSContext *cx, JSObject *obj);
@@ -598,9 +595,14 @@ typedef enum JSExnType {
 } JSExnType;
 
 typedef struct JSErrorFormatString {
-    const char *format;  /* the error message (may be UTF-8 if compiled with JS_C_STRINGS_ARE_UTF8) */
-    uint16 argCount;     /* the number of arguments to convert in the error message */
-    int16 exnType;       /* One of the JSExnType constants above */
+    /* The error format string (UTF-8 if JS_C_STRINGS_ARE_UTF8 is defined). */
+    const char *format;
+
+    /* The number of arguments to expand in the formatted error message. */
+    uint16 argCount;
+
+    /* One of the JSExnType constants above. */
+    int16 exnType;
 } JSErrorFormatString;
 
 typedef const JSErrorFormatString *
