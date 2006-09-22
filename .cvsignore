@@ -1,8 +1,0 @@
-curl
-work
-zlib
-dist
-ssl
-gnutls
-*.old
-curl-nossl
