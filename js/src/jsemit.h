@@ -65,6 +65,8 @@ typedef enum JSStmtType {
     STMT_LABEL,                 /* labeled statement:  L: s */
     STMT_IF,                    /* if (then) statement */
     STMT_ELSE,                  /* else clause of if statement */
+    STMT_BODY,                  /* synthetic body of function with
+                                   destructuring formal parameters */
     STMT_BLOCK,                 /* compound statement: { s1[;... sN] } */
     STMT_SWITCH,                /* switch statement */
     STMT_WITH,                  /* with statement */
@@ -80,11 +82,32 @@ typedef enum JSStmtType {
 
 #define STMT_TYPE_IN_RANGE(t,b,e) ((uint)((t) - (b)) <= (uintN)((e) - (b)))
 
+/*
+ * A comment on the encoding of the JSStmtType enum and type-testing macros:
+ *
+ * STMT_TYPE_MAYBE_SCOPE tells whether a statement type is always, or may
+ * become, a lexical scope.  It therefore includes block and switch (the two
+ * low-numbered "maybe" scope types) and excludes with (with has dynamic scope
+ * pending the "reformed with" in ES4/JS2).  It includes all try-catch-finally
+ * types, which are high-numbered maybe-scope types.
+ *
+ * STMT_TYPE_LINKS_SCOPE tells whether a JSStmtInfo of the given type eagerly
+ * links to other scoping statement info records.  It excludes the two early
+ * "maybe" types, block and switch, as well as the try and both finally types,
+ * since try and the other trailing maybe-scope types don't need block scope
+ * unless they contain let declarations.
+ *
+ * We treat with as a static scope because it prevents lexical binding from
+ * continuing further up the static scope chain.  With the "reformed with"
+ * proposal for JS2, we'll be able to model it statically, too.
+ */
 #define STMT_TYPE_MAYBE_SCOPE(type)                                           \
     (type != STMT_WITH &&                                                     \
      STMT_TYPE_IN_RANGE(type, STMT_BLOCK, STMT_SUBROUTINE))
+
 #define STMT_TYPE_LINKS_SCOPE(type)                                           \
     STMT_TYPE_IN_RANGE(type, STMT_WITH, STMT_CATCH)
+
 #define STMT_TYPE_IS_TRYING(type)                                             \
     STMT_TYPE_IN_RANGE(type, STMT_TRY, STMT_SUBROUTINE)
 
@@ -456,6 +479,12 @@ extern JSBool
 js_EmitTree(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn);
 
 /*
+ * Emit function code into cg for the tree rooted at body.
+ */
+extern JSBool
+js_EmitFunctionBytecode(JSContext *cx, JSCodeGenerator *cg, JSParseNode *body);
+
+/*
  * Emit code into cg for the tree rooted at body, then create a persistent
  * script for fun from cg.
  */
@@ -481,6 +510,17 @@ js_EmitFunctionBody(JSContext *cx, JSCodeGenerator *cg, JSParseNode *body,
  *
  * NB: the js_SrcNoteSpec array in jsemit.c is indexed by this enum, so its
  * initializers need to match the order here.
+ *
+ * Note on adding new source notes: every pair of bytecodes (A, B) where A and
+ * B have disjoint sets of source notes that could apply to each bytecode may
+ * reuse the same note type value for two notes (snA, snB) that have the same
+ * arity, offsetBias, and isSpanDep initializers in js_SrcNoteSpec.  This is
+ * why SRC_IF and SRC_INITPROP have the same value below.  For bad historical
+ * reasons, some bytecodes below that could be overlayed have not been, but
+ * before using SRC_EXTENDED, consider compressing the existing note types.
+ *
+ * Don't forget to update JSXDR_BYTECODE_VERSION in jsxdrapi.h for all such
+ * incompatible source note or other bytecode changes.
  */
 typedef enum JSSrcNoteType {
     SRC_NULL        = 0,        /* terminates a note vector */
@@ -495,17 +535,23 @@ typedef enum JSSrcNoteType {
                                    also used on JSOP_ENDINIT if extra comma
                                    at end of array literal: [1,2,,] */
     SRC_DECL        = 6,        /* type of a declaration (var, const, let*) */
-    SRC_PCDELTA     = 7,        /* distance from comma-operator to next POP,
-                                   or from CONDSWITCH to first CASE opcode --
-                                   or SRC_PCBASE variant for obj.function::foo
-                                   gets and sets */
+    SRC_DESTRUCT    = 6,        /* JSOP_DUP starting a destructuring assignment
+                                   operation, with SRC_DECL_* offset operand */
+    SRC_PCDELTA     = 7,        /* distance forward from comma-operator to
+                                   next POP, or from CONDSWITCH to first CASE
+                                   opcode, etc. -- always a forward delta */
+    SRC_GROUPASSIGN = 7,        /* SRC_DESTRUCT variant for [a, b] = [c, d] */
     SRC_ASSIGNOP    = 8,        /* += or another assign-op follows */
     SRC_COND        = 9,        /* JSOP_IFEQ is from conditional ?: operator */
     SRC_BRACE       = 10,       /* mandatory brace, for scope or to avoid
                                    dangling else */
     SRC_HIDDEN      = 11,       /* opcode shouldn't be decompiled */
-    SRC_PCBASE      = 12,       /* distance back from annotated get- or setprop
-                                   op to first obj.prop.subprop bytecode */
+    SRC_PCBASE      = 12,       /* distance back from annotated getprop or
+                                   setprop op to left-most obj.prop.subprop
+                                   bytecode -- always a backward delta */
+    SRC_METHODBASE  = 13,       /* SRC_PCBASE variant for obj.function::foo
+                                   gets and sets; disjoint from SRC_LABEL by
+                                   bytecode to which it applies */
     SRC_LABEL       = 13,       /* JSOP_NOP for label: with atomid immediate */
     SRC_LABELBRACE  = 14,       /* JSOP_NOP for label: {...} begin brace */
     SRC_ENDBRACE    = 15,       /* JSOP_NOP for label: {...} end brace */
@@ -515,7 +561,7 @@ typedef enum JSSrcNoteType {
                                    2nd off to first JSOP_CASE if condswitch */
     SRC_FUNCDEF     = 19,       /* JSOP_NOP for function f() with atomid */
     SRC_CATCH       = 20,       /* catch block has guard */
-    SRC_UNUSED21    = 21,       /* unused */
+    SRC_EXTENDED    = 21,       /* extended source note, 32-159, in next byte */
     SRC_NEWLINE     = 22,       /* bytecode follows a source newline */
     SRC_SETLINE     = 23,       /* a file-absolute source line number note */
     SRC_XDELTA      = 24        /* 24-31 are for extended delta notes */
@@ -528,11 +574,13 @@ typedef enum JSSrcNoteType {
  * instruction, so can be used to denote distinct declaration syntaxes to the
  * decompiler.
  *
- * NB: the var_prefix array in jsopcode.c depends on these dense indexes.
+ * NB: the var_prefix array in jsopcode.c depends on these dense indexes from
+ * SRC_DECL_VAR through SRC_DECL_LET.
  */
-#define SRC_DECL_VAR             0
-#define SRC_DECL_CONST           1
-#define SRC_DECL_LET             2
+#define SRC_DECL_VAR            0
+#define SRC_DECL_CONST          1
+#define SRC_DECL_LET            2
+#define SRC_DECL_NONE           3
 
 #define SN_TYPE_BITS            5
 #define SN_DELTA_BITS           3

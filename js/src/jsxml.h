@@ -125,6 +125,7 @@ struct JSXMLArrayCursor {
     uint32              index;
     JSXMLArrayCursor    *next;
     JSXMLArrayCursor    **prevp;
+    void                *root;
 };
 
 /*
@@ -290,6 +291,9 @@ js_FindXMLProperty(JSContext *cx, jsval name, JSObject **objp, jsval *namep);
 
 extern JSBool
 js_GetXMLProperty(JSContext *cx, JSObject *obj, jsval name, jsval *vp);
+
+extern JSBool
+js_GetXMLFunction(JSContext *cx, JSObject *obj, jsid id, jsval *vp);
 
 extern JSBool
 js_SetXMLProperty(JSContext *cx, JSObject *obj, jsval name, jsval *vp);

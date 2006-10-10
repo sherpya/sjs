@@ -1,4 +1,5 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ * vim: set ts=8 sw=4 et tw=78:
  *
  * ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
@@ -396,20 +397,6 @@ struct JSRuntime {
 #define JS_KEEP_ATOMS(rt)   JS_ATOMIC_INCREMENT(&(rt)->gcKeepAtoms);
 #define JS_UNKEEP_ATOMS(rt) JS_ATOMIC_DECREMENT(&(rt)->gcKeepAtoms);
 
-#if JS_HAS_LVALUE_RETURN
-/*
- * Values for the cx->rval2set flag byte.  This flag tells whether cx->rval2
- * is unset (CLEAR), set to a jsval (VALUE) naming a property in the object
- * referenced by cx->fp->rval, or set to a jsid (ITERKEY) result of a native
- * iterator's it.next() call (where the return value of it.next() is the next
- * value in the iteration).
- *
- * The ITERKEY case is just an optimization for native iterators, as general
- * iterators can return an array of length 2 to return a [key, value] pair.
- */
-enum { JS_RVAL2_CLEAR, JS_RVAL2_VALUE, JS_RVAL2_ITERKEY };
-#endif
-
 #ifdef JS_ARGUMENT_FORMATTER_DEFINED
 /*
  * Linked list mapping format strings for JS_{Convert,Push}Arguments{,VA} to
@@ -472,14 +459,30 @@ typedef struct JSLocalRootStack {
 #define JSLRS_NULL_MARK ((uint32) -1)
 
 typedef struct JSTempValueRooter JSTempValueRooter;
+typedef void
+(* JS_DLL_CALLBACK JSTempValueMarker)(JSContext *cx, JSTempValueRooter *tvr);
+
+typedef union JSTempValueUnion {
+    jsval               value;
+    JSObject            *object;
+    JSTempValueMarker   marker;
+    jsval               *array;
+} JSTempValueUnion;
+
+/*
+ * The following allows to reinterpret JSTempValueUnion.object as jsval using
+ * the tagging property of a generic jsval described below.
+ */
+JS_STATIC_ASSERT(sizeof(JSTempValueUnion) == sizeof(jsval));
+JS_STATIC_ASSERT(sizeof(JSTempValueUnion) == sizeof(JSObject *));
 
 /*
  * Context-linked stack of temporary GC roots.
  *
- * If count is -1, then u.value contains the single value to root.  Otherwise
- * u.array points to a stack-allocated vector of jsvals.  Note that the vector
- * may have length 0 or 1 for full generality, so we need -1 to discriminate
- * the union.
+ * If count is -1, then u.value contains the single value to root.
+ * If count is -2, then u.marker holds a mark hook that is executed to mark
+ * the values.
+ * If count >= 0, then u.array points to a stack-allocated vector of jsvals.
  *
  * To root a single GC-thing pointer, which need not be tagged and stored as a
  * jsval, use JS_PUSH_SINGLE_TEMP_ROOT.  The (jsval)(val) cast works because a
@@ -490,17 +493,19 @@ typedef struct JSTempValueRooter JSTempValueRooter;
  * consults GC-thing flags stored separately from the thing to decide the type
  * of thing).
  *
+ * Alternatively, if a single pointer to rooted JSObject * is required, use
+ * JS_PUSH_TEMP_ROOT_OBJECT(cx, NULL, &tvr). Then &tvr.u.object gives the
+ * necessary pointer, which puns tvr.u.value safely because object tag bits
+ * are all zeroes.
+ *
  * If you need to protect a result value that flows out of a C function across
  * several layers of other functions, use the js_LeaveLocalRootScopeWithResult
  * internal API (see further below) instead.
  */
 struct JSTempValueRooter {
     JSTempValueRooter   *down;
-    jsint               count;
-    union {
-        jsval           value;
-        jsval           *array;
-    } u;
+    ptrdiff_t           count;
+    JSTempValueUnion    u;
 };
 
 #define JS_PUSH_TEMP_ROOT_COMMON(cx,tvr)                                      \
@@ -520,8 +525,23 @@ struct JSTempValueRooter {
 #define JS_PUSH_TEMP_ROOT(cx,cnt,arr,tvr)                                     \
     JS_BEGIN_MACRO                                                            \
         JS_PUSH_TEMP_ROOT_COMMON(cx, tvr);                                    \
-        (tvr)->count = (cnt);                                                 \
+        JS_ASSERT((ptrdiff_t)(cnt) >= 0);                                     \
+        (tvr)->count = (ptrdiff_t)(cnt);                                      \
         (tvr)->u.array = (arr);                                               \
+    JS_END_MACRO
+
+#define JS_PUSH_TEMP_ROOT_MARKER(cx,marker_,tvr)                              \
+    JS_BEGIN_MACRO                                                            \
+        JS_PUSH_TEMP_ROOT_COMMON(cx, tvr);                                    \
+        (tvr)->count = -2;                                                    \
+        (tvr)->u.marker = (marker_);                                          \
+    JS_END_MACRO
+
+#define JS_PUSH_TEMP_ROOT_OBJECT(cx,obj,tvr)                                  \
+    JS_BEGIN_MACRO                                                            \
+        JS_PUSH_TEMP_ROOT_COMMON(cx, tvr);                                    \
+        (tvr)->count = -1;                                                    \
+        (tvr)->u.object = (obj);                                              \
     JS_END_MACRO
 
 #define JS_POP_TEMP_ROOT(cx,tvr)                                              \
@@ -619,7 +639,7 @@ struct JSContext {
      * jsval by calling JS_SetCallReturnValue2(cx, idval).
      */
     jsval               rval2;
-    uint8               rval2set;
+    JSPackedBool        rval2set;
 #endif
 
 #if JS_HAS_XML_SUPPORT
@@ -671,16 +691,41 @@ struct JSContext {
     /* Stack of thread-stack-allocated temporary GC roots. */
     JSTempValueRooter   *tempValueRooters;
 
-    /* Iterator cache to speed up native default for-in loop case. */
-    JSObject            *cachedIterObj;
-
 #ifdef GC_MARK_DEBUG
     /* Top of the GC mark stack. */
     void                *gcCurrentMarkNode;
 #endif
+
+    /*
+     * js_GetSrcNote cache to avoid O(n^2) growth in finding a source note for
+     * a given pc in a script.
+     */
+    struct JSGSNCache {
+        JSScript        *script;
+        JSDHashTable    table;
+#ifdef JS_GSNMETER
+        uint32          hits;
+        uint32          misses;
+        uint32          fills;
+        uint32          clears;
+# define GSN_CACHE_METER(cx,cnt) (++(cx)->gsnCache.cnt)
+#else
+# define GSN_CACHE_METER(cx,cnt) /* nothing */
+#endif
+    } gsnCache;
 };
 
-#define JS_THREAD_ID(cx)            ((cx)->thread ? (cx)->thread->id : 0)
+#define JS_CLEAR_GSN_CACHE(cx)                                                \
+    JS_BEGIN_MACRO                                                            \
+        (cx)->gsnCache.script = NULL;                                         \
+        if ((cx)->gsnCache.table.ops) {                                       \
+            JS_DHashTableFinish(&(cx)->gsnCache.table);                       \
+            (cx)->gsnCache.table.ops = NULL;                                  \
+        }                                                                     \
+        GSN_CACHE_METER(cx, clears);                                          \
+    JS_END_MACRO
+
+#define JS_THREAD_ID(cx)        ((cx)->thread ? (cx)->thread->id : 0)
 
 #ifdef __cplusplus
 /* FIXME(bug 332648): Move this into a public header. */
@@ -751,12 +796,6 @@ class JSAutoTempValueRooter
 
 #define JS_HAS_NATIVE_BRANCH_CALLBACK_OPTION(cx)                              \
     JS_HAS_OPTION(cx, JSOPTION_NATIVE_BRANCH_CALLBACK)
-
-/*
- * Wrappers for the JSVERSION_IS_* macros from jspubtd.h taking JSContext *cx
- * and masking off the XML flag and any other high order bits.
- */
-#define JS_VERSION_IS_ECMA(cx)          JSVERSION_IS_ECMA(JSVERSION_NUMBER(cx))
 
 /*
  * Common subroutine of JS_SetVersion and js_SetVersion, to update per-context

@@ -606,7 +606,7 @@ JS_TypeOfValue(JSContext *cx, jsval v)
                 clasp = OBJ_GET_CLASS(cx, obj);
                 if ((ops == &js_ObjectOps)
                     ? (clasp->call
-                       ? (clasp == &js_RegExpClass || clasp == &js_ScriptClass)
+                       ? clasp == &js_ScriptClass
                        : clasp == &js_FunctionClass)
                     : ops->call != NULL) {
                     type = JSTYPE_FUNCTION;
@@ -4461,7 +4461,7 @@ JS_SetCallReturnValue2(JSContext *cx, jsval v)
 {
 #if JS_HAS_LVALUE_RETURN
     cx->rval2 = v;
-    cx->rval2set = JS_RVAL2_VALUE;
+    cx->rval2set = JS_TRUE;
 #endif
 }
 

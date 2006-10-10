@@ -66,6 +66,10 @@
 #include "jsstr.h"
 #include "jsexn.h"
 
+#if JS_HAS_GENERATORS
+# include "jsiter.h"
+#endif
+
 /* Generic function/call/arguments tinyids -- also reflected bit numbers. */
 enum {
     CALL_ARGUMENTS  = -1,       /* predefined arguments local variable */
@@ -232,7 +236,13 @@ js_GetArgsProperty(JSContext *cx, JSStackFrame *fp, jsid id,
 JSObject *
 js_GetArgsObject(JSContext *cx, JSStackFrame *fp)
 {
-    JSObject *argsobj;
+    JSObject *argsobj, *global, *parent;
+
+    /*
+     * We must be in a function activation; the function must be lightweight
+     * or else fp must have a variable object.
+     */
+    JS_ASSERT(fp->fun && (!(fp->fun->flags & JSFUN_HEAVYWEIGHT) || fp->varobj));
 
     /* Skip eval and debugger frames. */
     while (fp->flags & JSFRAME_SPECIAL)
@@ -249,6 +259,22 @@ js_GetArgsObject(JSContext *cx, JSStackFrame *fp)
         cx->newborn[GCX_OBJECT] = NULL;
         return NULL;
     }
+
+    /*
+     * Give arguments an intrinsic scope chain link to fp's global object.
+     * Since the arguments object lacks a prototype because js_ArgumentsClass
+     * is not initialized, js_NewObject won't assign a default parent to it.
+     *
+     * Therefore if arguments is used as the head of an eval scope chain (via
+     * a direct or indirect call to eval(program, arguments)), any reference
+     * to a standard class object in the program will fail to resolve due to
+     * js_GetClassPrototype not being able to find a global object containing
+     * the standard prototype by starting from arguments and following parent.
+     */
+    global = fp->scopeChain;
+    while ((parent = OBJ_GET_PARENT(cx, global)) != NULL)
+        global = parent;
+    argsobj->slots[JSSLOT_PARENT] = OBJECT_TO_JSVAL(global);
     fp->argsobj = argsobj;
     return argsobj;
 }
@@ -427,10 +453,7 @@ args_resolve(JSContext *cx, JSObject *obj, jsval id, uintN flags,
             if (!js_DefineProperty(cx, obj, INT_JSVAL_TO_JSID(id),
                                    fp->argv[slot],
                                    args_getProperty, args_setProperty,
-                                   JS_VERSION_IS_ECMA(cx)
-                                   ? 0
-                                   : JSPROP_ENUMERATE,
-                                   NULL)) {
+                                   0, NULL)) {
                 return JS_FALSE;
             }
             *objp = obj;
@@ -516,6 +539,25 @@ args_enumerate(JSContext *cx, JSObject *obj)
     return JS_TRUE;
 }
 
+#if JS_HAS_GENERATORS
+/*
+ * If a generator-iterator's arguments or call object escapes, it needs to
+ * mark its generator object.
+ */
+static uint32
+args_or_call_mark(JSContext *cx, JSObject *obj, void *arg)
+{
+    JSStackFrame *fp;
+
+    fp = JS_GetPrivate(cx, obj);
+    if (fp && (fp->flags & JSFRAME_GENERATOR))
+        GC_MARK(cx, FRAME_TO_GENERATOR(fp)->obj, "FRAME_TO_GENERATOR(fp)->obj");
+    return 0;
+}
+#else
+# define args_or_call_mark NULL
+#endif
+
 /*
  * The Arguments class is not initialized via JS_InitClass, and must not be,
  * because its name is "Object".  Per ECMA, that causes instances of it to
@@ -531,11 +573,14 @@ JSClass js_ArgumentsClass = {
     js_Object_str,
     JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_HAS_RESERVED_SLOTS(1) |
     JSCLASS_HAS_CACHED_PROTO(JSProto_Object),
-    JS_PropertyStub,  args_delProperty,
-    args_getProperty, args_setProperty,
-    args_enumerate,   (JSResolveOp) args_resolve,
-    JS_ConvertStub,   JS_FinalizeStub,
-    JSCLASS_NO_OPTIONAL_MEMBERS
+    JS_PropertyStub,    args_delProperty,
+    args_getProperty,   args_setProperty,
+    args_enumerate,     (JSResolveOp) args_resolve,
+    JS_ConvertStub,     JS_FinalizeStub,
+    NULL,               NULL,
+    NULL,               NULL,
+    NULL,               NULL,
+    args_or_call_mark,  NULL
 };
 
 JSObject *
@@ -891,11 +936,14 @@ JSClass js_CallClass = {
     js_Call_str,
     JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_IS_ANONYMOUS |
     JSCLASS_HAS_CACHED_PROTO(JSProto_Call),
-    JS_PropertyStub,  JS_PropertyStub,
-    call_getProperty, call_setProperty,
-    call_enumerate,   (JSResolveOp)call_resolve,
-    call_convert,     JS_FinalizeStub,
-    JSCLASS_NO_OPTIONAL_MEMBERS
+    JS_PropertyStub,    JS_PropertyStub,
+    call_getProperty,   call_setProperty,
+    call_enumerate,     (JSResolveOp)call_resolve,
+    call_convert,       JS_FinalizeStub,
+    NULL,               NULL,
+    NULL,               NULL,
+    NULL,               NULL,
+    args_or_call_mark,  NULL,
 };
 
 /*
@@ -2234,28 +2282,21 @@ js_ValueToCallableObject(JSContext *cx, jsval *vp, uintN flags)
 void
 js_ReportIsNotFunction(JSContext *cx, jsval *vp, uintN flags)
 {
-    JSType type;
-    JSString *fallback;
+    JSStackFrame *fp;
     JSString *str;
     JSTempValueRooter tvr;
     const char *bytes, *source;
 
-    /*
-     * We provide the typename as the fallback to handle the case when
-     * valueOf is not a function, which prevents ValueToString from being
-     * called as the default case inside js_DecompileValueGenerator (and
-     * so recursing back to here).
-     */
-    type = JS_TypeOfValue(cx, *vp);
-    fallback = ATOM_TO_STRING(cx->runtime->atomState.typeAtoms[type]);
+    for (fp = cx->fp; fp && !fp->spbase; fp = fp->down)
+        continue;
     str = js_DecompileValueGenerator(cx,
-                                     (flags & JSV2F_SEARCH_STACK)
+                                     (fp && fp->spbase <= vp && vp < fp->sp)
+                                     ? vp - fp->sp
+                                     : (flags & JSV2F_SEARCH_STACK)
                                      ? JSDVG_SEARCH_STACK
-                                     : cx->fp
-                                     ? vp - cx->fp->sp
                                      : JSDVG_IGNORE_STACK,
                                      *vp,
-                                     fallback);
+                                     NULL);
     if (str) {
         JS_PUSH_SINGLE_TEMP_ROOT(cx, str, &tvr);
         bytes = JS_GetStringBytes(str);

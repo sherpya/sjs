@@ -1178,7 +1178,8 @@ XPCConvert::NativeInterface2JSObject(XPCCallContext& ccx,
                         }
                     }
 
-                    // Out of memory
+                    // Out of memory or other failure that already
+                    // threw a JS exception.
                     NS_RELEASE(wrapper);
                     return JS_FALSE;
                 }
@@ -1293,19 +1294,25 @@ XPCConvert::ConstructException(nsresult rv, const char* message,
     static const char format[] = "\'%s\' when calling method: [%s::%s]";
     const char * msg = message;
     char* sz = nsnull;
+    nsXPIDLString xmsg;
+    nsCAutoString sxmsg;
 
+    nsCOMPtr<nsIScriptError> errorObject = do_QueryInterface(data);
+    if(errorObject) {
+        if (NS_SUCCEEDED(errorObject->GetMessage(getter_Copies(xmsg)))) {
+            CopyUTF16toUTF8(xmsg, sxmsg);
+            msg = sxmsg.get();
+        }
+    }
     if(!msg)
         if(!nsXPCException::NameAndFormatForNSResult(rv, nsnull, &msg) || ! msg)
             msg = "<error>";
-
     if(ifaceName && methodName)
-        sz = JS_smprintf(format, msg, ifaceName, methodName);
-    else
-        sz = (char*) msg; // I promise to play nice after casting away const
+        msg = sz = JS_smprintf(format, msg, ifaceName, methodName);
 
-    nsresult res = nsXPCException::NewException(sz, rv, nsnull, data, exceptn);
+    nsresult res = nsXPCException::NewException(msg, rv, nsnull, data, exceptn);
 
-    if(sz && sz != msg)
+    if(sz)
         JS_smprintf_free(sz);
     return res;
 }
