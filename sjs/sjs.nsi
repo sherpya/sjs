@@ -1,6 +1,6 @@
 ; Sherpya JavaScript Shell NSIS Installer
-; Copyright (C) 2005 Gianluigi Tiesi <sherpya@netfarm.it>
-; Copyright (C) 2005 NetFarm S.r.l.  [http://www.netfarm.it]
+; Copyright (C) 2005-2007 Gianluigi Tiesi <sherpya@netfarm.it>
+; Copyright (C) 2005-2007 NetFarm S.r.l.  [http://www.netfarm.it]
 ;
 ; This program is free software; you can redistribute it and/or modify
 ; it under the terms of the GNU General Public License as published by the
