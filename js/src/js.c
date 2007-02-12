@@ -92,8 +92,11 @@
 #include <io.h>     /* for isatty() */
 #endif
 
-#define EXITCODE_RUNTIME_ERROR 3
-#define EXITCODE_FILE_NOT_FOUND 4
+typedef enum JSShellExitCode {
+    EXITCODE_RUNTIME_ERROR      = 3,
+    EXITCODE_FILE_NOT_FOUND     = 4,
+    EXITCODE_OUT_OF_MEMORY      = 5
+} JSShellExitCode;
 
 size_t gStackChunkSize = 8192;
 
@@ -890,24 +893,93 @@ PCToLine(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 #ifdef DEBUG
 
 static void
+GetSwitchTableBounds(JSScript *script, uintN offset,
+                     uintN *start, uintN *end)
+{
+    jsbytecode *pc;
+    JSOp op;
+    ptrdiff_t jmplen;
+    jsint low, high, n;
+
+    pc = script->code + offset;
+    op = *pc;
+    switch (op) {
+      case JSOP_TABLESWITCHX:
+        jmplen = JUMPX_OFFSET_LEN;
+        goto jump_table;
+      case JSOP_TABLESWITCH:
+        jmplen = JUMP_OFFSET_LEN;
+      jump_table:
+        pc += jmplen;
+        low = GET_JUMP_OFFSET(pc);
+        pc += JUMP_OFFSET_LEN;
+        high = GET_JUMP_OFFSET(pc);
+        pc += JUMP_OFFSET_LEN;
+        n = high - low + 1;
+        break;
+
+      case JSOP_LOOKUPSWITCHX:
+        jmplen = JUMPX_OFFSET_LEN;
+        goto lookup_table;
+      default:
+        JS_ASSERT(op == JSOP_LOOKUPSWITCH);
+        jmplen = JUMP_OFFSET_LEN;
+      lookup_table:
+        pc += jmplen;
+        n = GET_ATOM_INDEX(pc);
+        pc += ATOM_INDEX_LEN;
+        jmplen += JUMP_OFFSET_LEN;
+        break;
+    }
+
+    *start = (uintN)(pc - script->code);
+    *end = *start + (uintN)(n * jmplen);
+}
+
+
+/*
+ * SrcNotes assumes that SRC_METHODBASE should be distinguished from SRC_LABEL
+ * using the bytecode the source note points to.
+ */
+JS_STATIC_ASSERT(SRC_LABEL == SRC_METHODBASE);
+
+static void
 SrcNotes(JSContext *cx, JSScript *script)
 {
-    uintN offset, delta, caseOff;
+    uintN offset, delta, caseOff, switchTableStart, switchTableEnd;
     jssrcnote *notes, *sn;
     JSSrcNoteType type;
+    const char *name;
+    JSOp op;
     jsatomid atomIndex;
     JSAtom *atom;
 
     fprintf(gOutFile, "\nSource notes:\n");
     offset = 0;
     notes = SCRIPT_NOTES(script);
+    switchTableEnd = switchTableStart = 0;
     for (sn = notes; !SN_IS_TERMINATOR(sn); sn = SN_NEXT(sn)) {
         delta = SN_DELTA(sn);
         offset += delta;
-        fprintf(gOutFile, "%3u: %5u [%4u] %-8s",
-                PTRDIFF(sn, notes, jssrcnote), offset, delta,
-                js_SrcNoteSpec[SN_TYPE(sn)].name);
         type = (JSSrcNoteType) SN_TYPE(sn);
+        name = js_SrcNoteSpec[type].name;
+        if (type == SRC_LABEL) {
+            /* Heavily overloaded case. */
+            if (switchTableStart <= offset && offset < switchTableEnd) {
+                name = "case";
+            } else {
+                op = script->code[offset];
+                if (op == JSOP_GETMETHOD || op == JSOP_SETMETHOD) {
+                    /* This is SRC_METHODBASE which we print as SRC_PCBASE. */
+                    type = SRC_PCBASE;
+                    name = "methodbase";
+                } else {
+                    JS_ASSERT(op == JSOP_NOP);
+                }
+            }
+        }
+        fprintf(gOutFile, "%3u: %5u [%4u] %-8s",
+                PTRDIFF(sn, notes, jssrcnote), offset, delta, name);
         switch (type) {
           case SRC_SETLINE:
             fprintf(gOutFile, " lineno %u", (uintN) js_GetSrcNoteOffset(sn, 0));
@@ -958,6 +1030,8 @@ SrcNotes(JSContext *cx, JSScript *script)
             caseOff = (uintN) js_GetSrcNoteOffset(sn, 1);
             if (caseOff)
                 fprintf(gOutFile, " first case offset %u", caseOff);
+            GetSwitchTableBounds(script, offset,
+                                 &switchTableStart, &switchTableEnd);
             break;
           case SRC_CATCH:
             delta = (uintN) js_GetSrcNoteOffset(sn, 0);
@@ -1042,6 +1116,7 @@ Disassemble(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
                 SHOW_FLAG(THISP_STRING);
                 SHOW_FLAG(THISP_NUMBER);
                 SHOW_FLAG(THISP_BOOLEAN);
+                SHOW_FLAG(INTERPRETED);
 
 #undef SHOW_FLAG
                 putchar('\n');
@@ -1586,19 +1661,19 @@ ToInt32(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 }
 
 static JSBool
-StringsAreUtf8(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
+StringsAreUTF8(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
                jsval *rval)
 {
     *rval = JS_CStringsAreUTF8() ? JSVAL_TRUE : JSVAL_FALSE;
     return JS_TRUE;
 }
 
-static const char* badUtf8 = "...\xC0...";
-static const char* bigUtf8 = "...\xFB\xBF\xBF\xBF\xBF...";
+static const char* badUTF8 = "...\xC0...";
+static const char* bigUTF8 = "...\xFB\xBF\xBF\xBF\xBF...";
 static const jschar badSurrogate[] = { 'A', 'B', 'C', 0xDEEE, 'D', 'E', 0 };
 
 static JSBool
-TestUtf8(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+TestUTF8(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     intN mode = 1;
     jschar chars[20];
@@ -1612,11 +1687,11 @@ TestUtf8(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     switch (mode) {
       /* mode 1: malformed UTF-8 string. */
       case 1:
-        JS_NewStringCopyZ(cx, badUtf8);
+        JS_NewStringCopyZ(cx, badUTF8);
         break;
       /* mode 2: big UTF-8 character. */
       case 2:
-        JS_NewStringCopyZ(cx, bigUtf8);
+        JS_NewStringCopyZ(cx, bigUTF8);
         break;
       /* mode 3: bad surrogate character. */
       case 3:
@@ -2061,8 +2136,8 @@ static JSFunctionSpec shell_functions[] = {
     {"untrap",          Untrap,         2,0,0},
     {"line2pc",         LineToPC,       0,0,0},
     {"pc2line",         PCToLine,       0,0,0},
-    {"stringsAreUtf8",  StringsAreUtf8, 0,0,0},
-    {"testUtf8",        TestUtf8,       1,0,0},
+    {"stringsAreUTF8",  StringsAreUTF8, 0,0,0},
+    {"testUTF8",        TestUTF8,       1,0,0},
     {"throwError",      ThrowError,     0,0,0},
 #ifdef DEBUG
     {"dis",             Disassemble,    1,0,0},
@@ -2516,8 +2591,13 @@ my_ErrorReporter(JSContext *cx, const char *message, JSErrorReport *report)
     }
     fputs("^\n", gErrFile);
  out:
-    if (!JSREPORT_IS_WARNING(report->flags))
-        gExitCode = EXITCODE_RUNTIME_ERROR;
+    if (!JSREPORT_IS_WARNING(report->flags)) {
+        if (report->errorNumber == JSMSG_OUT_OF_MEMORY) {
+            gExitCode = EXITCODE_OUT_OF_MEMORY;
+        } else {
+            gExitCode = EXITCODE_RUNTIME_ERROR;
+        }
+    }
     JS_free(cx, prefix);
 }
 

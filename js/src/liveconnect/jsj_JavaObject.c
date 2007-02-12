@@ -352,8 +352,16 @@ jsj_DiscardJavaObjReflections(JNIEnv *jEnv)
     /* Get the per-thread state corresponding to the current Java thread */
     jsj_env = jsj_MapJavaThreadToJSJavaThreadState(jEnv, &err_msg);
     JS_ASSERT(jsj_env);
-    if (!jsj_env)
+    if (!jsj_env) {
+        if (err_msg) {
+            jsj_LogError(err_msg);
+            JS_smprintf_free(err_msg);
+        }
+
         return;
+    }
+
+    JS_ASSERT(!err_msg);
 
     if (java_obj_reflections) {
         JSJ_HashTableEnumerateEntries(java_obj_reflections,
@@ -1000,7 +1008,6 @@ jsj_wrapper_newObjectMap(JSContext *cx, jsrefcount nrefs, JSObjectOps *ops,
     if (map) {
         map->nrefs = nrefs;
         map->ops = ops;
-        map->nslots = JSJ_SLOT_COUNT;
         map->freeslot = JSJ_SLOT_COUNT;
     }
     return map;
@@ -1016,20 +1023,16 @@ jsval JS_DLL_CALLBACK
 jsj_wrapper_getRequiredSlot(JSContext *cx, JSObject *obj, uint32 slot)
 {
     JS_ASSERT(slot < JSJ_SLOT_COUNT);
-    JS_ASSERT(obj->slots);
-    JS_ASSERT(obj->map->nslots == JSJ_SLOT_COUNT);
     JS_ASSERT(obj->map->freeslot == JSJ_SLOT_COUNT);
-    return obj->slots[slot];
+    return STOBJ_GET_SLOT(obj, slot);
 }
 
 JSBool JS_DLL_CALLBACK
 jsj_wrapper_setRequiredSlot(JSContext *cx, JSObject *obj, uint32 slot, jsval v)
 {
     JS_ASSERT(slot < JSJ_SLOT_COUNT);
-    JS_ASSERT(obj->slots);
-    JS_ASSERT(obj->map->nslots == JSJ_SLOT_COUNT);
     JS_ASSERT(obj->map->freeslot == JSJ_SLOT_COUNT);
-    obj->slots[slot] = v;
+    STOBJ_SET_SLOT(obj, slot, v);
     return JS_TRUE;
 }
 

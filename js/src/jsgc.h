@@ -45,6 +45,7 @@
 #include "jsprvtd.h"
 #include "jspubtd.h"
 #include "jsdhash.h"
+#include "jsutil.h"
 
 JS_BEGIN_EXTERN_C
 
@@ -88,19 +89,6 @@ js_GetGCThingFlags(void *thing);
 JSRuntime*
 js_GetGCStringRuntime(JSString *str);
 
-/* These are compatible with JSDHashEntryStub. */
-struct JSGCRootHashEntry {
-    JSDHashEntryHdr hdr;
-    void            *root;
-    const char      *name;
-};
-
-struct JSGCLockHashEntry {
-    JSDHashEntryHdr hdr;
-    const JSGCThing *thing;
-    uint32          count;
-};
-
 #if 1
 /*
  * Since we're forcing a GC from JS_GC anyway, don't bother wasting cycles
@@ -130,6 +118,16 @@ js_AddRootRT(JSRuntime *rt, void *rp, const char *name);
 
 extern JSBool
 js_RemoveRoot(JSRuntime *rt, void *rp);
+
+#ifdef DEBUG
+extern void
+js_DumpNamedRoots(JSRuntime *rt,
+                  void (*dump)(const char *name, void *rp, void *data),
+                  void *data);
+#endif
+
+extern uint32
+js_MapGCRoots(JSRuntime *rt, JSGCRootMapFun map, void *data);
 
 /* Table of pointers with count valid members. */
 typedef struct JSPtrTable {
@@ -342,6 +340,20 @@ struct JSGCArenaList {
     JSGCArenaStats stats;
 #endif
 };
+
+typedef struct JSWeakRoots {
+    /* Most recently created things by type, members of the GC's root set. */
+    JSGCThing           *newborn[GCX_NTYPES];
+
+    /* Atom root for the last-looked-up atom on this context. */
+    JSAtom              *lastAtom;
+
+    /* Root for the result of the most recent js_InternalInvoke call. */
+    jsval               lastInternalResult;
+} JSWeakRoots;
+
+JS_STATIC_ASSERT(JSVAL_NULL == 0);
+#define JS_CLEAR_WEAK_ROOTS(wr) (memset((wr), 0, sizeof(JSWeakRoots)))
 
 #ifdef DEBUG_notme
 #define TOO_MUCH_GC 1

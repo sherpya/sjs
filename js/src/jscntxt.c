@@ -61,10 +61,35 @@
 #include "jsobj.h"
 #include "jsopcode.h"
 #include "jsscan.h"
+#include "jsscope.h"
 #include "jsscript.h"
 #include "jsstr.h"
 
 #ifdef JS_THREADSAFE
+#include "prtypes.h"
+
+/*
+ * The index for JSThread info, returned by PR_NewThreadPrivateIndex.  The
+ * index value is visible and shared by all threads, but the data associated
+ * with it is private to each thread.
+ */
+static PRUintn threadTPIndex;
+static JSBool  tpIndexInited = JS_FALSE;
+
+JSBool
+js_InitThreadPrivateIndex(void *ptr)
+{
+    PRStatus status;
+
+    if (tpIndexInited)
+        return JS_TRUE;
+
+    status = PR_NewThreadPrivateIndex(&threadTPIndex, ptr);
+
+    if (status == PR_SUCCESS)
+        tpIndexInited = JS_TRUE;
+    return status == PR_SUCCESS;
+}
 
 /*
  * Callback function to delete a JSThread info when the thread that owns it
@@ -77,8 +102,13 @@ js_ThreadDestructorCB(void *ptr)
 
     if (!thread)
         return;
-    while (!JS_CLIST_IS_EMPTY(&thread->contextList))
-        JS_REMOVE_AND_INIT_LINK(thread->contextList.next);
+    while (!JS_CLIST_IS_EMPTY(&thread->contextList)) {
+        /* NB: use a temporary, as the macro evaluates its args many times. */
+        JSCList *link = thread->contextList.next;
+
+        JS_REMOVE_AND_INIT_LINK(link);
+    }
+    GSN_CACHE_CLEAR(&thread->gsnCache);
     free(thread);
 }
 
@@ -98,13 +128,13 @@ js_GetCurrentThread(JSRuntime *rt)
 {
     JSThread *thread;
 
-    thread = (JSThread *)PR_GetThreadPrivate(rt->threadTPIndex);
+    thread = (JSThread *)PR_GetThreadPrivate(threadTPIndex);
     if (!thread) {
-        thread = (JSThread *) malloc(sizeof(JSThread));
+        thread = (JSThread *) calloc(1, sizeof(JSThread));
         if (!thread)
             return NULL;
 
-        if (PR_FAILURE == PR_SetThreadPrivate(rt->threadTPIndex, thread)) {
+        if (PR_FAILURE == PR_SetThreadPrivate(threadTPIndex, thread)) {
             free(thread);
             return NULL;
         }
@@ -116,10 +146,6 @@ js_GetCurrentThread(JSRuntime *rt)
 #ifdef DEBUG
         memset(thread->gcFreeLists, JS_FREE_PATTERN,
                sizeof(thread->gcFreeLists));
-#endif
-        thread->gcMallocBytes = 0;
-#if JS_HAS_GENERATORS
-        thread->gcRunningCloseHooks = JS_FALSE;
 #endif
     }
     return thread;
@@ -232,8 +258,6 @@ js_NewContext(JSRuntime *rt, size_t stackChunkSize)
      * done by js_DestroyContext).
      */
     cx->version = JSVERSION_DEFAULT;
-    cx->jsop_eq = JSOP_EQ;
-    cx->jsop_ne = JSOP_NE;
     JS_InitArenaPool(&cx->stackPool, "stack", stackChunkSize, sizeof(jsval));
     JS_InitArenaPool(&cx->tempPool, "temp", 1024, sizeof(jsdouble));
 
@@ -438,8 +462,6 @@ js_DestroyContext(JSContext *cx, JSDestroyContextMode mode)
         }
         JS_free(cx, lrs);
     }
-
-    JS_CLEAR_GSN_CACHE(cx);
 
 #ifdef JS_THREADSAFE
     js_ClearContextThread(cx);
@@ -648,8 +670,8 @@ js_LeaveLocalRootScopeWithResult(JSContext *cx, jsval rval)
 
     /*
      * Pop the scope, restoring lrs->scopeMark.  If rval is a GC-thing, push
-     * it on the caller's scope, or store it in cx->lastInternalResult if we
-     * are leaving the outermost scope.  We don't need to allocate a new lrc
+     * it on the caller's scope, or store it in lastInternalResult if we are
+     * leaving the outermost scope.  We don't need to allocate a new lrc
      * because we can overwrite the old mark's slot with rval.
      */
     lrc = lrs->topChunk;
@@ -657,7 +679,7 @@ js_LeaveLocalRootScopeWithResult(JSContext *cx, jsval rval)
     lrs->scopeMark = (uint32) JSVAL_TO_INT(lrc->roots[m]);
     if (JSVAL_IS_GCTHING(rval) && !JSVAL_IS_NULL(rval)) {
         if (mark == 0) {
-            cx->lastInternalResult = rval;
+            cx->weakRoots.lastInternalResult = rval;
         } else {
             /*
              * Increment m to avoid the "else if (m == 0)" case below.  If
@@ -1094,9 +1116,12 @@ js_ExpandErrorArguments(JSContext *cx, JSErrorCallback callback,
 
 error:
     if (reportp->messageArgs) {
-        i = 0;
-        while (reportp->messageArgs[i])
-            JS_free(cx, (void *)reportp->messageArgs[i++]);
+        /* free the arguments only if we allocated them */
+        if (charArgs) {
+            i = 0;
+            while (reportp->messageArgs[i])
+                JS_free(cx, (void *)reportp->messageArgs[i++]);
+        }
         JS_free(cx, (void *)reportp->messageArgs);
         reportp->messageArgs = NULL;
     }
@@ -1204,6 +1229,26 @@ js_ReportIsNotDefined(JSContext *cx, const char *name)
     JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_NOT_DEFINED, name);
 }
 
+JSBool
+js_ReportValueErrorFlags(JSContext *cx, uintN flags, const uintN errorNumber,
+                         intN spindex, jsval v, JSString *fallback,
+                         const char *arg1, const char *arg2)
+{
+    char *bytes;
+    JSBool ok;
+
+    JS_ASSERT(js_ErrorFormatString[errorNumber].argCount >= 1);
+    JS_ASSERT(js_ErrorFormatString[errorNumber].argCount <= 3);
+    bytes = js_DecompileValueGenerator(cx, spindex, v, fallback);
+    if (!bytes)
+        return JS_FALSE;
+
+    ok = JS_ReportErrorFlagsAndNumber(cx, flags, js_GetErrorMessage,
+                                      NULL, errorNumber, bytes, arg1, arg2);
+    JS_free(cx, bytes);
+    return ok;
+}
+
 #if defined DEBUG && defined XP_UNIX
 /* For gdb usage. */
 void js_traceon(JSContext *cx)  { cx->tracefp = stderr; }
@@ -1223,4 +1268,13 @@ js_GetErrorMessage(void *userRef, const char *locale, const uintN errorNumber)
     if ((errorNumber > 0) && (errorNumber < JSErr_Limit))
         return &js_ErrorFormatString[errorNumber];
     return NULL;
+}
+
+JSBool
+js_ResetOperationCounter(JSContext *cx)
+{
+    JS_ASSERT(cx->operationCounter & JSOW_BRANCH_CALLBACK);
+
+    cx->operationCounter = 0;
+    return !cx->branchCallback || cx->branchCallback(cx, NULL);
 }

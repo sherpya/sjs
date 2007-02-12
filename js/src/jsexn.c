@@ -728,14 +728,9 @@ StringToFilename(JSContext *cx, JSString *str)
 static JSBool
 Exception(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-    JSBool ok;
     uint32 lineno;
     JSString *message, *filename;
     JSStackFrame *fp;
-
-    if (cx->creatingException)
-        return JS_FALSE;
-    cx->creatingException = JS_TRUE;
 
     if (!(cx->fp->flags & JSFRAME_CONSTRUCTING)) {
         /*
@@ -745,17 +740,14 @@ Exception(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
          * js_NewObject to find the class prototype, we must get the class
          * prototype ourselves.
          */
-        ok = OBJ_GET_PROPERTY(cx, JSVAL_TO_OBJECT(argv[-2]),
+        if (!OBJ_GET_PROPERTY(cx, JSVAL_TO_OBJECT(argv[-2]),
                               ATOM_TO_JSID(cx->runtime->atomState
                                            .classPrototypeAtom),
-                              rval);
-        if (!ok)
-            goto out;
+                              rval))
+            return JS_FALSE;
         obj = js_NewObject(cx, &js_ErrorClass, JSVAL_TO_OBJECT(*rval), NULL);
-        if (!obj) {
-            ok = JS_FALSE;
-            goto out;
-        }
+        if (!obj)
+            return JS_FALSE;
         *rval = OBJECT_TO_JSVAL(obj);
     }
 
@@ -769,10 +761,8 @@ Exception(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     /* Set the 'message' property. */
     if (argc != 0) {
         message = js_ValueToString(cx, argv[0]);
-        if (!message) {
-            ok = JS_FALSE;
-            goto out;
-        }
+        if (!message)
+            return JS_FALSE;
         argv[0] = STRING_TO_JSVAL(message);
     } else {
         message = cx->runtime->emptyString;
@@ -781,20 +771,16 @@ Exception(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     /* Set the 'fileName' property. */
     if (argc > 1) {
         filename = js_ValueToString(cx, argv[1]);
-        if (!filename) {
-            ok = JS_FALSE;
-            goto out;
-        }
+        if (!filename)
+            return JS_FALSE;
         argv[1] = STRING_TO_JSVAL(filename);
         fp = NULL;
     } else {
         fp = JS_GetScriptedCaller(cx, NULL);
         if (fp) {
             filename = FilenameToString(cx, fp->script->filename);
-            if (!filename) {
-                ok = JS_FALSE;
-                goto out;
-            }
+            if (!filename)
+                return JS_FALSE;
         } else {
             filename = cx->runtime->emptyString;
         }
@@ -802,21 +788,16 @@ Exception(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 
     /* Set the 'lineNumber' property. */
     if (argc > 2) {
-        ok = js_ValueToECMAUint32(cx, argv[2], &lineno);
-        if (!ok)
-            goto out;
+        if (!js_ValueToECMAUint32(cx, argv[2], &lineno))
+            return JS_FALSE;
     } else {
         if (!fp)
             fp = JS_GetScriptedCaller(cx, NULL);
         lineno = (fp && fp->pc) ? js_PCToLineNumber(cx, fp->script, fp->pc) : 0;
     }
 
-    ok = (OBJ_GET_CLASS(cx, obj) != &js_ErrorClass) ||
-         InitExnPrivate(cx, obj, message, filename, lineno, NULL);
-
-  out:
-    cx->creatingException = JS_FALSE;
-    return ok;
+    return (OBJ_GET_CLASS(cx, obj) != &js_ErrorClass) ||
+            InitExnPrivate(cx, obj, message, filename, lineno, NULL);
 }
 
 /*
@@ -1149,12 +1130,13 @@ JSBool
 js_ErrorToException(JSContext *cx, const char *message, JSErrorReport *reportp)
 {
     JSErrNum errorNumber;
+    const JSErrorFormatString *errorString;
     JSExnType exn;
+    jsval tv[4];
+    JSTempValueRooter tvr;
     JSBool ok;
     JSObject *errProto, *errObject;
     JSString *messageStr, *filenameStr;
-    uintN lineno;
-    const JSErrorFormatString *errorString;
 
     /*
      * Tell our caller to report immediately if cx has no active frames, or if
@@ -1185,20 +1167,20 @@ js_ErrorToException(JSContext *cx, const char *message, JSErrorReport *reportp)
         return JS_FALSE;
 
     /*
-     * Prevent runaway recursion, just as the Exception native constructor
-     * must do, via cx->creatingException.  If an out-of-memory error occurs,
-     * no exception object will be created, but we don't assume that OOM is
-     * the only kind of error that subroutines of this function called below
-     * might raise.
+     * Prevent runaway recursion, via cx->generatingError.  If an out-of-memory
+     * error occurs, no exception object will be created, but we don't assume
+     * that OOM is the only kind of error that subroutines of this function
+     * called below might raise.
      */
-    if (cx->creatingException)
+    if (cx->generatingError)
         return JS_FALSE;
-    cx->creatingException = JS_TRUE;
+
+    /* After this point the control must flow through the label out. */
+    cx->generatingError = JS_TRUE;
 
     /* Protect the newly-created strings below from nesting GCs. */
-    ok = js_EnterLocalRootScope(cx);
-    if (!ok)
-        goto out;
+    memset(tv, 0, sizeof tv);
+    JS_PUSH_TEMP_ROOT(cx, sizeof tv / sizeof tv[0], tv, &tvr);
 
     /*
      * Try to get an appropriate prototype by looking up the corresponding
@@ -1209,55 +1191,52 @@ js_ErrorToException(JSContext *cx, const char *message, JSErrorReport *reportp)
                               &errProto);
     if (!ok)
         goto out;
+    tv[0] = OBJECT_TO_JSVAL(errProto);
 
     errObject = js_NewObject(cx, &js_ErrorClass, errProto, NULL);
     if (!errObject) {
         ok = JS_FALSE;
         goto out;
     }
-
-    /*
-     * Set the generated Exception object early, so it won't be GC'd by a last
-     * ditch attempt to collect garbage, or a GC that otherwise nests or races
-     * under any of the following calls.  If one of the following calls fails,
-     * it will overwrite this exception object with one of its own (except in
-     * case of OOM errors, of course).
-     */
-    JS_SetPendingException(cx, OBJECT_TO_JSVAL(errObject));
+    tv[1] = OBJECT_TO_JSVAL(errObject);
 
     messageStr = JS_NewStringCopyZ(cx, message);
     if (!messageStr) {
         ok = JS_FALSE;
         goto out;
     }
+    tv[2] = STRING_TO_JSVAL(messageStr);
 
     filenameStr = JS_NewStringCopyZ(cx, reportp->filename);
     if (!filenameStr) {
         ok = JS_FALSE;
         goto out;
     }
-    lineno = reportp->lineno;
+    tv[3] = STRING_TO_JSVAL(filenameStr);
 
-    ok = InitExnPrivate(cx, errObject, messageStr, filenameStr, lineno,
-                        reportp);
+    ok = InitExnPrivate(cx, errObject, messageStr, filenameStr,
+                        reportp->lineno, reportp);
     if (!ok)
         goto out;
+
+    JS_SetPendingException(cx, OBJECT_TO_JSVAL(errObject));
 
     /* Flag the error report passed in to indicate an exception was raised. */
     reportp->flags |= JSREPORT_EXCEPTION;
 
 out:
-    js_LeaveLocalRootScope(cx);
-    cx->creatingException = JS_FALSE;
+    JS_POP_TEMP_ROOT(cx, &tvr);
+    cx->generatingError = JS_FALSE;
     return ok;
 }
 
 JSBool
 js_ReportUncaughtException(JSContext *cx)
 {
-    jsval exn, *vp;
+    jsval exn;
     JSObject *exnObject;
-    void *mark;
+    jsval vp[5];
+    JSTempValueRooter tvr;
     JSErrorReport *reportp, report;
     JSString *str;
     const char *bytes;
@@ -1277,18 +1256,11 @@ js_ReportUncaughtException(JSContext *cx)
      */
     if (JSVAL_IS_PRIMITIVE(exn)) {
         exnObject = NULL;
-        vp = NULL;
-#ifdef __GNUC__         /* suppress bogus gcc warnings */
-        mark = NULL;
-#endif
     } else {
         exnObject = JSVAL_TO_OBJECT(exn);
-        vp = js_AllocStack(cx, 5, &mark);
-        if (!vp) {
-            ok = JS_FALSE;
-            goto out;
-        }
         vp[0] = exn;
+        memset(vp + 1, 0, sizeof vp - sizeof vp[0]);
+        JS_PUSH_TEMP_ROOT(cx, JS_ARRAY_LENGTH(vp), vp, &tvr);
     }
 
     JS_ClearPendingException(cx);
@@ -1299,7 +1271,7 @@ js_ReportUncaughtException(JSContext *cx)
     if (!str) {
         bytes = "unknown (can't convert to string)";
     } else {
-        if (vp)
+        if (exnObject)
             vp[1] = STRING_TO_JSVAL(str);
         bytes = js_GetStringBytes(cx->runtime, str);
     }
@@ -1351,6 +1323,6 @@ js_ReportUncaughtException(JSContext *cx)
 
 out:
     if (exnObject)
-        js_FreeStack(cx, mark);
+        JS_POP_TEMP_ROOT(cx, &tvr);
     return ok;
 }

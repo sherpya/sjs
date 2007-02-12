@@ -2964,11 +2964,9 @@ nsXPCComponents_Utils::ReportError()
 
 #ifndef XPCONNECT_STANDALONE
 #include "nsIScriptSecurityManager.h"
-#include "nsIURL.h"
-#include "nsIStandardURL.h"
+#include "nsIURI.h"
 #include "nsNetUtil.h"
 const char kScriptSecurityManagerContractID[] = NS_SCRIPTSECURITYMANAGER_CONTRACTID;
-const char kStandardURLContractID[] = "@mozilla.org/network/standard-url;1";
 
 NS_IMPL_ISUPPORTS1(PrincipalHolder, nsIScriptObjectPrincipal)
 
@@ -3028,6 +3026,11 @@ JS_STATIC_DLL_CALLBACK(JSBool)
 SandboxImport(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
               jsval *rval)
 {
+    if (argc < 1) {
+        XPCThrower::Throw(NS_ERROR_INVALID_ARG, cx);
+        return JS_FALSE;
+    }
+    
     JSFunction *fun = JS_ValueToFunction(cx, argv[0]);
     if (!fun) {
         XPCThrower::Throw(NS_ERROR_INVALID_ARG, cx);
@@ -3277,24 +3280,20 @@ nsXPCComponents_utils_Sandbox::CallOrConstruct(nsIXPConnectWrappedNative *wrappe
     nsISupports *prinOrSop = nsnull;
     if (JSVAL_IS_STRING(argv[0])) {
         JSString *codebasestr = JSVAL_TO_STRING(argv[0]);
-        nsCAutoString codebase(JS_GetStringBytes(codebasestr),
-                               JS_GetStringLength(codebasestr));
-        nsCOMPtr<nsIURL> iURL;
-        nsCOMPtr<nsIStandardURL> stdUrl =
-            do_CreateInstance(kStandardURLContractID, &rv);
-        if (!stdUrl ||
-            NS_FAILED(rv = stdUrl->Init(nsIStandardURL::URLTYPE_STANDARD, 80,
-                                        codebase, nsnull, nsnull)) ||
-            !(iURL = do_QueryInterface(stdUrl, &rv))) {
-            if (NS_SUCCEEDED(rv))
-                rv = NS_ERROR_FAILURE;
+        nsAutoString codebase(NS_REINTERPRET_CAST(PRUnichar*,
+                                                  JS_GetStringChars(codebasestr)),
+                              JS_GetStringLength(codebasestr));
+        nsCOMPtr<nsIURI> uri;
+        rv = NS_NewURI(getter_AddRefs(uri), codebase);
+        if (NS_FAILED(rv)) {
             return ThrowAndFail(rv, cx, _retval);
         }
 
         nsCOMPtr<nsIScriptSecurityManager> secman =
             do_GetService(kScriptSecurityManagerContractID);
         if (!secman ||
-            NS_FAILED(rv = secman->GetCodebasePrincipal(iURL, getter_AddRefs(principal))) ||
+            NS_FAILED(rv = secman->GetCodebasePrincipal(uri,
+                                                 getter_AddRefs(principal))) ||
             !principal) {
             if (NS_SUCCEEDED(rv))
                 rv = NS_ERROR_FAILURE;
@@ -3347,13 +3346,20 @@ public:
     NS_DECL_ISUPPORTS
 
 private:
+    static JSBool JS_DLL_CALLBACK ContextHolderBranchCallback(JSContext *cx,
+                                                              JSScript *script);
+    
     XPCAutoJSContext mJSContext;
+    JSBranchCallback mOrigBranchCallback;
+    JSContext* mOrigCx;
 };
 
 NS_IMPL_ISUPPORTS0(ContextHolder)
 
 ContextHolder::ContextHolder(JSContext *aOuterCx, JSObject *aSandbox)
-    : mJSContext(JS_NewContext(JS_GetRuntime(aOuterCx), 1024), JS_FALSE)
+    : mJSContext(JS_NewContext(JS_GetRuntime(aOuterCx), 1024), JS_FALSE),
+      mOrigBranchCallback(nsnull),
+      mOrigCx(aOuterCx)
 {
     if (mJSContext) {
         JS_SetOptions(mJSContext,
@@ -3361,7 +3367,29 @@ ContextHolder::ContextHolder(JSContext *aOuterCx, JSObject *aSandbox)
                       JSOPTION_PRIVATE_IS_NSISUPPORTS);
         JS_SetGlobalObject(mJSContext, aSandbox);
         JS_SetContextPrivate(mJSContext, this);
+
+        // Now cache the original branch callback
+        mOrigBranchCallback = JS_SetBranchCallback(aOuterCx, nsnull);
+        JS_SetBranchCallback(aOuterCx, mOrigBranchCallback);
+
+        if (mOrigBranchCallback) {
+            JS_SetBranchCallback(mJSContext, ContextHolderBranchCallback);
+        }
     }
+}
+
+JSBool JS_DLL_CALLBACK
+ContextHolder::ContextHolderBranchCallback(JSContext *cx, JSScript *script)
+{
+    ContextHolder* thisObject =
+        NS_STATIC_CAST(ContextHolder*, JS_GetContextPrivate(cx));
+    NS_ASSERTION(thisObject, "How did that happen?");
+
+    if (thisObject->mOrigBranchCallback) {
+        return (thisObject->mOrigBranchCallback)(thisObject->mOrigCx, script);
+    }
+
+    return JS_TRUE;
 }
 
 /***************************************************************************/

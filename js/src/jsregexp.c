@@ -1970,6 +1970,8 @@ js_NewRegExp(JSContext *cx, JSTokenStream *ts,
             re = NULL;
             goto out;
         }
+        for (i = 0; i < re->classCount; i++)
+            re->classList[i].converted = JS_FALSE;
     } else {
         re->classList = NULL;
     }
@@ -2063,9 +2065,11 @@ PushBackTrackState(REGlobalData *gData, REOp op,
     ptrdiff_t btincr = ((char *)result + sz) -
                        ((char *)gData->backTrackStack + btsize);
 
+    JS_COUNT_OPERATION(gData->cx, JSOW_JUMP * (1 + parenCount));
     if (btincr > 0) {
         ptrdiff_t offset = (char *)result - (char *)gData->backTrackStack;
 
+        JS_COUNT_OPERATION(gData->cx, JSOW_ALLOCATION);
         btincr = JS_ROUNDUP(btincr, btsize);
         JS_ARENA_GROW_CAST(gData->backTrackStack, REBackTrackData *,
                            &gData->pool, btsize, btincr);
@@ -2695,8 +2699,6 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
     jschar matchCh1, matchCh2;
     RECharSet *charSet;
 
-    JSBranchCallback onbranch = gData->cx->branchCallback;
-    uintN onbranchCalls = 0;
     JSBool anchor;
     jsbytecode *pc = gData->regexp->program;
     REOp op = (REOp) *pc++;
@@ -3125,18 +3127,6 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
           break_switch:;
         }
 
-#define ONBRANCH_CALLS_MASK             0xffff
-#define CHECK_BRANCH()                                                        \
-    JS_BEGIN_MACRO                                                            \
-        if (onbranch &&                                                       \
-            (++onbranchCalls & ONBRANCH_CALLS_MASK) == 0 &&                   \
-            !(*onbranch)(gData->cx, NULL)) {                                  \
-            gData->ok = JS_FALSE;                                             \
-            return NULL;                                                      \
-        }                                                                     \
-    JS_END_MACRO
-
-
         /*
          *  If the match failed and there's a backtrack option, take it.
          *  Otherwise this is a complete and utter failure.
@@ -3144,7 +3134,10 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
         if (!result) {
             if (gData->cursz == 0)
                 return NULL;
-            CHECK_BRANCH();
+            if (!JS_CHECK_OPERATION_LIMIT(gData->cx, JSOW_JUMP)) {
+                gData->ok = JS_FALSE;
+                return NULL;
+            }
             backTrackData = gData->backTrackSP;
             gData->cursz = backTrackData->sz;
             gData->backTrackSP =
@@ -3352,15 +3345,15 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
                            JS_PropertyStub, JS_PropertyStub,                  \
                            JSPROP_ENUMERATE, NULL);                           \
     if (!ok) {                                                                \
-        cx->newborn[GCX_OBJECT] = NULL;                                       \
-        cx->newborn[GCX_STRING] = NULL;                                       \
+        cx->weakRoots.newborn[GCX_OBJECT] = NULL;                             \
+        cx->weakRoots.newborn[GCX_STRING] = NULL;                             \
         goto out;                                                             \
     }                                                                         \
 }
 
         matchstr = js_NewStringCopyN(cx, cp, matchlen, 0);
         if (!matchstr) {
-            cx->newborn[GCX_OBJECT] = NULL;
+            cx->weakRoots.newborn[GCX_OBJECT] = NULL;
             ok = JS_FALSE;
             goto out;
         }
@@ -3397,8 +3390,8 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
                                    res->moreLength * sizeof(JSSubString));
                 }
                 if (!morepar) {
-                    cx->newborn[GCX_OBJECT] = NULL;
-                    cx->newborn[GCX_STRING] = NULL;
+                    cx->weakRoots.newborn[GCX_OBJECT] = NULL;
+                    cx->weakRoots.newborn[GCX_STRING] = NULL;
                     ok = JS_FALSE;
                     goto out;
                 }
@@ -3421,8 +3414,8 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
                 parstr = js_NewStringCopyN(cx, gData.cpbegin + parsub->index,
                                            parsub->length, 0);
                 if (!parstr) {
-                    cx->newborn[GCX_OBJECT] = NULL;
-                    cx->newborn[GCX_STRING] = NULL;
+                    cx->weakRoots.newborn[GCX_OBJECT] = NULL;
+                    cx->weakRoots.newborn[GCX_STRING] = NULL;
                     ok = JS_FALSE;
                     goto out;
                 }
@@ -3431,8 +3424,8 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
                                        JSPROP_ENUMERATE, NULL);
             }
             if (!ok) {
-                cx->newborn[GCX_OBJECT] = NULL;
-                cx->newborn[GCX_STRING] = NULL;
+                cx->weakRoots.newborn[GCX_OBJECT] = NULL;
+                cx->weakRoots.newborn[GCX_STRING] = NULL;
                 goto out;
             }
         }
@@ -4149,7 +4142,7 @@ js_NewRegExpObject(JSContext *cx, JSTokenStream *ts,
     re = js_NewRegExp(cx, ts,  str, flags, JS_FALSE);
     if (!re)
         return NULL;
-    JS_PUSH_SINGLE_TEMP_ROOT(cx, str, &tvr);
+    JS_PUSH_TEMP_ROOT_STRING(cx, str, &tvr);
     obj = js_NewObject(cx, &js_RegExpClass, NULL, NULL);
     if (!obj || !JS_SetPrivate(cx, obj, re)) {
         js_DestroyRegExp(cx, re);
@@ -4173,7 +4166,7 @@ js_CloneRegExpObject(JSContext *cx, JSObject *obj, JSObject *parent)
         return NULL;
     re = JS_GetPrivate(cx, obj);
     if (!JS_SetPrivate(cx, clone, re) || !js_SetLastIndex(cx, clone, 0)) {
-        cx->newborn[GCX_OBJECT] = NULL;
+        cx->weakRoots.newborn[GCX_OBJECT] = NULL;
         return NULL;
     }
     HOLD_REGEXP(cx, re);

@@ -59,6 +59,7 @@
 #include "jsarena.h" /* Added by JSIFY */
 #include "jsutil.h" /* Added by JSIFY */
 #include "jsapi.h"
+#include "jsarray.h"
 #include "jsatom.h"
 #include "jscntxt.h"
 #include "jsconfig.h"
@@ -403,7 +404,8 @@ MaybeSetupFrame(JSContext *cx, JSObject *chain, JSStackFrame *oldfp,
          * the real variables objects and function that our new stack frame is
          * going to use.
          */
-        newfp->flags = oldfp->flags & (JSFRAME_SPECIAL | JSFRAME_COMPILE_N_GO);
+        newfp->flags = oldfp->flags & (JSFRAME_SPECIAL | JSFRAME_COMPILE_N_GO |
+                                       JSFRAME_SCRIPT_OBJECT);
         while (oldfp->flags & JSFRAME_SPECIAL) {
             oldfp = oldfp->down;
             if (!oldfp)
@@ -824,12 +826,8 @@ js_CompileFunctionBody(JSContext *cx, JSTokenStream *ts, JSFunction *fun)
                                         JSMSG_SYNTAX_ERROR);
             pn = NULL;
         } else {
-            if (!js_NewScriptFromCG(cx, &funcg, fun)) {
+            if (!js_NewScriptFromCG(cx, &funcg, fun))
                 pn = NULL;
-            } else {
-                if (funcg.treeContext.flags & TCF_FUN_HEAVYWEIGHT)
-                    fun->flags |= JSFUN_HEAVYWEIGHT;
-            }
         }
     }
 
@@ -1237,7 +1235,15 @@ FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
                 data.u.var.setter = js_SetLocalVariable;
                 data.u.var.attrs = JSPROP_PERMANENT;
 
+                /*
+                 * Temporarily transfer the owneship of the recycle list to
+                 * funtc. See bug 313967.
+                 */
+                funtc.nodeList = tc->nodeList;
+                tc->nodeList = NULL;
                 lhs = DestructuringExpr(cx, &data, &funtc, tt);
+                tc->nodeList = funtc.nodeList;
+                funtc.nodeList = NULL;
                 if (!lhs)
                     return NULL;
 
@@ -1304,7 +1310,16 @@ FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
     MUST_MATCH_TOKEN(TOK_LC, JSMSG_CURLY_BEFORE_BODY);
     pn->pn_pos.begin = CURRENT_TOKEN(ts).pos.begin;
 
+    /*
+     * Temporarily transfer the owneship of the recycle list to funtc.
+     * See bug 313967.
+     */
+    funtc.nodeList = tc->nodeList;
+    tc->nodeList = NULL;
     body = FunctionBody(cx, ts, fun, &funtc);
+    tc->nodeList = funtc.nodeList;
+    funtc.nodeList = NULL;
+
     if (!body)
         return NULL;
 
@@ -2070,8 +2085,9 @@ FindPropertyValue(JSParseNode *pn, JSParseNode *pnid, FindPropValData *data)
             data->numvars >= BIG_DESTRUCTURING &&
             pn->pn_count >= BIG_OBJECT_INIT &&
             JS_DHashTableInit(&data->table, &FindPropValOps, pn,
-                              sizeof(FindPropValEntry), pn->pn_count)) {
-
+                              sizeof(FindPropValEntry),
+                              JS_DHASH_DEFAULT_CAPACITY(pn->pn_count)))
+        {
             for (pn = pn->pn_head; pn; pn = pn->pn_next) {
                 ASSERT_VALID_PROPERTY_KEY(pn->pn_left);
                 entry = (FindPropValEntry *)
@@ -3374,7 +3390,7 @@ Statement(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
                 JS_ASSERT(stmt->downScope);
             }
 
-            obj->slots[JSSLOT_PARENT] = OBJECT_TO_JSVAL(tc->blockChain);
+            STOBJ_SET_PARENT(obj, tc->blockChain);
             tc->blockChain = obj;
             stmt->atom = atom;
 
@@ -4163,12 +4179,6 @@ UnaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
         while (pn2->pn_type == TOK_RP)
             pn2 = pn2->pn_kid;
         pn->pn_kid = pn2;
-#if JS_HAS_LVALUE_RETURN
-        if (pn2->pn_type == TOK_LP) {
-            JS_ASSERT(pn2->pn_op == JSOP_CALL || pn2->pn_op == JSOP_EVAL);
-            pn2->pn_op = JSOP_SETCALL;
-        }
-#endif
         break;
 
       case TOK_ERROR:
@@ -4326,6 +4336,9 @@ MemberExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
                     RecycleTree(group, tc);
                     pn2->pn_type = TOK_FILTER;
                     pn2->pn_op = JSOP_FILTER;
+
+                    /* A filtering predicate is like a with statement. */
+                    tc->flags |= TCF_FUN_HEAVYWEIGHT;
                 } else {
                     js_ReportCompileErrorNumber(cx, ts,
                                                 JSREPORT_TS | JSREPORT_ERROR,
@@ -4915,6 +4928,8 @@ XMLElementOrList(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
     JSTokenType tt;
     JSAtom *startAtom, *endAtom;
 
+    CHECK_RECURSION();
+
     JS_ASSERT(CURRENT_TOKEN(ts).type == TOK_XMLSTAGO);
     pn = NewParseNode(cx, ts, PN_LIST, tc);
     if (!pn)
@@ -5112,9 +5127,6 @@ js_ParseXMLTokenStream(JSContext *cx, JSObject *chain, JSTokenStream *ts,
 }
 
 #endif /* JS_HAS_XMLSUPPORT */
-
-/* Generous sanity-bound on length (in elements) of array initialiser. */
-#define ARRAY_INIT_LIMIT        JS_BIT(24)
 
 static JSParseNode *
 PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,

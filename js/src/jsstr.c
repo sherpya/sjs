@@ -208,8 +208,7 @@ js_ConcatStrings(JSContext *cx, JSString *left, JSString *right)
 }
 
 /*
- * May be called with null cx by js_GetStringChars, above; and by the jslock.c
- * MAKE_STRING_IMMUTABLE file-local macro.
+ * May be called with null cx by js_GetStringChars, above.
  */
 const jschar *
 js_UndependString(JSContext *cx, JSString *str)
@@ -2301,7 +2300,7 @@ str_fromCharCode(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
     uint16 code;
     JSString *str;
 
-    JS_ASSERT(argc < ARGC_LIMIT);
+    JS_ASSERT(argc < ARRAY_INIT_LIMIT);
     chars = (jschar *) JS_malloc(cx, (argc + 1) * sizeof(jschar));
     if (!chars)
         return JS_FALSE;
@@ -4485,15 +4484,17 @@ static JSBool
 AddCharsToURI(JSContext *cx, JSString *str, const jschar *chars, size_t length)
 {
     size_t total;
+    jschar *newchars;
 
     JS_ASSERT(!JSSTRING_IS_DEPENDENT(str));
     total = str->length + length + 1;
     if (!str->chars ||
         JS_HOWMANY(total, URI_CHUNK) > JS_HOWMANY(str->length + 1, URI_CHUNK)) {
         total = JS_ROUNDUP(total, URI_CHUNK);
-        str->chars = JS_realloc(cx, str->chars, total * sizeof(jschar));
-        if (!str->chars)
+        newchars = JS_realloc(cx, str->chars, total * sizeof(jschar));
+        if (!newchars)
             return JS_FALSE;
+        str->chars = newchars;
     }
     js_strncpy(str->chars + str->length, chars, length);
     str->length += length;

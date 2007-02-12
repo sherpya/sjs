@@ -693,7 +693,7 @@ js_NumberToObject(JSContext *cx, jsdouble d)
     if (!obj)
         return NULL;
     if (!js_NewNumberValue(cx, d, &v)) {
-        cx->newborn[GCX_OBJECT] = NULL;
+        cx->weakRoots.newborn[GCX_OBJECT] = NULL;
         return NULL;
     }
     OBJ_SET_SLOT(cx, obj, JSSLOT_PRIVATE, v);
@@ -831,7 +831,6 @@ JSBool
 js_ValueToInt32(JSContext *cx, jsval v, int32 *ip)
 {
     jsdouble d;
-    JSString *str;
 
     if (JSVAL_IS_INT(v)) {
         *ip = JSVAL_TO_INT(v);
@@ -840,12 +839,8 @@ js_ValueToInt32(JSContext *cx, jsval v, int32 *ip)
     if (!js_ValueToNumber(cx, v, &d))
         return JS_FALSE;
     if (JSDOUBLE_IS_NaN(d) || d <= -2147483649.0 || 2147483648.0 <= d) {
-        str = js_DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, v, NULL);
-        if (str) {
-            JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
-                                 JSMSG_CANT_CONVERT, JS_GetStringBytes(str));
-
-        }
+        js_ReportValueError(cx, JSMSG_CANT_CONVERT,
+                            JSDVG_SEARCH_STACK, v, NULL);
         return JS_FALSE;
     }
     *ip = (int32)floor(d + 0.5);     /* Round to nearest */

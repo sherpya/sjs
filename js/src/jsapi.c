@@ -697,10 +697,8 @@ JS_NewRuntime(uint32 maxbytes)
     if (!js_InitGC(rt, maxbytes))
         goto bad;
 #ifdef JS_THREADSAFE
-    if (PR_FAILURE == PR_NewThreadPrivateIndex(&rt->threadTPIndex,
-                                               js_ThreadDestructorCB)) {
+    if (!js_InitThreadPrivateIndex(js_ThreadDestructorCB))
         goto bad;
-    }
     rt->gcLock = JS_NEW_LOCK();
     if (!rt->gcLock)
         goto bad;
@@ -729,8 +727,10 @@ JS_NewRuntime(uint32 maxbytes)
     if (!rt->scopeSharingDone)
         goto bad;
     rt->scopeSharingTodo = NO_SCOPE_SHARING_TODO;
+    rt->debuggerLock = JS_NEW_LOCK();
+    if (!rt->debuggerLock)
+        goto bad;
 #endif
-    rt->propertyCache.empty = JS_TRUE;
     if (!js_InitPropertyTree(rt))
         goto bad;
     return rt;
@@ -776,6 +776,10 @@ JS_DestroyRuntime(JSRuntime *rt)
         JS_DESTROY_CONDVAR(rt->setSlotDone);
     if (rt->scopeSharingDone)
         JS_DESTROY_CONDVAR(rt->scopeSharingDone);
+    if (rt->debuggerLock)
+        JS_DESTROY_LOCK(rt->debuggerLock);
+#else
+    GSN_CACHE_CLEAR(&rt->gsnCache);
 #endif
     js_FinishPropertyTree(rt);
     free(rt);
@@ -784,6 +788,12 @@ JS_DestroyRuntime(JSRuntime *rt)
 JS_PUBLIC_API(void)
 JS_ShutDown(void)
 {
+#ifdef JS_OPMETER
+    extern void js_DumpOpMeters();
+
+    js_DumpOpMeters();
+#endif
+
     js_FinishDtoa();
 #ifdef JS_THREADSAFE
     js_CleanupLocks();
@@ -866,7 +876,7 @@ JS_EndRequest(JSContext *cx)
             if (js_DropObjectMap(cx, &scope->map, NULL)) {
                 js_InitLock(&scope->lock);
                 scope->u.count = 0;                 /* NULL may not pun as 0 */
-                js_FinishSharingScope(rt, scope);   /* set ownercx = NULL */
+                js_FinishSharingScope(cx, scope);   /* set ownercx = NULL */
                 nshares++;
             }
         }
@@ -1104,7 +1114,7 @@ JS_ToggleOptions(JSContext *cx, uint32 options)
 JS_PUBLIC_API(const char *)
 JS_GetImplementationVersion(void)
 {
-    return "JavaScript-C 1.7 pre-release 1 2006-04-04";
+    return "JavaScript-C 1.7 pre-release 2 2006-11-19";
 }
 
 
@@ -1659,6 +1669,7 @@ JS_malloc(JSContext *cx, size_t nbytes)
     void *p;
 
     JS_ASSERT(nbytes != 0);
+    JS_COUNT_OPERATION(cx, JSOW_ALLOCATION);
     if (nbytes == 0)
         nbytes = 1;
 
@@ -1675,6 +1686,7 @@ JS_malloc(JSContext *cx, size_t nbytes)
 JS_PUBLIC_API(void *)
 JS_realloc(JSContext *cx, void *p, size_t nbytes)
 {
+    JS_COUNT_OPERATION(cx, JSOW_ALLOCATION);
     p = realloc(p, nbytes);
     if (!p)
         JS_ReportOutOfMemory(cx);
@@ -1759,12 +1771,7 @@ JS_AddNamedRoot(JSContext *cx, void *rp, const char *name)
 JS_PUBLIC_API(void)
 JS_ClearNewbornRoots(JSContext *cx)
 {
-    uintN i;
-
-    for (i = 0; i < GCX_NTYPES; i++)
-        cx->newborn[i] = NULL;
-    cx->lastAtom = NULL;
-    cx->lastInternalResult = JSVAL_NULL;
+    JS_CLEAR_WEAK_ROOTS(&cx->weakRoots);
 }
 
 JS_PUBLIC_API(JSBool)
@@ -1795,84 +1802,22 @@ JS_ForgetLocalRoot(JSContext *cx, void *thing)
     js_ForgetLocalRoot(cx, (jsval) thing);
 }
 
-#include "jshash.h" /* Added by JSIFY */
-
 #ifdef DEBUG
-
-typedef struct NamedRootDumpArgs {
-    void (*dump)(const char *name, void *rp, void *data);
-    void *data;
-} NamedRootDumpArgs;
-
-JS_STATIC_DLL_CALLBACK(JSDHashOperator)
-js_named_root_dumper(JSDHashTable *table, JSDHashEntryHdr *hdr, uint32 number,
-                     void *arg)
-{
-    NamedRootDumpArgs *args = (NamedRootDumpArgs *) arg;
-    JSGCRootHashEntry *rhe = (JSGCRootHashEntry *)hdr;
-
-    if (rhe->name)
-        args->dump(rhe->name, rhe->root, args->data);
-    return JS_DHASH_NEXT;
-}
 
 JS_PUBLIC_API(void)
 JS_DumpNamedRoots(JSRuntime *rt,
                   void (*dump)(const char *name, void *rp, void *data),
                   void *data)
 {
-    NamedRootDumpArgs args;
-
-    args.dump = dump;
-    args.data = data;
-    JS_DHashTableEnumerate(&rt->gcRootsHash, js_named_root_dumper, &args);
+    js_DumpNamedRoots(rt, dump, data);
 }
 
 #endif /* DEBUG */
 
-typedef struct GCRootMapArgs {
-    JSGCRootMapFun map;
-    void *data;
-} GCRootMapArgs;
-
-JS_STATIC_DLL_CALLBACK(JSDHashOperator)
-js_gcroot_mapper(JSDHashTable *table, JSDHashEntryHdr *hdr, uint32 number,
-                 void *arg)
-{
-    GCRootMapArgs *args = (GCRootMapArgs *) arg;
-    JSGCRootHashEntry *rhe = (JSGCRootHashEntry *)hdr;
-    intN mapflags;
-    JSDHashOperator op;
-
-    mapflags = args->map(rhe->root, rhe->name, args->data);
-
-#if JS_MAP_GCROOT_NEXT == JS_DHASH_NEXT &&                                     \
-    JS_MAP_GCROOT_STOP == JS_DHASH_STOP &&                                     \
-    JS_MAP_GCROOT_REMOVE == JS_DHASH_REMOVE
-    op = (JSDHashOperator)mapflags;
-#else
-    op = JS_DHASH_NEXT;
-    if (mapflags & JS_MAP_GCROOT_STOP)
-        op |= JS_DHASH_STOP;
-    if (mapflags & JS_MAP_GCROOT_REMOVE)
-        op |= JS_DHASH_REMOVE;
-#endif
-
-    return op;
-}
-
 JS_PUBLIC_API(uint32)
 JS_MapGCRoots(JSRuntime *rt, JSGCRootMapFun map, void *data)
 {
-    GCRootMapArgs args;
-    uint32 rv;
-
-    args.map = map;
-    args.data = data;
-    JS_LOCK_GC(rt);
-    rv = JS_DHashTableEnumerate(&rt->gcRootsHash, js_gcroot_mapper, &args);
-    JS_UNLOCK_GC(rt);
-    return rv;
+    return js_MapGCRoots(rt, map, data);
 }
 
 JS_PUBLIC_API(JSBool)
@@ -1960,12 +1905,12 @@ JS_MaybeGC(JSContext *cx)
 
     /*
      * We run the GC if we used all available free GC cells and had to
-     * allocate extra 1/5 of GC arenas since the last run of GC, or if
+     * allocate extra 1/3 of GC arenas since the last run of GC, or if
      * we have malloc'd more bytes through JS_malloc than we were told
      * to allocate by JS_NewRuntime.
      *
      * The reason for
-     *   bytes > 6/5 lastBytes
+     *   bytes > 4/3 lastBytes
      * condition is the following. Bug 312238 changed bytes and lastBytes
      * to mean the total amount of memory that the GC uses now and right
      * after the last GC.
@@ -1989,23 +1934,23 @@ JS_MaybeGC(JSContext *cx)
      * Bl*(1-Fl) are bytes and lastBytes with the original meaning.
      *
      * Our task is to exclude F and Fl from the last statement. According
-     * the stats from bug 331770 Fl is about 20-30% for GC allocations
-     * that contribute to S and Sl for a typical run of the browser. It
-     * means that the original condition implied that we did not run GC
-     * unless we exhausted the pool of free cells. Indeed if we still
-     * have free cells, then B == Bl since we did not yet allocated any
-     * new arenas and the condition means
+     * to the stats from bug 331966 comment 23, Fl is about 10-25% for a
+     * typical run of the browser. It means that the original condition
+     * implied that we did not run GC unless we exhausted the pool of
+     * free cells. Indeed if we still have free cells, then B == Bl since
+     * we did not yet allocated any new arenas and the condition means
      *   1 - F > 3/2 (1-Fl) or 3/2Fl > 1/2 + F
      * That implies 3/2 Fl > 1/2 or Fl > 1/3. That can not be fulfilled
      * for the state described by the stats. So we can write the original
      * condition as:
      *   F == 0 && B > 3/2 Bl(1-Fl)
-     * Again using the stats we see that Fl is about 20% when the browser
+     * Again using the stats we see that Fl is about 11% when the browser
      * starts up and when we are far from hitting rt->gcMaxBytes. With
      * this F we have
-     * F == 0 && B > 3/2 Bl(1-0.8) or just B > 6/5 Bl.
+     * F == 0 && B > 3/2 Bl(1-0.11)
+     * or approximately F == 0 && B > 4/3 Bl.
      */
-    if ((bytes > 8192 && bytes > lastBytes + lastBytes / 5) ||
+    if ((bytes > 8192 && bytes > lastBytes + lastBytes / 3) ||
         rt->gcMallocBytes >= rt->gcMaxMallocBytes) {
         JS_GC(cx);
     }
@@ -2032,6 +1977,13 @@ JS_SetGCCallbackRT(JSRuntime *rt, JSGCCallback cb)
     oldcb = rt->gcCallback;
     rt->gcCallback = cb;
     return oldcb;
+}
+
+JS_PUBLIC_API(void)
+JS_SetGCThingCallback(JSContext *cx, JSGCThingCallback cb, void *closure)
+{
+    cx->runtime->gcThingCallback = cb;
+    cx->runtime->gcThingCallbackClosure = closure;
 }
 
 JS_PUBLIC_API(JSBool)
@@ -2218,7 +2170,7 @@ JS_InitClass(JSContext *cx, JSObject *obj, JSObject *parent_proto,
         return NULL;
 
     /* After this point, control must exit via label bad or out. */
-    JS_PUSH_SINGLE_TEMP_ROOT(cx, proto, &tvr);
+    JS_PUSH_TEMP_ROOT_OBJECT(cx, proto, &tvr);
 
     if (!constructor) {
         /*
@@ -2385,7 +2337,7 @@ JS_GetPrototype(JSContext *cx, JSObject *obj)
     JSObject *proto;
 
     CHECK_REQUEST(cx);
-    proto = JSVAL_TO_OBJECT(GC_AWARE_GET_SLOT(cx, obj, JSSLOT_PROTO));
+    proto = GC_AWARE_GET_PROTO(cx, obj);
 
     /* Beware ref to dead object (we may be called from obj's finalizer). */
     return proto && proto->map ? proto : NULL;
@@ -2397,7 +2349,7 @@ JS_SetPrototype(JSContext *cx, JSObject *obj, JSObject *proto)
     CHECK_REQUEST(cx);
     if (obj->map->ops->setProto)
         return obj->map->ops->setProto(cx, obj, JSSLOT_PROTO, proto);
-    OBJ_SET_SLOT(cx, obj, JSSLOT_PROTO, OBJECT_TO_JSVAL(proto));
+    OBJ_SET_PROTO(cx, obj, proto);
     return JS_TRUE;
 }
 
@@ -2406,7 +2358,7 @@ JS_GetParent(JSContext *cx, JSObject *obj)
 {
     JSObject *parent;
 
-    parent = JSVAL_TO_OBJECT(GC_AWARE_GET_SLOT(cx, obj, JSSLOT_PARENT));
+    parent = GC_AWARE_GET_PARENT(cx, obj);
 
     /* Beware ref to dead object (we may be called from obj's finalizer). */
     return parent && parent->map ? parent : NULL;
@@ -2418,7 +2370,7 @@ JS_SetParent(JSContext *cx, JSObject *obj, JSObject *parent)
     CHECK_REQUEST(cx);
     if (obj->map->ops->setParent)
         return obj->map->ops->setParent(cx, obj, JSSLOT_PARENT, parent);
-    OBJ_SET_SLOT(cx, obj, JSSLOT_PARENT, OBJECT_TO_JSVAL(parent));
+    OBJ_SET_PARENT(cx, obj, parent);
     return JS_TRUE;
 }
 
@@ -2463,8 +2415,8 @@ JS_SealObject(JSContext *cx, JSObject *obj, JSBool deep)
 {
     JSScope *scope;
     JSIdArray *ida;
-    uint32 nslots;
-    jsval v, *vp, *end;
+    uint32 nslots, i;
+    jsval v;
 
     if (!OBJ_IS_NATIVE(obj)) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
@@ -2508,10 +2460,10 @@ JS_SealObject(JSContext *cx, JSObject *obj, JSBool deep)
     if (!deep)
         return JS_TRUE;
 
-    /* Walk obj->slots and if any value is a non-null object, seal it. */
-    nslots = JS_MIN(scope->map.freeslot, scope->map.nslots);
-    for (vp = obj->slots, end = vp + nslots; vp < end; vp++) {
-        v = *vp;
+    /* Walk slots in obj and if any value is a non-null object, seal it. */
+    nslots = LOCKED_OBJ_NSLOTS(obj);
+    for (i = 0; i != nslots; ++i) {
+        v = STOBJ_GET_SLOT(obj, i);
         if (JSVAL_IS_PRIMITIVE(v))
             continue;
         if (!JS_SealObject(cx, JSVAL_TO_OBJECT(v), deep))
@@ -2602,7 +2554,7 @@ JS_DefineObject(JSContext *cx, JSObject *obj, const char *name, JSClass *clasp,
         return NULL;
     if (!DefineProperty(cx, obj, name, OBJECT_TO_JSVAL(nobj), NULL, NULL, attrs,
                         0, 0)) {
-        cx->newborn[GCX_OBJECT] = NULL;
+        cx->weakRoots.newborn[GCX_OBJECT] = NULL;
         return NULL;
     }
     return nobj;
@@ -3386,16 +3338,13 @@ prop_iter_mark(JSContext *cx, JSObject *obj, void *arg)
         /* Native case: just mark the next property to visit. */
         sprop = (JSScopeProperty *) JSVAL_TO_PRIVATE(v);
         if (sprop)
-            MARK_SCOPE_PROPERTY(sprop);
+            MARK_SCOPE_PROPERTY(cx, sprop);
     } else {
         /* Non-native case: mark each id in the JSIdArray private. */
         ida = (JSIdArray *) JSVAL_TO_PRIVATE(v);
         for (i = 0, n = ida->length; i < n; i++) {
             id = ida->vector[i];
-            if (JSID_IS_ATOM(id))
-                GC_MARK_ATOM(cx, JSID_TO_ATOM(id));
-            else if (JSID_IS_OBJECT(id))
-                GC_MARK(cx, JSID_TO_OBJECT(id), "id");
+            MARK_ID(cx, id);
         }
     }
     return 0;
@@ -3438,7 +3387,7 @@ JS_NewPropertyIterator(JSContext *cx, JSObject *obj)
          * Note: we have to make sure that we root obj around the call to
          * JS_Enumerate to protect against multiple allocations under it.
          */
-        JS_PUSH_SINGLE_TEMP_ROOT(cx, OBJECT_TO_JSVAL(obj), &tvr);
+        JS_PUSH_SINGLE_TEMP_ROOT(cx, OBJECT_TO_JSVAL(iterobj), &tvr);
         ida = JS_Enumerate(cx, obj);
         JS_POP_TEMP_ROOT(cx, &tvr);
         if (!ida)
@@ -3447,13 +3396,13 @@ JS_NewPropertyIterator(JSContext *cx, JSObject *obj)
         index = ida->length;
     }
 
-    if (!JS_SetPrivate(cx, iterobj, pdata))
-        goto bad;
-    OBJ_SET_SLOT(cx, iterobj, JSSLOT_ITER_INDEX, INT_TO_JSVAL(index));
+    /* iterobj can not escape to other threads here. */
+    STOBJ_SET_SLOT(iterobj, JSSLOT_PRIVATE, PRIVATE_TO_JSVAL(pdata));
+    STOBJ_SET_SLOT(iterobj, JSSLOT_ITER_INDEX, INT_TO_JSVAL(index));
     return iterobj;
 
 bad:
-    cx->newborn[GCX_OBJECT] = NULL;
+    cx->weakRoots.newborn[GCX_OBJECT] = NULL;
     return NULL;
 }
 
@@ -3914,7 +3863,7 @@ JS_CompileUCScript(JSContext *cx, JSObject *obj,
 #define LAST_FRAME_CHECKS(cx,result)                                          \
     JS_BEGIN_MACRO                                                            \
         if (!(cx)->fp) {                                                      \
-            (cx)->lastInternalResult = JSVAL_NULL;                            \
+            (cx)->weakRoots.lastInternalResult = JSVAL_NULL;                  \
             LAST_FRAME_EXCEPTION_CHECK(cx, result);                           \
         }                                                                     \
     JS_END_MACRO
@@ -4908,15 +4857,15 @@ JS_ReportPendingException(JSContext *cx)
     CHECK_REQUEST(cx);
 
     /*
-     * Set cx->creatingException to suppress the standard error-to-exception
+     * Set cx->generatingError to suppress the standard error-to-exception
      * conversion done by all {js,JS}_Report* functions except for OOM.  The
-     * cx->creatingException flag was added to suppress recursive divergence
+     * cx->generatingError flag was added to suppress recursive divergence
      * under js_ErrorToException, but it serves for our purposes here too.
      */
-    save = cx->creatingException;
-    cx->creatingException = JS_TRUE;
+    save = cx->generatingError;
+    cx->generatingError = JS_TRUE;
     ok = js_ReportUncaughtException(cx);
-    cx->creatingException = save;
+    cx->generatingError = save;
     return ok;
 }
 

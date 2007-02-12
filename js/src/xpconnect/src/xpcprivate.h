@@ -53,6 +53,8 @@
 #include "nscore.h"
 #include "nsXPCOM.h"
 #include "nsAutoPtr.h"
+#include "nsCycleCollectionParticipant.h"
+#include "nsCycleCollector.h"
 #include "nsISupports.h"
 #include "nsIServiceManager.h"
 #include "nsIClassInfoImpl.h"
@@ -71,7 +73,7 @@
 #include "nsCOMPtr.h"
 #include "nsIModule.h"
 #include "nsAutoLock.h"
-#include "xptcall.h"
+#include "nsXPTCUtils.h"
 #include "jsapi.h"
 #include "jsdhash.h"
 #include "jsprf.h"
@@ -420,9 +422,11 @@ private:
 
 const PRBool OBJ_IS_GLOBAL = PR_TRUE;
 const PRBool OBJ_IS_NOT_GLOBAL = PR_FALSE;
+struct JSObjectRefcounts;
 
 class nsXPConnect : public nsIXPConnect,
-                    public nsSupportsWeakReference
+                    public nsSupportsWeakReference,
+                    public nsCycleCollectionLanguageRuntime
 {
 public:
     // all the interface method declarations...
@@ -470,6 +474,14 @@ public:
     nsresult GetInfoForIID(const nsIID * aIID, nsIInterfaceInfo** info);
     nsresult GetInfoForName(const char * name, nsIInterfaceInfo** info);
 
+    // from nsCycleCollectionLanguageRuntime
+    nsresult BeginCycleCollection();
+    nsresult Root(const nsDeque &nodes);
+    nsresult Unlink(const nsDeque &nodes);
+    nsresult Unroot(const nsDeque &nodes);
+    nsresult Traverse(void *p, nsCycleCollectionTraversalCallback &cb);
+    nsresult FinishCycleCollection();
+
 #ifdef XPC_IDISPATCH_SUPPORT
 public:
     static PRBool IsIDispatchEnabled();
@@ -494,6 +506,7 @@ private:
     nsIXPCSecurityManager*   mDefaultSecurityManager;
     PRUint16                 mDefaultSecurityManagerFlags;
     JSBool                   mShuttingDown;
+    JSObjectRefcounts*       mObjRefcounts;
 
 #ifdef XPC_TOOLS_SUPPORT
     nsCOMPtr<nsIXPCToolsProfiler> mProfiler;
@@ -1833,9 +1846,10 @@ private:
 class XPCWrappedNative : public nsIXPConnectWrappedNative
 {
 public:
-    NS_DECL_ISUPPORTS
+    NS_DECL_CYCLE_COLLECTING_ISUPPORTS
     NS_DECL_NSIXPCONNECTJSOBJECTHOLDER
     NS_DECL_NSIXPCONNECTWRAPPEDNATIVE
+    NS_DECL_CYCLE_COLLECTION_CLASS(XPCWrappedNative)
 
 #ifndef XPCONNECT_STANDALONE
     virtual nsIPrincipal* GetObjectPrincipal() const;
@@ -2154,7 +2168,7 @@ public:
     JSObject* GetRootJSObject(XPCCallContext& ccx, JSObject* aJSObj);
 
     NS_IMETHOD CallMethod(nsXPCWrappedJS* wrapper, uint16 methodIndex,
-                          const nsXPTMethodInfo* info,
+                          const XPTMethodDescriptor* info,
                           nsXPTCMiniVariant* params);
 
     JSObject*  CallQueryInterfaceOnJSObject(XPCCallContext& ccx,
@@ -2190,7 +2204,7 @@ private:
     enum SizeMode {GET_SIZE, GET_LENGTH};
 
     JSBool GetArraySizeFromParam(JSContext* cx,
-                                 const nsXPTMethodInfo* method,
+                                 const XPTMethodDescriptor* method,
                                  const nsXPTParamInfo& param,
                                  uint16 methodIndex,
                                  uint8 paramIndex,
@@ -2199,7 +2213,7 @@ private:
                                  JSUint32* result);
 
     JSBool GetInterfaceTypeFromParam(JSContext* cx,
-                                     const nsXPTMethodInfo* method,
+                                     const XPTMethodDescriptor* method,
                                      const nsXPTParamInfo& param,
                                      uint16 methodIndex,
                                      const nsXPTType& type,
@@ -2226,8 +2240,8 @@ private:
 // nsXPCWrappedJS objects are chained together to represent the various
 // interface on the single underlying (possibly aggregate) JSObject.
 
-class nsXPCWrappedJS : public nsXPTCStubBase,
-                       public nsWeakRefToIXPConnectWrappedJS,
+class nsXPCWrappedJS : protected nsAutoXPTCStub,
+                       public nsIXPConnectWrappedJS,
                        public nsSupportsWeakReference,
                        public nsIPropertyBag
 {
@@ -2235,15 +2249,12 @@ public:
     NS_DECL_ISUPPORTS
     NS_DECL_NSIXPCONNECTJSOBJECTHOLDER
     NS_DECL_NSIXPCONNECTWRAPPEDJS
-    //NS_DECL_NSISUPPORTSWEAKREFERENCE // methods also on nsIXPConnectWrappedJS
+    NS_DECL_NSISUPPORTSWEAKREFERENCE
     NS_DECL_NSIPROPERTYBAG
-
-    // Note that both nsXPTCStubBase and nsIXPConnectWrappedJS declare
-    // GetInterfaceInfo methods with the same sig. So, the declaration
-    // for it here comes from the NS_DECL_NSIXPCONNECTWRAPPEDJS macro
+    NS_DECL_CYCLE_COLLECTION_CLASS(nsXPCWrappedJS)
 
     NS_IMETHOD CallMethod(PRUint16 methodIndex,
-                          const nsXPTMethodInfo* info,
+                          const XPTMethodDescriptor *info,
                           nsXPTCMiniVariant* params);
 
     /*
@@ -2259,6 +2270,7 @@ public:
                  nsISupports* aOuter,
                  nsXPCWrappedJS** wrapper);
 
+    nsISomeInterface* GetXPTCStub() { return mXPTCStub; }
     JSObject* GetJSObject() const {return mJSObj;}
     nsXPCWrappedJSClass*  GetClass() const {return mClass;}
     REFNSIID GetIID() const {return GetClass()->GetIID();}
@@ -2372,7 +2384,7 @@ private:
 class XPCConvert
 {
 public:
-    static JSBool IsMethodReflectable(const nsXPTMethodInfo& info);
+    static JSBool IsMethodReflectable(const XPTMethodDescriptor& info);
 
     /**
      * Convert a native object into a jsval.
@@ -3651,6 +3663,26 @@ xpc_EvalInSandbox(JSContext *cx, JSObject *sandbox, const nsAString& source,
 
 inline JSBool
 xpc_ForcePropertyResolve(JSContext* cx, JSObject* obj, jsval idval);
+
+inline jsval
+GetRTStringByIndex(JSContext *cx, uintN index);
+
+nsISupports *
+XPC_GetIdentityObject(JSContext *cx, JSObject *obj);
+
+PRBool
+IsXPCSafeJSObjectWrapperClass(JSClass *clazz);
+
+JSObject *
+XPC_SJOW_GetUnsafeObject(JSContext *cx, JSObject *obj);
+
+JSBool
+XPC_SJOW_Construct(JSContext *cx, JSObject *obj, uintN, jsval *argv,
+                   jsval *rval);
+
+PRBool
+XPC_SJOW_AttachNewConstructorObject(XPCCallContext &ccx,
+                                    JSObject *aGlobalObject);
 
 #ifdef XPC_IDISPATCH_SUPPORT
 // IDispatch specific classes

@@ -84,25 +84,22 @@ extern const char js_throw_str[]; /* from jsscan.h */
 void
 js_CloseIteratorState(JSContext *cx, JSObject *iterobj)
 {
-    jsval *slots;
-    jsval state, parent;
+    jsval state;
     JSObject *iterable;
 
     JS_ASSERT(JS_InstanceOf(cx, iterobj, &js_IteratorClass, NULL));
-    slots = iterobj->slots;
 
     /* Avoid double work if js_CloseNativeIterator was called on obj. */
-    state = slots[JSSLOT_ITER_STATE];
+    state = STOBJ_GET_SLOT(iterobj, JSSLOT_ITER_STATE);
     if (JSVAL_IS_NULL(state))
         return;
 
     /* Protect against failure to fully initialize obj. */
-    parent = slots[JSSLOT_PARENT];
-    if (!JSVAL_IS_PRIMITIVE(parent)) {
-        iterable = JSVAL_TO_OBJECT(parent);
+    iterable = STOBJ_GET_PARENT(iterobj);
+    if (iterable) {
 #if JS_HAS_XML_SUPPORT
-        if ((JSVAL_TO_INT(slots[JSSLOT_ITER_FLAGS]) & JSITER_FOREACH) &&
-            OBJECT_IS_XML(cx, iterable)) {
+        uintN flags = JSVAL_TO_INT(STOBJ_GET_SLOT(iterobj, JSSLOT_ITER_FLAGS));
+        if ((flags & JSITER_FOREACH) && OBJECT_IS_XML(cx, iterable)) {
             ((JSXMLObjectOps *) iterable->map->ops)->
                 enumerateValues(cx, iterable, JSENUMERATE_DESTROY, &state,
                                 NULL, NULL);
@@ -110,7 +107,7 @@ js_CloseIteratorState(JSContext *cx, JSObject *iterobj)
 #endif
             OBJ_ENUMERATE(cx, iterable, JSENUMERATE_DESTROY, &state, NULL);
     }
-    slots[JSSLOT_ITER_STATE] = JSVAL_NULL;
+    STOBJ_SET_SLOT(iterobj, JSSLOT_ITER_STATE, JSVAL_NULL);
 }
 
 JSClass js_IteratorClass = {
@@ -128,13 +125,12 @@ InitNativeIterator(JSContext *cx, JSObject *iterobj, JSObject *obj, uintN flags)
     jsval state;
     JSBool ok;
 
-    JS_ASSERT(JSVAL_TO_PRIVATE(iterobj->slots[JSSLOT_CLASS]) ==
-              &js_IteratorClass);
+    JS_ASSERT(STOBJ_GET_CLASS(iterobj) == &js_IteratorClass);
 
     /* Initialize iterobj in case of enumerate hook failure. */
-    iterobj->slots[JSSLOT_PARENT] = OBJECT_TO_JSVAL(obj);
-    iterobj->slots[JSSLOT_ITER_STATE] = JSVAL_NULL;
-    iterobj->slots[JSSLOT_ITER_FLAGS] = INT_TO_JSVAL(flags);
+    STOBJ_SET_PARENT(iterobj, obj);
+    STOBJ_SET_SLOT(iterobj, JSSLOT_ITER_STATE, JSVAL_NULL);
+    STOBJ_SET_SLOT(iterobj, JSSLOT_ITER_FLAGS, INT_TO_JSVAL(flags));
     if (!js_RegisterCloseableIterator(cx, iterobj))
         return JS_FALSE;
     if (!obj)
@@ -151,7 +147,7 @@ InitNativeIterator(JSContext *cx, JSObject *iterobj, JSObject *obj, uintN flags)
     if (!ok)
         return JS_FALSE;
 
-    iterobj->slots[JSSLOT_ITER_STATE] = state;
+    STOBJ_SET_SLOT(iterobj, JSSLOT_ITER_STATE, state);
     if (flags & JSITER_ENUMERATE) {
         /*
          * The enumerating iterator needs the original object to suppress
@@ -160,7 +156,7 @@ InitNativeIterator(JSContext *cx, JSObject *iterobj, JSObject *obj, uintN flags)
          * store the original object.
          */
         JS_ASSERT(obj != iterobj);
-        iterobj->slots[JSSLOT_PROTO] = OBJECT_TO_JSVAL(obj);
+        STOBJ_SET_PROTO(iterobj, obj);
     }
     return JS_TRUE;
 }
@@ -351,11 +347,10 @@ js_ValueToIterator(JSContext *cx, uintN flags, jsval *vp)
 {
     JSObject *obj;
     JSTempValueRooter tvr;
-    const JSAtom *atom;
+    JSAtom *atom;
     JSBool ok;
     JSObject *iterobj;
     jsval arg;
-    JSString *str;
 
     JS_ASSERT(!(flags & ~(JSITER_ENUMERATE |
                           JSITER_FOREACH |
@@ -424,12 +419,10 @@ js_ValueToIterator(JSContext *cx, uintN flags, jsval *vp)
         if (!js_InternalInvoke(cx, obj, *vp, JSINVOKE_ITERATOR, 1, &arg, vp))
             goto bad;
         if (JSVAL_IS_PRIMITIVE(*vp)) {
-            str = js_DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, *vp, NULL);
-            if (str) {
-                JS_ReportErrorNumberUC(cx, js_GetErrorMessage, NULL,
-                                       JSMSG_BAD_ITERATOR_RETURN,
-                                       JSSTRING_CHARS(str),
-                                       JSSTRING_CHARS(ATOM_TO_STRING(atom)));
+            const char *printable = js_AtomToPrintableString(cx, atom);
+            if (printable) {
+                js_ReportValueError2(cx, JSMSG_BAD_ITERATOR_RETURN,
+                                     JSDVG_SEARCH_STACK, *vp, NULL, printable);
             }
             goto bad;
         }
@@ -460,12 +453,11 @@ CallEnumeratorNext(JSContext *cx, JSObject *iterobj, uintN flags, jsval *rval)
     JSString *str;
 
     JS_ASSERT(flags & JSITER_ENUMERATE);
-    JS_ASSERT(JSVAL_TO_PRIVATE(iterobj->slots[JSSLOT_CLASS]) ==
-              &js_IteratorClass);
+    JS_ASSERT(STOBJ_GET_CLASS(iterobj) == &js_IteratorClass);
 
-    obj = JSVAL_TO_OBJECT(iterobj->slots[JSSLOT_PARENT]);
-    origobj = JSVAL_TO_OBJECT(iterobj->slots[JSSLOT_PROTO]);
-    state = iterobj->slots[JSSLOT_ITER_STATE];
+    obj = STOBJ_GET_PARENT(iterobj);
+    origobj = STOBJ_GET_PROTO(iterobj);
+    state = STOBJ_GET_SLOT(iterobj, JSSLOT_ITER_STATE);
     if (JSVAL_IS_NULL(state))
         goto stop;
 
@@ -487,7 +479,7 @@ CallEnumeratorNext(JSContext *cx, JSObject *iterobj, uintN flags, jsval *rval)
             if (!OBJ_ENUMERATE(cx, obj, JSENUMERATE_NEXT, &state, &id))
                 return JS_FALSE;
         }
-        iterobj->slots[JSSLOT_ITER_STATE] = state;
+        STOBJ_SET_SLOT(iterobj, JSSLOT_ITER_STATE, state);
         if (JSVAL_IS_NULL(state))
             goto stop;
     } else
@@ -497,7 +489,7 @@ CallEnumeratorNext(JSContext *cx, JSObject *iterobj, uintN flags, jsval *rval)
         if (!OBJ_ENUMERATE(cx, obj, JSENUMERATE_NEXT, &state, &id))
             return JS_TRUE;
 
-        iterobj->slots[JSSLOT_ITER_STATE] = state;
+        STOBJ_SET_SLOT(iterobj, JSSLOT_ITER_STATE, state);
         if (JSVAL_IS_NULL(state)) {
 #if JS_HAS_XML_SUPPORT
             if (OBJECT_IS_XML(cx, obj)) {
@@ -514,10 +506,10 @@ CallEnumeratorNext(JSContext *cx, JSObject *iterobj, uintN flags, jsval *rval)
             {
                 obj = OBJ_GET_PROTO(cx, obj);
                 if (obj) {
-                    iterobj->slots[JSSLOT_PARENT] = OBJECT_TO_JSVAL(obj);
+                    STOBJ_SET_PARENT(iterobj, obj);
                     if (!OBJ_ENUMERATE(cx, obj, JSENUMERATE_INIT, &state, NULL))
                         return JS_FALSE;
-                    iterobj->slots[JSSLOT_ITER_STATE] = state;
+                    STOBJ_SET_SLOT(iterobj, JSSLOT_ITER_STATE, state);
                     if (!JSVAL_IS_NULL(state))
                         goto restart;
                 }
@@ -586,7 +578,7 @@ CallEnumeratorNext(JSContext *cx, JSObject *iterobj, uintN flags, jsval *rval)
     return JS_TRUE;
 
   stop:
-    JS_ASSERT(iterobj->slots[JSSLOT_ITER_STATE] == JSVAL_NULL);
+    JS_ASSERT(STOBJ_GET_SLOT(iterobj, JSSLOT_ITER_STATE) == JSVAL_NULL);
     *rval = JSVAL_HOLE;
     return JS_TRUE;
 }
@@ -702,6 +694,14 @@ JSClass js_GeneratorClass = {
     NULL,             NULL,            generator_mark,  NULL
 };
 
+/*
+ * Called from the JSOP_GENERATOR case in the interpreter, with fp referring
+ * to the frame by which the generator function was activated.  Create a new
+ * JSGenerator object, which contains its own JSStackFrame that we populate
+ * from *fp.  We know that upon return, the JSOP_GENERATOR opcode will return
+ * from the activation in fp, so we can steal away fp->callobj and fp->argsobj
+ * if they are non-null.
+ */
 JSObject *
 js_NewGenerator(JSContext *cx, JSStackFrame *fp)
 {
@@ -730,17 +730,29 @@ js_NewGenerator(JSContext *cx, JSStackFrame *fp)
 
     gen->obj = obj;
 
-    /* Copy call-invariant object and function references. */
+    /* Steal away objects reflecting fp and point them at gen->frame. */
     gen->frame.callobj = fp->callobj;
+    if (fp->callobj) {
+        JS_SetPrivate(cx, fp->callobj, &gen->frame);
+        fp->callobj = NULL;
+    }
     gen->frame.argsobj = fp->argsobj;
+    if (fp->argsobj) {
+        JS_SetPrivate(cx, fp->argsobj, &gen->frame);
+        fp->argsobj = NULL;
+    }
+
+    /* These two references can be shared with fp until it goes away. */
     gen->frame.varobj = fp->varobj;
+    gen->frame.thisp = fp->thisp;
+
+    /* Copy call-invariant script and function references. */
     gen->frame.script = fp->script;
     gen->frame.fun = fp->fun;
-    gen->frame.thisp = fp->thisp;
-    gen->arena.next = NULL;
 
     /* Use newsp to carve space out of gen->stack. */
     newsp = gen->stack;
+    gen->arena.next = NULL;
     gen->arena.base = (jsuword) newsp;
     gen->arena.limit = gen->arena.avail = (jsuword) (newsp + nslots);
 
@@ -794,7 +806,7 @@ js_NewGenerator(JSContext *cx, JSStackFrame *fp)
     return obj;
 
   bad:
-    cx->newborn[GCX_OBJECT] = NULL;
+    cx->weakRoots.newborn[GCX_OBJECT] = NULL;
     return NULL;
 }
 
@@ -913,7 +925,6 @@ generator_op(JSContext *cx, JSGeneratorOp op,
              JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
     JSGenerator *gen;
-    JSString *str;
     jsval arg;
 
     if (!JS_InstanceOf(cx, obj, &js_GeneratorClass, argv))
@@ -934,13 +945,8 @@ generator_op(JSContext *cx, JSGeneratorOp op,
 
           case JSGENOP_SEND:
             if (!JSVAL_IS_VOID(argv[0])) {
-                str = js_DecompileValueGenerator(cx, JSDVG_SEARCH_STACK,
-                                                 argv[0], NULL);
-                if (str) {
-                    JS_ReportErrorNumberUC(cx, js_GetErrorMessage, NULL,
-                                           JSMSG_BAD_GENERATOR_SEND,
-                                           JSSTRING_CHARS(str));
-                }
+                js_ReportValueError(cx, JSMSG_BAD_GENERATOR_SEND,
+                                    JSDVG_SEARCH_STACK, argv[0], NULL);
                 return JS_FALSE;
             }
             break;
@@ -957,13 +963,9 @@ generator_op(JSContext *cx, JSGeneratorOp op,
 
       case JSGEN_RUNNING:
       case JSGEN_CLOSING:
-        str = js_DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, argv[-1],
-                                         JS_GetFunctionId(gen->frame.fun));
-        if (str) {
-            JS_ReportErrorNumberUC(cx, js_GetErrorMessage, NULL,
-                                   JSMSG_NESTING_GENERATOR,
-                                   JSSTRING_CHARS(str));
-        }
+        js_ReportValueError(cx, JSMSG_NESTING_GENERATOR,
+                            JSDVG_SEARCH_STACK, argv[-1],
+                            JS_GetFunctionId(gen->frame.fun));
         return JS_FALSE;
 
       default:
@@ -1045,7 +1047,7 @@ js_InitIteratorClasses(JSContext *cx, JSObject *obj)
                          NULL, iterator_methods, NULL, NULL);
     if (!proto)
         return NULL;
-    proto->slots[JSSLOT_ITER_STATE] = JSVAL_NULL;
+    STOBJ_SET_SLOT(proto, JSSLOT_ITER_STATE, JSVAL_NULL);
 
 #if JS_HAS_GENERATORS
     /* Initialize the generator internals if configured. */
