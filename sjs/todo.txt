@@ -6,15 +6,15 @@
  * - random from korax need a first value rollup :)
  *   fix unsigned/signed - add float - call with no params
  *   js has Math.random() :P
- * - implement recurse for rmdir
- * - add file globbing and listdir
+ * - implement recursive rmdir
+ * - add file globbing and listdir like python
  * - grab error from JS_CallFunction - how?
  * - check all JS_FALSE -> rval undef
- * - implement chown/attrib
+ * - implement chown/attrib changes
  * - js_curl_progress_handler -> DOUBLE_TO_JSVAL crashes
  * - Find a way to document js properties (zipinfo class)
  * - make an sdk for building plugins
- * - make zip class also able to zip
+ * - make zip class also able to build zip files
  * - add a plugin for md5
  * - http://wxjs.sourceforge.net/ is a similar project,
  *   transform it in a sjs plugin (not easy, not portable)
