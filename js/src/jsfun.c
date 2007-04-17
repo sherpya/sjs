@@ -544,18 +544,19 @@ args_enumerate(JSContext *cx, JSObject *obj)
  * If a generator-iterator's arguments or call object escapes, it needs to
  * mark its generator object.
  */
-static uint32
-args_or_call_mark(JSContext *cx, JSObject *obj, void *arg)
+static void
+args_or_call_trace(JSTracer *trc, JSObject *obj)
 {
     JSStackFrame *fp;
 
-    fp = JS_GetPrivate(cx, obj);
-    if (fp && (fp->flags & JSFRAME_GENERATOR))
-        GC_MARK(cx, FRAME_TO_GENERATOR(fp)->obj, "FRAME_TO_GENERATOR(fp)->obj");
-    return 0;
+    fp = JS_GetPrivate(trc->context, obj);
+    if (fp && (fp->flags & JSFRAME_GENERATOR)) {
+        JS_CALL_OBJECT_TRACER(trc, FRAME_TO_GENERATOR(fp)->obj,
+                              "FRAME_TO_GENERATOR(fp)->obj");
+    }
 }
 #else
-# define args_or_call_mark NULL
+# define args_or_call_trace NULL
 #endif
 
 /*
@@ -572,7 +573,7 @@ args_or_call_mark(JSContext *cx, JSObject *obj, void *arg)
 JSClass js_ArgumentsClass = {
     js_Object_str,
     JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_HAS_RESERVED_SLOTS(1) |
-    JSCLASS_HAS_CACHED_PROTO(JSProto_Object),
+    JSCLASS_MARK_IS_TRACE | JSCLASS_HAS_CACHED_PROTO(JSProto_Object),
     JS_PropertyStub,    args_delProperty,
     args_getProperty,   args_setProperty,
     args_enumerate,     (JSResolveOp) args_resolve,
@@ -580,7 +581,7 @@ JSClass js_ArgumentsClass = {
     NULL,               NULL,
     NULL,               NULL,
     NULL,               NULL,
-    args_or_call_mark,  NULL
+    JS_CLASS_TRACE(args_or_call_trace), NULL
 };
 
 JSObject *
@@ -936,7 +937,7 @@ call_convert(JSContext *cx, JSObject *obj, JSType type, jsval *vp)
 JSClass js_CallClass = {
     js_Call_str,
     JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_IS_ANONYMOUS |
-    JSCLASS_HAS_CACHED_PROTO(JSProto_Call),
+    JSCLASS_MARK_IS_TRACE | JSCLASS_HAS_CACHED_PROTO(JSProto_Call),
     JS_PropertyStub,    JS_PropertyStub,
     call_getProperty,   call_setProperty,
     call_enumerate,     (JSResolveOp)call_resolve,
@@ -944,7 +945,7 @@ JSClass js_CallClass = {
     NULL,               NULL,
     NULL,               NULL,
     NULL,               NULL,
-    args_or_call_mark,  NULL,
+    JS_CLASS_TRACE(args_or_call_trace), NULL,
 };
 
 /*
@@ -1438,20 +1439,19 @@ fun_hasInstance(JSContext *cx, JSObject *obj, jsval v, JSBool *bp)
     return js_IsDelegate(cx, JSVAL_TO_OBJECT(pval), v, bp);
 }
 
-static uint32
-fun_mark(JSContext *cx, JSObject *obj, void *arg)
+static void
+fun_trace(JSTracer *trc, JSObject *obj)
 {
     JSFunction *fun;
 
-    fun = (JSFunction *) JS_GetPrivate(cx, obj);
+    fun = (JSFunction *) JS_GetPrivate(trc->context, obj);
     if (fun) {
-        GC_MARK(cx, fun, "private");
+        JS_CALL_TRACER(trc, fun, JSTRACE_FUNCTION, "private");
         if (fun->atom)
-            GC_MARK_ATOM(cx, fun->atom);
+            JS_CALL_TRACER(trc, fun->atom, JSTRACE_ATOM, "name");
         if (FUN_INTERPRETED(fun) && fun->u.i.script)
-            js_MarkScript(cx, fun->u.i.script);
+            js_TraceScript(trc, fun->u.i.script);
     }
-    return 0;
 }
 
 static uint32
@@ -1471,7 +1471,7 @@ fun_reserveSlots(JSContext *cx, JSObject *obj)
 JS_FRIEND_DATA(JSClass) js_FunctionClass = {
     js_Function_str,
     JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_HAS_RESERVED_SLOTS(2) |
-    JSCLASS_HAS_CACHED_PROTO(JSProto_Function),
+    JSCLASS_MARK_IS_TRACE | JSCLASS_HAS_CACHED_PROTO(JSProto_Function),
     JS_PropertyStub,  JS_PropertyStub,
     fun_getProperty,  JS_PropertyStub,
     fun_enumerate,    (JSResolveOp)fun_resolve,
@@ -1479,7 +1479,7 @@ JS_FRIEND_DATA(JSClass) js_FunctionClass = {
     NULL,             NULL,
     NULL,             NULL,
     fun_xdrObject,    fun_hasInstance,
-    fun_mark,         fun_reserveSlots
+    JS_CLASS_TRACE(fun_trace), fun_reserveSlots
 };
 
 JSBool
@@ -1565,10 +1565,14 @@ fun_call(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     if (!VALUE_IS_FUNCTION(cx, fval)) {
         str = JS_ValueToString(cx, fval);
         if (str) {
-            JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
-                                 JSMSG_INCOMPATIBLE_PROTO,
-                                 js_Function_str, call_str,
-                                 JS_GetStringBytes(str));
+            const char *bytes = js_GetStringBytes(cx, str);
+
+            if (bytes) {
+                JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
+                                     JSMSG_INCOMPATIBLE_PROTO,
+                                     js_Function_str, call_str,
+                                     bytes);
+            }
         }
         return JS_FALSE;
     }
@@ -1634,10 +1638,14 @@ fun_apply(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     if (!VALUE_IS_FUNCTION(cx, fval)) {
         str = JS_ValueToString(cx, fval);
         if (str) {
-            JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
-                                 JSMSG_INCOMPATIBLE_PROTO,
-                                 js_Function_str, "apply",
-                                 JS_GetStringBytes(str));
+            const char *bytes = js_GetStringBytes(cx, str);
+
+            if (bytes) {
+                JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
+                                     JSMSG_INCOMPATIBLE_PROTO,
+                                     js_Function_str, "apply",
+                                     bytes);
+            }
         }
         return JS_FALSE;
     }
@@ -1767,28 +1775,6 @@ static JSFunctionSpec function_methods[] = {
 #endif
     {0,0,0,0,0}
 };
-
-JSBool
-js_IsIdentifier(JSString *str)
-{
-    size_t length;
-    jschar c, *chars, *end, *s;
-
-    length = JSSTRING_LENGTH(str);
-    if (length == 0)
-        return JS_FALSE;
-    chars = JSSTRING_CHARS(str);
-    c = *chars;
-    if (!JS_ISIDSTART(c))
-        return JS_FALSE;
-    end = chars + length;
-    for (s = chars + 1; s != end; ++s) {
-        c = *s;
-        if (!JS_ISIDENT(c))
-            return JS_FALSE;
-    }
-    return !js_IsKeyword(chars, length);
-}
 
 static JSBool
 Function(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)

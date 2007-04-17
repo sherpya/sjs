@@ -109,6 +109,7 @@ typedef enum JSOpLength {
 #define JOF_LEFTASSOC    0x10000  /* left-associative operator */
 #define JOF_DECLARING    0x20000  /* var, const, or function declaration op */
 #define JOF_ATOMBASE     0x40000  /* atom segment base setting prefix op */
+#define JOF_CALLOP       0x80000  /* call operation pushing function and this */
 
 #define JOF_TYPE_IS_EXTENDED_JUMP(t) \
     ((unsigned)((t) - JOF_JUMPX) <= (unsigned)(JOF_LOOKUPSWITCHX - JOF_JUMPX))
@@ -239,7 +240,7 @@ struct JSCodeSpec {
 
 extern const JSCodeSpec js_CodeSpec[];
 extern uintN            js_NumCodeSpecs;
-extern const jschar     js_EscapeMap[];
+extern const char       js_EscapeMap[];
 
 /*
  * Return a GC'ed string containing the chars in str, with any non-printing
@@ -254,8 +255,17 @@ js_QuoteString(JSContext *cx, JSString *str, jschar quote);
  * value from js_GetPrinterOutput() is the printer's cumulative output, in
  * a GC'ed string.
  */
+
+#ifdef JS_ARENAMETER
+# define JS_NEW_PRINTER(cx, name, indent, pretty)                              \
+    js_NewPrinter(cx, name, indent, pretty)
+#else
+# define JS_NEW_PRINTER(cx, name, indent, pretty)                              \
+    js_NewPrinter(cx, indent, pretty)
+#endif
+
 extern JSPrinter *
-js_NewPrinter(JSContext *cx, const char *name, uintN indent, JSBool pretty);
+JS_NEW_PRINTER(JSContext *cx, const char *name, uintN indent, JSBool pretty);
 
 extern void
 js_DestroyPrinter(JSPrinter *jp);

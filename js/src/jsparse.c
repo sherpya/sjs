@@ -782,8 +782,8 @@ js_CompileFunctionBody(JSContext *cx, JSTokenStream *ts, JSFunction *fun)
     JSObject *funobj;
     JSParseNode *pn;
 
-    JS_InitArenaPool(&codePool, "code", 1024, sizeof(jsbytecode));
-    JS_InitArenaPool(&notePool, "note", 1024, sizeof(jssrcnote));
+    JS_INIT_ARENA_POOL(&codePool, "code", 1024, sizeof(jsbytecode));
+    JS_INIT_ARENA_POOL(&notePool, "note", 1024, sizeof(jssrcnote));
     if (!js_InitCodeGenerator(cx, &funcg, &codePool, &notePool,
                               ts->filename, ts->lineno,
                               ts->principals)) {
@@ -1074,6 +1074,11 @@ FunctionDef(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
     if (tt == TOK_NAME) {
         funAtom = CURRENT_TOKEN(ts).t_atom;
     } else {
+        if (!lambda && (cx->options & JSOPTION_ANONFUNFIX)) {
+            js_ReportCompileErrorNumber(cx, ts, JSREPORT_TS | JSREPORT_ERROR,
+                                        JSMSG_SYNTAX_ERROR);
+            return NULL;
+        }
         funAtom = NULL;
         js_UngetToken(ts);
     }
@@ -1725,7 +1730,7 @@ BindVarOrConst(JSContext *cx, BindData *data, JSAtom *atom, JSTreeContext *tc)
     JSPropertyOp getter, setter;
     JSScopeProperty *sprop;
 
-    stmt = js_LexicalLookup(tc, atom, NULL, JS_FALSE);
+    stmt = js_LexicalLookup(tc, atom, NULL, 0);
     ATOM_LIST_SEARCH(ale, &tc->decls, atom);
     op = data->op;
     if ((stmt && stmt->type != STMT_WITH) || ale) {
@@ -2009,7 +2014,6 @@ MatchFindPropValEntry(JSDHashTable *table,
 static const JSDHashTableOps FindPropValOps = {
     JS_DHashAllocTable,
     JS_DHashFreeTable,
-    JS_DHashGetKeyStub,
     HashFindPropValKey,
     MatchFindPropValEntry,
     JS_DHashMoveEntryStub,
@@ -2320,7 +2324,8 @@ ReturnOrYield(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
 
     if (tt2 != TOK_EOF && tt2 != TOK_EOL && tt2 != TOK_SEMI && tt2 != TOK_RC
 #if JS_HAS_GENERATORS
-        && (tt != TOK_YIELD || (tt2 != tt && tt2 != TOK_RB && tt2 != TOK_RP))
+        && (tt != TOK_YIELD ||
+            (tt2 != tt && tt2 != TOK_RB && tt2 != TOK_RP && tt2 != TOK_COLON))
 #endif
         ) {
         pn2 = operandParser(cx, ts, tc);
@@ -3810,9 +3815,7 @@ AssignExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
             tc->flags |= TCF_FUN_HEAVYWEIGHT;
         break;
       case TOK_DOT:
-        pn2->pn_op = (pn2->pn_op == JSOP_GETMETHOD)
-                     ? JSOP_SETMETHOD
-                     : JSOP_SETPROP;
+        pn2->pn_op = JSOP_SETPROP;
         break;
       case TOK_LB:
         pn2->pn_op = JSOP_SETELEM;
@@ -4055,7 +4058,8 @@ SetLvalKid(JSContext *cx, JSTokenStream *ts, JSParseNode *pn, JSParseNode *kid,
     if (kid->pn_type != TOK_NAME &&
         kid->pn_type != TOK_DOT &&
 #if JS_HAS_LVALUE_RETURN
-        (kid->pn_type != TOK_LP || kid->pn_op != JSOP_CALL) &&
+        (kid->pn_type != TOK_LP ||
+         (kid->pn_op != JSOP_CALL && kid->pn_op != JSOP_EVAL)) &&
 #endif
 #if JS_HAS_XML_SUPPORT
         (kid->pn_type != TOK_UNARYOP || kid->pn_op != JSOP_XMLNAME) &&
@@ -4098,7 +4102,7 @@ SetIncOpKid(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
 
 #if JS_HAS_LVALUE_RETURN
       case TOK_LP:
-        JS_ASSERT(kid->pn_op == JSOP_CALL);
+        JS_ASSERT(kid->pn_op == JSOP_CALL || kid->pn_op == JSOP_EVAL);
         kid->pn_op = JSOP_SETCALL;
         /* FALL THROUGH */
 #endif
@@ -4315,11 +4319,8 @@ MemberExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
             if (!pn3)
                 return NULL;
             tt = pn3->pn_type;
-            if (tt == TOK_NAME ||
-                (tt == TOK_DBLCOLON &&
-                 pn3->pn_arity == PN_NAME &&
-                 pn3->pn_expr->pn_type == TOK_FUNCTION)) {
-                pn2->pn_op = (tt == TOK_NAME) ? JSOP_GETPROP : JSOP_GETMETHOD;
+            if (tt == TOK_NAME) {
+                pn2->pn_op = JSOP_GETPROP;
                 pn2->pn_expr = pn;
                 pn2->pn_atom = pn3->pn_atom;
                 RecycleTree(pn3, tc);
@@ -5978,8 +5979,12 @@ FoldXMLConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
             if ((tt == TOK_XMLSTAGO || tt == TOK_XMLPTAGC) &&
                 (i & 1) ^ (j & 1)) {
 #ifdef DEBUG_brendanXXX
-                printf("1: %d, %d => %s\n",
-                       i, j, accum ? JS_GetStringBytes(accum) : "NULL");
+                printf("1: %d, %d => ", i, j);
+                if (accum)
+                    js_FileEscapedString(stdout, accum, 0);
+                else
+                    fputs("NULL", stdout);
+                fputc('\n', stdout);
 #endif
             } else if (accum && pn1 != pn2) {
                 while (pn1->pn_next != pn2) {
@@ -6008,8 +6013,9 @@ FoldXMLConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
             if (!str)
                 return JS_FALSE;
 #ifdef DEBUG_brendanXXX
-            printf("2: %d, %d => %s (%u)\n",
-                   i, j, JS_GetStringBytes(str), JSSTRING_LENGTH(str));
+            printf("2: %d, %d => ", i, j);
+            js_FileEscapedString(stdout, str, 0);
+            printf(" (%u)\n", JSSTRING_LENGTH(str));
 #endif
             ++j;
         }
@@ -6239,7 +6245,7 @@ js_FoldConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
             pn1 = pn1->pn_kid;
         switch (pn1->pn_type) {
           case TOK_NUMBER:
-            if (pn1->pn_dval == 0)
+            if (pn1->pn_dval == 0 || JSDOUBLE_IS_NaN(pn1->pn_dval))
                 pn2 = pn3;
             break;
           case TOK_STRING:
@@ -6472,7 +6478,7 @@ js_FoldConstants(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
 
               case JSOP_NOT:
                 pn->pn_type = TOK_PRIMARY;
-                pn->pn_op = (d == 0) ? JSOP_TRUE : JSOP_FALSE;
+                pn->pn_op = (d == 0 || JSDOUBLE_IS_NaN(d)) ? JSOP_TRUE : JSOP_FALSE;
                 pn->pn_arity = PN_NULLARY;
                 /* FALL THROUGH */
 

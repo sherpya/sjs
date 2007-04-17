@@ -237,12 +237,19 @@ JS_ConvertArgumentsVA(JSContext *cx, uintN argc, jsval *argv,
             if (!str)
                 return JS_FALSE;
             *sp = STRING_TO_JSVAL(str);
-            if (c == 's')
-                *va_arg(ap, char **) = JS_GetStringBytes(str);
-            else if (c == 'W')
-                *va_arg(ap, jschar **) = JS_GetStringChars(str);
-            else
+            if (c == 's') {
+                const char *bytes = js_GetStringBytes(cx, str);
+                if (!bytes)
+                    return JS_FALSE;
+                *va_arg(ap, const char **) = bytes;
+            } else if (c == 'W') {
+                const jschar *chars = js_GetStringChars(cx, str);
+                if (!chars)
+                    return JS_FALSE;
+                *va_arg(ap, const jschar **) = chars;
+            } else {
                 *va_arg(ap, JSString **) = str;
+            }
             break;
           case 'o':
             if (!js_ValueToObject(cx, *sp, &obj))
@@ -1114,7 +1121,7 @@ JS_ToggleOptions(JSContext *cx, uint32 options)
 JS_PUBLIC_API(const char *)
 JS_GetImplementationVersion(void)
 {
-    return "JavaScript-C 1.7 pre-release 2 2006-11-19";
+    return "JavaScript-C 1.7 pre-release 3 2007-04-01";
 }
 
 
@@ -1859,12 +1866,41 @@ JS_UnlockGCThingRT(JSRuntime *rt, void *thing)
 JS_PUBLIC_API(void)
 JS_MarkGCThing(JSContext *cx, void *thing, const char *name, void *arg)
 {
-    JS_ASSERT(cx->runtime->gcLevel > 0);
-#ifdef JS_THREADSAFE
-    JS_ASSERT(cx->runtime->gcThread->id == js_CurrentThreadId());
-#endif
+    JSTracer *trc;
 
-    GC_MARK(cx, thing, name);
+    trc = (JSTracer *)arg;
+    if (!trc)
+        trc = cx->runtime->gcMarkingTracer;
+    else
+        JS_ASSERT(trc == cx->runtime->gcMarkingTracer);
+
+#ifdef JS_THREADSAFE
+    JS_ASSERT(cx->runtime->gcThread == trc->context->thread);
+#endif
+    if (thing) {
+        JS_SET_TRACING_NAME(trc, name ? name : "unknown");
+        js_CallGCThingTracer(trc, thing);
+    }
+}
+
+extern JS_PUBLIC_API(JSBool)
+JS_IsGCMarkingTracer(JSTracer *trc)
+{
+    return IS_GC_MARKING_TRACER(trc);
+}
+
+JS_PUBLIC_API(JSTracer *)
+JS_GetGCMarkingTracer(JSContext *cx)
+{
+    JSRuntime *rt;
+
+    rt = cx->runtime;
+    JS_ASSERT(rt->gcMarkingTracer);
+    JS_ASSERT(rt->gcLevel > 0);
+#ifdef JS_THREADSAFE
+    JS_ASSERT(rt->gcThread == rt->gcMarkingTracer->context->thread);
+#endif
+    return rt->gcMarkingTracer;
 }
 
 JS_PUBLIC_API(void)
@@ -3321,8 +3357,8 @@ prop_iter_finalize(JSContext *cx, JSObject *obj)
     }
 }
 
-static uint32
-prop_iter_mark(JSContext *cx, JSObject *obj, void *arg)
+static void
+prop_iter_trace(JSTracer *trc, JSObject *obj)
 {
     jsval v;
     jsint i, n;
@@ -3330,33 +3366,33 @@ prop_iter_mark(JSContext *cx, JSObject *obj, void *arg)
     JSIdArray *ida;
     jsid id;
 
-    v = GC_AWARE_GET_SLOT(cx, obj, JSSLOT_PRIVATE);
+    v = GC_AWARE_GET_SLOT(trc->context, obj, JSSLOT_PRIVATE);
     JS_ASSERT(!JSVAL_IS_VOID(v));
 
-    i = JSVAL_TO_INT(OBJ_GET_SLOT(cx, obj, JSSLOT_ITER_INDEX));
+    i = JSVAL_TO_INT(OBJ_GET_SLOT(trc->context, obj, JSSLOT_ITER_INDEX));
     if (i < 0) {
         /* Native case: just mark the next property to visit. */
         sprop = (JSScopeProperty *) JSVAL_TO_PRIVATE(v);
         if (sprop)
-            MARK_SCOPE_PROPERTY(cx, sprop);
+            TRACE_SCOPE_PROPERTY(trc, sprop);
     } else {
         /* Non-native case: mark each id in the JSIdArray private. */
         ida = (JSIdArray *) JSVAL_TO_PRIVATE(v);
         for (i = 0, n = ida->length; i < n; i++) {
             id = ida->vector[i];
-            MARK_ID(cx, id);
+            TRACE_ID(trc, id);
         }
     }
-    return 0;
 }
 
 static JSClass prop_iter_class = {
     "PropertyIterator",
-    JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(1),
+    JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(1) |
+    JSCLASS_MARK_IS_TRACE,
     JS_PropertyStub,  JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
     JS_EnumerateStub, JS_ResolveStub,  JS_ConvertStub,  prop_iter_finalize,
     NULL,             NULL,            NULL,            NULL,
-    NULL,             NULL,            prop_iter_mark,  NULL
+    NULL,             NULL,            JS_CLASS_TRACE(prop_iter_trace), NULL
 };
 
 JS_PUBLIC_API(JSObject *)
@@ -3782,8 +3818,8 @@ CompileTokenStream(JSContext *cx, JSObject *obj, JSTokenStream *ts,
 
     CHECK_REQUEST(cx);
     eof = JS_FALSE;
-    JS_InitArenaPool(&codePool, "code", 1024, sizeof(jsbytecode));
-    JS_InitArenaPool(&notePool, "note", 1024, sizeof(jssrcnote));
+    JS_INIT_ARENA_POOL(&codePool, "code", 1024, sizeof(jsbytecode));
+    JS_INIT_ARENA_POOL(&notePool, "note", 1024, sizeof(jssrcnote));
     if (!js_InitCodeGenerator(cx, &cg, &codePool, &notePool,
                               ts->filename, ts->lineno,
                               ts->principals)) {
@@ -4143,9 +4179,9 @@ JS_DecompileScript(JSContext *cx, JSScript *script, const char *name,
     JSString *str;
 
     CHECK_REQUEST(cx);
-    jp = js_NewPrinter(cx, name,
-                       indent & ~JS_DONT_PRETTY_PRINT,
-                       !(indent & JS_DONT_PRETTY_PRINT));
+    jp = JS_NEW_PRINTER(cx, name,
+                        indent & ~JS_DONT_PRETTY_PRINT,
+                        !(indent & JS_DONT_PRETTY_PRINT));
     if (!jp)
         return NULL;
     if (js_DecompileScript(jp, script))
@@ -4163,9 +4199,9 @@ JS_DecompileFunction(JSContext *cx, JSFunction *fun, uintN indent)
     JSString *str;
 
     CHECK_REQUEST(cx);
-    jp = js_NewPrinter(cx, JS_GetFunctionName(fun),
-                       indent & ~JS_DONT_PRETTY_PRINT,
-                       !(indent & JS_DONT_PRETTY_PRINT));
+    jp = JS_NEW_PRINTER(cx, "JS_DecompileFunction",
+                        indent & ~JS_DONT_PRETTY_PRINT,
+                        !(indent & JS_DONT_PRETTY_PRINT));
     if (!jp)
         return NULL;
     if (js_DecompileFunction(jp, fun))
@@ -4183,9 +4219,9 @@ JS_DecompileFunctionBody(JSContext *cx, JSFunction *fun, uintN indent)
     JSString *str;
 
     CHECK_REQUEST(cx);
-    jp = js_NewPrinter(cx, JS_GetFunctionName(fun),
-                       indent & ~JS_DONT_PRETTY_PRINT,
-                       !(indent & JS_DONT_PRETTY_PRINT));
+    jp = JS_NEW_PRINTER(cx, "JS_DecompileFunctionBody",
+                        indent & ~JS_DONT_PRETTY_PRINT,
+                        !(indent & JS_DONT_PRETTY_PRINT));
     if (!jp)
         return NULL;
     if (js_DecompileFunctionBody(jp, fun))
@@ -4414,6 +4450,35 @@ JS_SetCallReturnValue2(JSContext *cx, jsval v)
 #endif
 }
 
+JS_PUBLIC_API(JSStackFrame *)
+JS_SaveFrameChain(JSContext *cx)
+{
+    JSStackFrame *fp;
+
+    fp = cx->fp;
+    if (!fp)
+        return fp;
+
+    JS_ASSERT(!fp->dormantNext);
+    fp->dormantNext = cx->dormantFrameChain;
+    cx->dormantFrameChain = fp;
+    cx->fp = NULL;
+    return fp;
+}
+
+JS_PUBLIC_API(void)
+JS_RestoreFrameChain(JSContext *cx, JSStackFrame *fp)
+{
+    JS_ASSERT(!cx->fp);
+    if (!fp)
+        return;
+
+    JS_ASSERT(cx->dormantFrameChain == fp);
+    cx->fp = fp;
+    cx->dormantFrameChain = fp->dormantNext;
+    fp->dormantNext = NULL;
+}
+
 /************************************************************************/
 
 JS_PUBLIC_API(JSString *)
@@ -4438,7 +4503,7 @@ JS_NewString(JSContext *cx, char *bytes, size_t nbytes)
     }
 
     /* Hand off bytes to the deflated string cache, if possible. */
-    if (!js_SetStringBytes(cx->runtime, str, bytes, nbytes))
+    if (!js_SetStringBytes(cx, str, bytes, nbytes))
         JS_free(cx, bytes);
     return str;
 }
@@ -4535,22 +4600,24 @@ JS_InternUCString(JSContext *cx, const jschar *s)
 JS_PUBLIC_API(char *)
 JS_GetStringBytes(JSString *str)
 {
-    JSRuntime *rt;
-    char *bytes;
+    const char *bytes;
 
-    rt = js_GetGCStringRuntime(str);
-    bytes = js_GetStringBytes(rt, str);
-    return bytes ? bytes : "";
+    bytes = js_GetStringBytes(NULL, str);
+    return (char *)(bytes ? bytes : "");
 }
 
 JS_PUBLIC_API(jschar *)
 JS_GetStringChars(JSString *str)
 {
+    size_t n, size;
+    jschar *s;
+
     /*
-     * API botch (again, shades of JS_GetStringBytes): we have no cx to pass
-     * to js_UndependString (called by js_GetStringChars) for out-of-memory
-     * error reports, so js_UndependString passes NULL and suppresses errors.
-     * If it fails to convert a dependent string into an independent one, our
+     * API botch (again, shades of JS_GetStringBytes): we have no cx to report
+     * out-of-memory when undepending strings, so we replace js_UndependString
+     * with explicit malloc call and ignore its errors.
+     *
+     * If we fail to convert a dependent string into an independent one, our
      * caller will not be guaranteed a \u0000 terminator as a backstop.  This
      * may break some clients who already misbehave on embedded NULs.
      *
@@ -4558,10 +4625,20 @@ JS_GetStringChars(JSString *str)
      * rate bugs in string concatenation, is worth this slight loss in API
      * compatibility.
      */
-    jschar *chars;
+    if (JSSTRING_IS_DEPENDENT(str)) {
+        n = JSSTRDEP_LENGTH(str);
+        size = (n + 1) * sizeof(jschar);
+        s = (jschar *) malloc(size);
+        if (s) {
+            js_strncpy(s, JSSTRDEP_CHARS(str), n);
+            s[n] = 0;
+            str->length = n;
+            str->chars = s;
+        }
+    }
 
-    chars = js_GetStringChars(str);
-    return chars ? chars : JSSTRING_CHARS(str);
+    *js_GetGCThingFlags(str) &= ~GCF_MUTABLE;
+    return JSSTRING_CHARS(str);
 }
 
 JS_PUBLIC_API(size_t)
@@ -4620,6 +4697,18 @@ JS_PUBLIC_API(JSBool)
 JS_EncodeCharacters(JSContext *cx, const jschar *src, size_t srclen, char *dst,
                     size_t *dstlenp)
 {
+    size_t n;
+
+    if (!dst) {
+        n = js_GetDeflatedStringLength(cx, src, srclen);
+        if (n == (size_t)-1) {
+            *dstlenp = 0;
+            return JS_FALSE;
+        }
+        *dstlenp = n;
+        return JS_TRUE;
+    }
+
     return js_DeflateStringToBuffer(cx, src, srclen, dst, dstlenp);
 }
 

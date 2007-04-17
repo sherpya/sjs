@@ -65,12 +65,12 @@
 #include "jsexn.h"
 #include "jsnum.h"
 #include "jsopcode.h"
+#include "jsparse.h"
 #include "jsregexp.h"
 #include "jsscan.h"
 #include "jsscript.h"
 
 #if JS_HAS_XML_SUPPORT
-#include "jsparse.h"
 #include "jsxml.h"
 #endif
 
@@ -149,6 +149,28 @@ js_MapKeywords(void (*mapfun)(const char *))
 
     for (i = 0; i != KEYWORD_COUNT; ++i)
         mapfun(keyword_defs[i].chars);
+}
+
+JSBool
+js_IsIdentifier(JSString *str)
+{
+    size_t length;
+    jschar c, *chars, *end;
+
+    length = JSSTRING_LENGTH(str);
+    if (length == 0)
+        return JS_FALSE;
+    chars = JSSTRING_CHARS(str);
+    c = *chars;
+    if (!JS_ISIDSTART(c))
+        return JS_FALSE;
+    end = chars + length;
+    while (++chars != end) {
+        c = *chars;
+        if (!JS_ISIDENT(c))
+            return JS_FALSE;
+    }
+    return JS_TRUE;
 }
 
 JSTokenStream *
@@ -529,8 +551,9 @@ ReportCompileErrorNumber(JSContext *cx, void *handle, uintN flags,
                          uintN errorNumber, JSErrorReport *report,
                          JSBool charArgs, va_list ap)
 {
-    JSTempValueRooter linetvr;
-    JSString *linestr = NULL;
+    size_t linelength;
+    jschar *linechars = NULL;
+    char *linebytes = NULL;
     JSTokenStream *ts = NULL;
     JSCodeGenerator *cg = NULL;
     JSParseNode *pn = NULL;
@@ -552,8 +575,6 @@ ReportCompileErrorNumber(JSContext *cx, void *handle, uintN flags,
         return JS_FALSE;
     }
 
-    JS_PUSH_TEMP_ROOT_STRING(cx, NULL, &linetvr);
-
     switch (flags & JSREPORT_HANDLE) {
       case JSREPORT_TS:
         ts = handle;
@@ -568,61 +589,61 @@ ReportCompileErrorNumber(JSContext *cx, void *handle, uintN flags,
     }
 
     JS_ASSERT(!ts || ts->linebuf.limit < ts->linebuf.base + JS_LINE_LIMIT);
+
     /*
      * We are typically called with non-null ts and null cg from jsparse.c.
      * We can be called with null ts from the regexp compilation functions.
      * The code generator (jsemit.c) may pass null ts and non-null cg.
      */
-    do {
-        if (ts) {
-            report->filename = ts->filename;
-            if (pn) {
-                report->lineno = pn->pn_pos.begin.lineno;
-                if (report->lineno != ts->lineno)
-                    break;
-            }
-            report->lineno = ts->lineno;
-            linestr = js_NewStringCopyN(cx, ts->linebuf.base,
-                                        PTRDIFF(ts->linebuf.limit,
-                                                ts->linebuf.base,
-                                                jschar),
-                                        0);
-            linetvr.u.string = linestr;
-            report->linebuf = linestr
-                              ? JS_GetStringBytes(linestr)
-                              : NULL;
-            tp = &ts->tokens[(ts->cursor+ts->lookahead) & NTOKENS_MASK].pos;
-            if (pn)
-                tp = &pn->pn_pos;
+    if (ts) {
+        report->filename = ts->filename;
+        if (pn) {
+            report->lineno = pn->pn_pos.begin.lineno;
+            if (report->lineno != ts->lineno)
+                goto report;
+        }
+        report->lineno = ts->lineno;
+        linelength = PTRDIFF(ts->linebuf.limit, ts->linebuf.base, jschar);
+        linechars = (jschar *)JS_malloc(cx, (linelength + 1) * sizeof(jschar));
+        if (!linechars) {
+            warning = JS_FALSE;
+            goto out;
+        }
+        memcpy(linechars, ts->linebuf.base, linelength * sizeof(jschar));
+        linechars[linelength] = 0;
+        linebytes = js_DeflateString(cx, linechars, linelength);
+        if (!linebytes) {
+            warning = JS_FALSE;
+            goto out;
+        }
+        report->linebuf = linebytes;
+        tp = &ts->tokens[(ts->cursor+ts->lookahead) & NTOKENS_MASK].pos;
+        if (pn)
+            tp = &pn->pn_pos;
 
-            /*
-             * FIXME: What should instead happen here is that we should
-             * find error-tokens in userbuf, if !ts->file.  That will
-             * allow us to deliver a more helpful error message, which
-             * includes all or part of the bad string or bad token.  The
-             * code here yields something that looks truncated.
-             * See https://bugzilla.mozilla.org/show_bug.cgi?id=352970
-             */
-            index = 0;
-            if (tp->begin.lineno == tp->end.lineno) {
-                if (tp->begin.index < ts->linepos)
-                    break;
+        /*
+         * FIXME: What should instead happen here is that we should
+         * find error-tokens in userbuf, if !ts->file.  That will
+         * allow us to deliver a more helpful error message, which
+         * includes all or part of the bad string or bad token.  The
+         * code here yields something that looks truncated.
+         * See https://bugzilla.mozilla.org/show_bug.cgi?id=352970
+         */
+        index = 0;
+        if (tp->begin.lineno == tp->end.lineno) {
+            if (tp->begin.index < ts->linepos)
+                goto report;
 
-                index = tp->begin.index - ts->linepos;
-            }
-
-            report->tokenptr = linestr ? report->linebuf + index : NULL;
-            report->uclinebuf = linestr ? JS_GetStringChars(linestr) : NULL;
-            report->uctokenptr = linestr ? report->uclinebuf + index : NULL;
-            break;
+            index = tp->begin.index - ts->linepos;
         }
 
-        if (cg) {
-            report->filename = cg->filename;
-            report->lineno = CG_CURRENT_LINE(cg);
-            break;
-        }
-
+        report->tokenptr = report->linebuf + index;
+        report->uclinebuf = linechars;
+        report->uctokenptr = report->uclinebuf + index;
+    } else if (cg) {
+        report->filename = cg->filename;
+        report->lineno = CG_CURRENT_LINE(cg);
+    } else {
         /*
          * If we can't find out where the error was based on the current
          * frame, see if the next frame has a script/pc combo we can use.
@@ -634,7 +655,7 @@ ReportCompileErrorNumber(JSContext *cx, void *handle, uintN flags,
                 break;
             }
         }
-    } while (0);
+    }
 
     /*
      * If there's a runtime exception type associated with this error
@@ -652,6 +673,7 @@ ReportCompileErrorNumber(JSContext *cx, void *handle, uintN flags,
      * XXX it'd probably be best if there was only one call to this
      * function, but there seem to be two error reporter call points.
      */
+  report:
     onError = cx->errorReporter;
 
     /*
@@ -688,12 +710,15 @@ ReportCompileErrorNumber(JSContext *cx, void *handle, uintN flags,
     if (onError)
         (*onError)(cx, message, report);
 
+  out:
+    if (linebytes)
+        JS_free(cx, linebytes);
+    if (linechars)
+        JS_free(cx, linechars);
     if (message)
         JS_free(cx, message);
     if (report->ucmessage)
         JS_free(cx, (void *)report->ucmessage);
-
-    JS_POP_TEMP_ROOT(cx, &linetvr);
 
     if (ts && !JSREPORT_IS_WARNING(flags)) {
         /* Set the error flag to suppress spurious reports. */
@@ -1905,14 +1930,18 @@ skipline:
                 ADD_TO_TOKENBUF(c);
             }
             for (flags = 0; ; ) {
-                if (MatchChar(ts, 'g'))
+                c = PeekChar(ts);
+                if (c == 'g')
                     flags |= JSREG_GLOB;
-                else if (MatchChar(ts, 'i'))
+                else if (c == 'i')
                     flags |= JSREG_FOLD;
-                else if (MatchChar(ts, 'm'))
+                else if (c == 'm')
                     flags |= JSREG_MULTILINE;
+                else if (c == 'y')
+                    flags |= JSREG_STICKY;
                 else
                     break;
+                GetChar(ts);
             }
             c = PeekChar(ts);
             if (JS7_ISLET(c)) {
@@ -2010,7 +2039,7 @@ skipline:
             if (!JS7_ISDEC(c))
                 break;
             n = 10 * n + JS7_UNDEC(c);
-            if (n >= ATOM_INDEX_LIMIT) {
+            if (n >= UINT16_LIMIT) {
                 js_ReportCompileErrorNumber(cx, ts,
                                             JSREPORT_TS | JSREPORT_ERROR,
                                             JSMSG_SHARPVAR_TOO_BIG);

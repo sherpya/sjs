@@ -334,13 +334,17 @@ typedef struct JSWatchPoint {
 static JSBool
 DropWatchPointAndUnlock(JSContext *cx, JSWatchPoint *wp, uintN flag)
 {
+    JSBool ok;
     JSScopeProperty *sprop;
+    JSObject *pobj;
+    JSProperty *prop;
     JSPropertyOp setter;
 
+    ok = JS_TRUE;
     wp->flags &= ~flag;
     if (wp->flags != 0) {
         DBG_UNLOCK(cx->runtime);
-        return JS_TRUE;
+        return ok;
     }
 
     /*
@@ -360,34 +364,52 @@ DropWatchPointAndUnlock(JSContext *cx, JSWatchPoint *wp, uintN flag)
     setter = js_GetWatchedSetter(cx->runtime, NULL, sprop);
     DBG_UNLOCK(cx->runtime);
     if (!setter) {
-        sprop = js_ChangeNativePropertyAttrs(cx, wp->object, sprop,
-                                             0, sprop->attrs,
-                                             sprop->getter, wp->setter);
+        ok = js_LookupProperty(cx, wp->object, sprop->id, &pobj, &prop);
+
+        /*
+         * If the property wasn't found on wp->object or didn't exist, then
+         * someone else has dealt with this sprop, and we don't need to change
+         * the property attributes.
+         */
+        if (ok && prop) {
+            if (pobj == wp->object) {
+                JS_ASSERT(OBJ_SCOPE(pobj)->object == pobj);
+
+                sprop = js_ChangeScopePropertyAttrs(cx, OBJ_SCOPE(pobj), sprop,
+                                                    0, sprop->attrs,
+                                                    sprop->getter,
+                                                    wp->setter);
+                if (!sprop)
+                    ok = JS_FALSE;
+            }
+            OBJ_DROP_PROPERTY(cx, pobj, prop);
+        }
     }
 
     js_RemoveRoot(cx->runtime, &wp->closure);
     JS_free(cx, wp);
-    return sprop != NULL;
+    return ok;
 }
 
 /*
- * NB: js_MarkWatchPoints does not acquire cx->runtime->debuggerLock, since
+ * NB: js_TraceWatchPoints does not acquire cx->runtime->debuggerLock, since
  * the debugger should never be racing with the GC (i.e., the debugger must
  * respect the request model).
  */
 void
-js_MarkWatchPoints(JSContext *cx)
+js_TraceWatchPoints(JSTracer *trc)
 {
     JSRuntime *rt;
     JSWatchPoint *wp;
 
-    rt = cx->runtime;
+    rt = trc->context->runtime;
+
     for (wp = (JSWatchPoint *)rt->watchPointList.next;
          wp != (JSWatchPoint *)&rt->watchPointList;
          wp = (JSWatchPoint *)wp->links.next) {
-        MARK_SCOPE_PROPERTY(cx, wp->sprop);
-        if (wp->sprop->attrs & JSPROP_SETTER)
-            JS_MarkGCThing(cx, wp->setter, "wp->setter", NULL);
+        TRACE_SCOPE_PROPERTY(trc, wp->sprop);
+        if ((wp->sprop->attrs & JSPROP_SETTER) && wp->setter)
+            JS_CALL_OBJECT_TRACER(trc, (JSObject *)wp->setter, "wp->setter");
     }
 }
 

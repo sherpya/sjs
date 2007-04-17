@@ -285,7 +285,7 @@ static int
 usage(void)
 {
     fprintf(gErrFile, "%s\n", JS_GetImplementationVersion());
-    fprintf(gErrFile, "usage: js [-PswWxCi] [-b branchlimit] [-c stackchunksize] [-v version] [-f scriptfile] [-e script] [-S maxstacksize] [scriptfile] [scriptarg...]\n");
+    fprintf(gErrFile, "usage: js [-PswWxCi] [-b branchlimit] [-c stackchunksize] [-o option] [-v version] [-f scriptfile] [-e script] [-S maxstacksize] [scriptfile] [scriptarg...]\n");
     return 2;
 }
 
@@ -312,6 +312,19 @@ my_BranchCallback(JSContext *cx, JSScript *script)
         JS_MaybeGC(cx);
     return JS_TRUE;
 }
+
+static struct {
+    const char  *name;
+    uint32      flag;
+} js_options[] = {
+    {"strict",          JSOPTION_STRICT},
+    {"werror",          JSOPTION_WERROR},
+    {"atline",          JSOPTION_ATLINE},
+    {"xml",             JSOPTION_XML},
+    {"relimit",         JSOPTION_RELIMIT},
+    {"anonfunfix",      JSOPTION_ANONFUNFIX},
+    {NULL,              0}
+};
 
 extern JSClass global_class;
 
@@ -398,8 +411,24 @@ ProcessArgs(JSContext *cx, JSObject *obj, char **argv, int argc)
             JS_ToggleOptions(cx, JSOPTION_STRICT);
             break;
 
+        case 'E':
+            JS_ToggleOptions(cx, JSOPTION_RELIMIT);
+            break;
+
         case 'x':
             JS_ToggleOptions(cx, JSOPTION_XML);
+            break;
+
+        case 'o':
+            if (++i == argc)
+                return usage();
+
+            for (j = 0; js_options[j].name; ++j) {
+                if (strcmp(js_options[j].name, argv[i]) == 0) {
+                    JS_ToggleOptions(cx, js_options[j].flag);
+                    break;
+                }
+            }
             break;
 
         case 'P':
@@ -500,17 +529,6 @@ Version(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
         *rval = INT_TO_JSVAL(JS_GetVersion(cx));
     return JS_TRUE;
 }
-
-static struct {
-    const char  *name;
-    uint32      flag;
-} js_options[] = {
-    {"strict",          JSOPTION_STRICT},
-    {"werror",          JSOPTION_WERROR},
-    {"atline",          JSOPTION_ATLINE},
-    {"xml",             JSOPTION_XML},
-    {0,                 0}
-};
 
 static JSBool
 Options(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
@@ -647,7 +665,7 @@ ReadLine(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 
     /* Treat the empty string specially. */
     if (buflength == 0) {
-        *rval = JS_GetEmptyStringValue(cx);
+        *rval = feof(from) ? JSVAL_NULL : JS_GetEmptyStringValue(cx);
         JS_free(cx, buf);
         return JS_TRUE;
     }
@@ -717,25 +735,8 @@ GC(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 
     rt = cx->runtime;
     preBytes = rt->gcBytes;
-#ifdef GC_MARK_DEBUG
-    if (argc && JSVAL_IS_STRING(argv[0])) {
-        char *name = JS_GetStringBytes(JSVAL_TO_STRING(argv[0]));
-        FILE *file = fopen(name, "w");
-        if (!file) {
-            fprintf(gErrFile, "gc: can't open %s: %s\n", strerror(errno));
-            return JS_FALSE;
-        }
-        js_DumpGCHeap = file;
-    } else {
-        js_DumpGCHeap = stdout;
-    }
-#endif
     JS_GC(cx);
-#ifdef GC_MARK_DEBUG
-    if (js_DumpGCHeap != stdout)
-        fclose(js_DumpGCHeap);
-    js_DumpGCHeap = NULL;
-#endif
+
     fprintf(gOutFile, "before %lu, after %lu, break %08lx\n",
             (unsigned long)preBytes, (unsigned long)rt->gcBytes,
 #ifdef XP_UNIX
@@ -937,12 +938,6 @@ GetSwitchTableBounds(JSScript *script, uintN offset,
 }
 
 
-/*
- * SrcNotes assumes that SRC_METHODBASE should be distinguished from SRC_LABEL
- * using the bytecode the source note points to.
- */
-JS_STATIC_ASSERT(SRC_LABEL == SRC_METHODBASE);
-
 static void
 SrcNotes(JSContext *cx, JSScript *script)
 {
@@ -950,7 +945,6 @@ SrcNotes(JSContext *cx, JSScript *script)
     jssrcnote *notes, *sn;
     JSSrcNoteType type;
     const char *name;
-    JSOp op;
     jsatomid atomIndex;
     JSAtom *atom;
 
@@ -964,18 +958,11 @@ SrcNotes(JSContext *cx, JSScript *script)
         type = (JSSrcNoteType) SN_TYPE(sn);
         name = js_SrcNoteSpec[type].name;
         if (type == SRC_LABEL) {
-            /* Heavily overloaded case. */
+            /* Check if the source note is for a switch case. */
             if (switchTableStart <= offset && offset < switchTableEnd) {
                 name = "case";
             } else {
-                op = script->code[offset];
-                if (op == JSOP_GETMETHOD || op == JSOP_SETMETHOD) {
-                    /* This is SRC_METHODBASE which we print as SRC_PCBASE. */
-                    type = SRC_PCBASE;
-                    name = "methodbase";
-                } else {
-                    JS_ASSERT(op == JSOP_NOP);
-                }
+                JS_ASSERT(script->code[offset] == JSOP_NOP);
             }
         }
         fprintf(gOutFile, "%3u: %5u [%4u] %-8s",
@@ -1360,6 +1347,79 @@ DumpStats(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
         }
     }
     return JS_TRUE;
+}
+
+static JSBool
+DumpHeap(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    jsval v = JSVAL_NULL;
+    char *fileName = NULL;
+    size_t maxRecursionLevel = (size_t)-1;
+    void *thingToIgnore = NULL;
+    FILE *dumpFile;
+    JSBool ok;
+    JSTracer *trc;
+
+    if (argc != 0 && argv[0] != JSVAL_NULL && argv[0] != JSVAL_VOID) {
+        v = argv[0];
+        if (!JSVAL_IS_TRACEABLE(v)) {
+            fprintf(gErrFile,
+                    "dumpHeap: the first argument is not null or "
+                    "a heap-allocated thing\n");
+            return JS_FALSE;
+        }
+    }
+
+    if (argc > 1 && argv[1] != JSVAL_NULL && argv[1] != JSVAL_VOID) {
+        JSString *str;
+
+        str = JS_ValueToString(cx, argv[1]);
+        if (!str)
+            return JS_FALSE;
+        argv[1] = STRING_TO_JSVAL(str);
+        fileName = JS_GetStringBytes(str);
+    }
+
+    if (argc > 2 && argv[2] != JSVAL_NULL && argv[2] != JSVAL_VOID) {
+        uint32 depth;
+
+        if (!JS_ValueToECMAUint32(cx, argv[2], &depth))
+            return JS_FALSE;
+        maxRecursionLevel = depth;
+    }
+
+    if (argc > 3 && argv[3] != JSVAL_NULL && argv[3] != JSVAL_VOID) {
+        if (JSVAL_IS_GCTHING(argv[3]))
+            thingToIgnore = JSVAL_TO_GCTHING(argv[3]);
+    }
+
+    if (!fileName) {
+        dumpFile = stdout;
+    } else {
+        dumpFile = fopen(fileName, "w");
+        if (!dumpFile) {
+            fprintf(gErrFile, "gc: can't open %s: %s\n", strerror(errno));
+            return JS_FALSE;
+        }
+    }
+
+    trc = js_NewGCHeapDumper(cx, NULL, dumpFile, maxRecursionLevel,
+                             thingToIgnore);
+    if (!trc) {
+        ok = JS_FALSE;
+    } else {
+        if (v == JSVAL_NULL) {
+            js_TraceRuntime(trc);
+        } else {
+            JS_TraceChildren(trc, JSVAL_TO_TRACEABLE(v), JSVAL_TRACE_KIND(v));
+        }
+        ok = js_FreeGCHeapDumper(trc);
+    }
+
+    if (dumpFile != stdout)
+        fclose(dumpFile);
+
+    return ok;
 }
 
 #endif /* DEBUG */
@@ -2142,6 +2202,7 @@ static JSFunctionSpec shell_functions[] = {
 #ifdef DEBUG
     {"dis",             Disassemble,    1,0,0},
     {"dissrc",          DisassWithSrc,  1,0,0},
+    {"dumpHeap",        DumpHeap,       3,0,0},
     {"notes",           Notes,          1,0,0},
     {"tracing",         Tracing,        0,0,0},
     {"stats",           DumpStats,      1,0,0},
