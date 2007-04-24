@@ -1398,7 +1398,8 @@ DumpHeap(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
     } else {
         dumpFile = fopen(fileName, "w");
         if (!dumpFile) {
-            fprintf(gErrFile, "gc: can't open %s: %s\n", strerror(errno));
+            fprintf(gErrFile, "dumpHeap: can't open %s: %s\n",
+                    fileName, strerror(errno));
             return JS_FALSE;
         }
     }
@@ -2246,6 +2247,7 @@ static char *shell_help_messages[] = {
 #ifdef DEBUG
     "dis([fun])             Disassemble functions into bytecodes",
     "dissrc([fun])          Disassemble functions with source lines",
+    "dumpHeap([obj])        Display reachable objects",
     "notes([fun])           Show source notes for functions",
     "tracing([toggle])      Turn tracing on or off",
     "stats([string ...])    Dump 'arena', 'atom', 'global' stats",
