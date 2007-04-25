@@ -50,7 +50,7 @@ static int curl_fwrite(void *buffer, size_t size, size_t nmemb, void *stream)
     return (int) fwrite(buffer, size, nmemb, out->stream);
 }
 
-static int c_progress_fun(void *clientp, double dltotal, double dlnow, double ultotal,double ulnow)
+static int c_progress_fun(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow)
 {
     JSContext *cx = (JSContext *) clientp;
     int32 result = 0;
