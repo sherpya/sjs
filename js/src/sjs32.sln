@@ -5,7 +5,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "jsshell", "jsshell.vcproj",
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fdlibm", "fdlibm\fdlibm.vcproj", "{483686BF-3DB0-4298-B8FE-48206DE60546}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "js", "js.vcproj", "{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sjs32", "sjs32.vcproj", "{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -125,7 +125,7 @@ Section "JavaScript Shell" Main
     SetOutPath "$SYSDIR"
     File "Release\sjs.exe"
 
-    !insertmacro InstallLib DLL SHARED NOREBOOT_PROTECTED "..\js\src\Release\js32.dll" $SYSDIR\js32.dll $SYSDIR
+    !insertmacro InstallLib DLL SHARED NOREBOOT_PROTECTED "..\js\src\Release\sjs32.dll" $SYSDIR\sjs32.dll $SYSDIR
 
     ; Help File
     SetOutPath "$INSTDIR\"
@@ -247,7 +247,7 @@ Section Uninstall
 
     ; Clean up Sherpya JavaScript Shell
     Delete "$SYSDIR\sjs.exe"
-    !insertmacro UnInstallLib DLL SHARED NOREBOOT_PROTECTED $SYSDIR\js32.dll
+    !insertmacro UnInstallLib DLL SHARED NOREBOOT_PROTECTED $SYSDIR\sjs32.dll
 
     Delete "$INSTDIR\sjs.chm"
 

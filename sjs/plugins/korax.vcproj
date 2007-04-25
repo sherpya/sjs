@@ -6,7 +6,6 @@
 	ProjectGUID="{FC4C2F9E-42DC-4CE0-AD10-D4DA7E476EAF}"
 	RootNamespace="korax"
 	Keyword="Win32Proj"
-	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -63,7 +62,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="../../js/src/Debug/js32.lib"
+				AdditionalDependencies="../../js/src/Debug/sjs32.lib"
 				LinkIncremental="2"
 				GenerateManifest="false"
 				ModuleDefinitionFile="plugins.def"
@@ -141,7 +140,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="../../js/src/Release/js32.lib"
+				AdditionalDependencies="../../js/src/Release/sjs32.lib"
 				LinkIncremental="1"
 				GenerateManifest="false"
 				ModuleDefinitionFile="plugins.def"

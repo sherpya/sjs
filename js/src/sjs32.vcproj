@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8,00"
-	Name="js"
+	Name="sjs32"
 	ProjectGUID="{9FE3892A-59CE-4AD5-9591-31DECB6EDEF3}"
 	RootNamespace="js"
 	>
@@ -19,7 +19,6 @@
 			OutputDirectory=".\Release"
 			IntermediateDirectory=".\Release"
 			ConfigurationType="2"
-			InheritedPropertySheets="..\..\..\..\Microsoft Visual Studio 8\VC\VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			>
@@ -48,13 +47,13 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				PreprocessorDefinitions="NDEBUG;_X86_=1;_WINDOWS;WIN32;XP_WIN;JSFILE;EXPORT_JS_API"
+				PreprocessorDefinitions="NDEBUG;_X86_=1;_WINDOWS;WIN32;XP_WIN;JSFILE;EXPORT_JS_API;$(NOINHERIT)"
 				StringPooling="true"
 				ExceptionHandling="0"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
-				PrecompiledHeaderFile=".\Release/js.pch"
+				PrecompiledHeaderFile=""
 				AssemblerListingLocation=".\Release/"
 				ObjectFile=".\Release/"
 				ProgramDataBaseFileName=".\Release/"
@@ -76,15 +75,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="Release/fdlibm.lib"
-				OutputFile=".\Release\js32.dll"
+				OutputFile=".\Release\sjs32.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				GenerateManifest="false"
-				ProgramDatabaseFile=".\Release/js32.pdb"
+				ProgramDatabaseFile=".\Release/sjs32.pdb"
 				SubSystem="2"
 				EnableCOMDATFolding="1"
-				ImportLibrary=".\Release/js32.lib"
+				ImportLibrary=".\Release/sjs32.lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -119,7 +117,6 @@
 			OutputDirectory=".\Debug"
 			IntermediateDirectory=".\Debug"
 			ConfigurationType="2"
-			InheritedPropertySheets="..\..\..\..\Microsoft Visual Studio 8\VC\VCProjectDefaults\UpgradeFromVC60.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			>
@@ -147,12 +144,12 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				PreprocessorDefinitions="_DEBUG;DEBUG;_X86_=1;_WINDOWS;WIN32;XP_WIN;JSFILE;EXPORT_JS_API"
+				PreprocessorDefinitions="_DEBUG;DEBUG;_X86_=1;_WINDOWS;WIN32;XP_WIN;JSFILE;EXPORT_JS_API;$(NOINHERIT)"
 				MinimalRebuild="true"
 				ExceptionHandling="0"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
-				PrecompiledHeaderFile=".\Debug/js.pch"
+				PrecompiledHeaderFile=""
 				AssemblerListingLocation=".\Debug/"
 				ObjectFile=".\Debug/"
 				ProgramDataBaseFileName=".\Debug/"
@@ -175,16 +172,15 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="Debug/fdlibm.lib"
-				OutputFile=".\Debug\js32.dll"
+				OutputFile=".\Debug\sjs32.dll"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateManifest="false"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile=".\Debug/js32.pdb"
+				ProgramDatabaseFile=".\Debug/sjs32.pdb"
 				SubSystem="2"
 				EnableCOMDATFolding="1"
-				ImportLibrary=".\Debug/js32.lib"
+				ImportLibrary=".\Debug/sjs32.lib"
 				TargetMachine="1"
 			/>
 			<Tool

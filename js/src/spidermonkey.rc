@@ -1,46 +1,31 @@
-//Microsoft Developer Studio generated resource script.
-//
-#include "resource.h"
+#include <windows.h>
 
-#define APSTUDIO_READONLY_SYMBOLS
-/////////////////////////////////////////////////////////////////////////////
-//
-// Generated from the TEXTINCLUDE 2 resource.
-//
-#include "winver.h"
-
-/////////////////////////////////////////////////////////////////////////////
-#undef APSTUDIO_READONLY_SYMBOLS
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Version
-//
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,7,0,0
- PRODUCTVERSION 1,7,0,0
- FILEFLAGSMASK 0x3fL
+    FILEVERSION 1,7,0,0
+    PRODUCTVERSION 1,7,0,0
+    FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
- FILEFLAGS 0x1L
+    FILEFLAGS 0x1L
 #else
- FILEFLAGS 0x0L
+    FILEFLAGS 0x0L
 #endif
- FILEOS 0x10004L
- FILETYPE 0x2L
- FILESUBTYPE 0x0L
+    FILEOS 0x10004L
+    FILETYPE 0x2L
+    FILESUBTYPE 0x0L
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "The Mozilla Foundation\0"
-            VALUE "FileDescription", "SpiderMonkey Mozilla JavaScript Engine\0"
+            VALUE "FileDescription", "SJS SpiderMonkey JS Engine\0"
             VALUE "FileVersion", "1.7\0"
-            VALUE "InternalName", "js32\0"
+            VALUE "InternalName", "sjs32\0"
             VALUE "LegalCopyright", "Copyright (c) Mozilla Foundation\0"
             VALUE "LegalTrademarks", "Netscape, Mozilla\0"
-            VALUE "OriginalFilename", "js32.dll\0"
+            VALUE "OriginalFilename", "sjs32.dll\0"
             VALUE "ProductName", "SpiderMonkey\0"
             VALUE "ProductVersion", "1.7\0"
         END
@@ -50,30 +35,3 @@ BEGIN
         VALUE "Translation", 0x409, 1252
     END
 END
-
-#ifdef APSTUDIO_INVOKED
-/////////////////////////////////////////////////////////////////////////////
-//
-// TEXTINCLUDE
-//
-
-1 TEXTINCLUDE DISCARDABLE 
-BEGIN
-    "resource.h\0"
-END
-
-2 TEXTINCLUDE DISCARDABLE 
-BEGIN
-    "#include ""winver.h""\r\n"
-    "\0"
-END
-
-3 TEXTINCLUDE DISCARDABLE 
-BEGIN
-    "\r\n"
-    "\0"
-END
-
-#endif    // APSTUDIO_INVOKED
-
-/////////////////////////////////////////////////////////////////////////////

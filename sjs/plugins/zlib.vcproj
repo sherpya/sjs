@@ -6,7 +6,6 @@
 	ProjectGUID="{26B67574-9F14-4AA5-97C1-43B4949126D6}"
 	RootNamespace="zlib"
 	Keyword="Win32Proj"
-	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -63,7 +62,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="../../js/src/Debug/js32.lib ../../zlib/lib/zdll.lib"
+				AdditionalDependencies="../../js/src/Debug/sjs32.lib ../../zlib/lib/zdll.lib"
 				LinkIncremental="2"
 				GenerateManifest="false"
 				ModuleDefinitionFile="plugins.def"
@@ -141,7 +140,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="../../js/src/Release/js32.lib ../../zlib/lib/zdll.lib"
+				AdditionalDependencies="../../js/src/Release/sjs32.lib ../../zlib/lib/zdll.lib"
 				LinkIncremental="1"
 				GenerateManifest="false"
 				ModuleDefinitionFile="plugins.def"
