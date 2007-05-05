@@ -178,6 +178,10 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\file_classes.h"
+				>
+			</File>
+			<File
 				RelativePath=".\resource.h"
 				>
 			</File>
@@ -211,6 +215,10 @@
 			>
 			<File
 				RelativePath=".\file.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\file_classes.cpp"
 				>
 			</File>
 			<File

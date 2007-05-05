@@ -53,6 +53,7 @@
 #define mkdir(a,b)  mkdir(a)
 #define strcasecmp  stricmp
 #define strncasecmp strnicmp
+#define lstat stat /* @fixme 64bit support */
 #define SEP         WINSEP
 #define PLUGIN_EXT  ".dll"
 #else
