@@ -54,7 +54,7 @@ XPStyle on
 ShowInstDetails show
 
 ; ============================================================================
-; Functions and macros - from ethereal installation script
+; Functions and macros - from wireshark installation script
 ; ============================================================================
 !macro UpdateIcons
     Push $R0
