@@ -76,15 +76,7 @@ size_t File::Write(JSContext *cx, char *buffer, size_t size)
 {
     size_t byteswrite = 0;
     if (size < 1) return -1;
-    /* I personally don't like exceptions, but there is no portable way to do bound check */
-    try
-    {
-        byteswrite = fwrite(buffer, 1, size, fd);
-    }
-    catch (std::exception e) /* @todo error handling */
-    {
-        return -1;
-    }
+    byteswrite = fwrite(buffer, 1, size, fd);
     return ferror(fd) ? -1 : byteswrite;
 }
 
