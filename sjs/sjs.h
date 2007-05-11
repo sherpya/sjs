@@ -29,6 +29,8 @@
 #include <sys/stat.h>
 #include <vector>
 
+#include <file_classes.h>
+
 /* Endian stuff, note SWAB16 from jsxdrapi.h is broken */
 #if defined IS_LITTLE_ENDIAN
 #define SWAB32(x) x

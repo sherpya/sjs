@@ -2,7 +2,7 @@
  * @mainpage
  * @section Introduction
  * Sherpya JavaScript Shell
- * 
+ *
  * <br>
  * @section Usage Command Line Usage
  *  <pre>Usage: sjs [-w] filename.sjs [scriptargs]
@@ -21,6 +21,18 @@
  *   <li>@ref unlink</li>
  *   <li>@ref getword</li>
  *   <li>@ref getdword</li>
+ *  </ul>
+ *
+ * @subsection file File Object
+ *  <ul>
+ *   <li>File Class @ref file</li>
+ *    <ul>
+ *     <li>@ref read</li>
+ *     <li>@ref write</li>
+ *     <li>@ref flush</li>
+ *     <li>@ref close</li>
+ *    </ul>
+ *   </li>
  *  </ul>
  *
  * @subsection builtins Builtins
@@ -52,7 +64,7 @@
  *   <li>@ref setproxy</li>
  *   <li>@ref curlverbose</li>
  *  </ul>
- * 
+ *
  * @subsection korax Korax Plugin
  *  <ul>
  *   <li>Parser Class @ref parser</li>

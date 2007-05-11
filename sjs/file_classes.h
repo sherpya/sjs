@@ -28,16 +28,46 @@ class File
 public:
     File(char *filename, char *mode);
     ~File(void);
-    size_t Read(unsigned char *buffer, size_t size);
-    size_t Write(const unsigned char *buffer, size_t size);
-    JSBool Seek(size_t off, int whence);
-    size_t Tell(void);
+    JSString *Read(JSContext *cx, size_t size);
+    size_t Write(JSContext *cx, char *buffer, size_t size);
+    JSBool Seek(JSContext *cx, size_t off, int whence);
+    size_t Tell(JSContext *cx);
+    JSBool File::Flush(JSContext *cx);
+    JSBool File::Close(JSContext *cx);
+    JSBool isValid(JSContext *cx) { return (this->fd != NULL); }
 private:
     char *filename;
     char *mode;
-    unsigned char *buffer;
     FILE *fd;
 };
 
+class JSFile
+{
+public:
+    JSFile() : m_pFile(NULL) {}
+    ~JSFile()
+    {
+        delete m_pFile;
+        m_pFile = NULL;
+    }
+    static JSClass fileClass;
+    static JSFunctionSpec file_methods[];
+
+    static JSObject *JSInit(JSContext *cx, JSObject *obj, JSObject *proto);
+    static JSBool JSConstructor(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static void JSDestructor(JSContext *cx, JSObject *obj);
+
+    /* JS Members */
+    static JSBool JsFileRead(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JsFileWrite(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JsFileFlush(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JsFileClose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+
+protected:
+    void setFile(File *file) { m_pFile = file; }
+    File* getFile() { return m_pFile; }
+private:
+    File *m_pFile;
+};
 
 #endif // _FILE_CLASSES_H_

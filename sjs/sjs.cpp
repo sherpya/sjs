@@ -416,6 +416,7 @@ int main(int argc, char *argv[])
     JSRuntime *rt;
     JSContext *cx;
     JSObject *global;
+    JSObject *file;
     JSScript *script;
     jsval result;
 
@@ -489,6 +490,7 @@ int main(int argc, char *argv[])
     JS_SetErrorReporter(cx, ErrorReporter);
 
     JS_DefineFunctions(cx, global, sjs_functions);
+    file = JSFile::JSInit(cx, JS_GetGlobalObject(cx), NULL); /* File Class */
 
     JS_SetVersion(cx, JSVERSION_DEFAULT);
 
