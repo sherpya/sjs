@@ -12,9 +12,6 @@
 ; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ; for more details.
 
-; Uncomment this to add ssl support to curl
-;!define SSL
-
 SetCompressor /solid lzma
 
 ; Modern interface settings
@@ -141,17 +138,10 @@ SectionEnd
 SectionGroup "Plugins" SecPluginsPlugins
 
 Section "Curl Plugin" SecPluginsCurl
-
     SetOutPath "$INSTDIR\plugins\"
     File "plugins\Release\curl.dll"
-!ifdef SSL
     File "..\curl\libcurl.dll"
-    File "..\ssl\ssleay32.dll"
-    File "..\ssl\libeay32.dll"
     File "..\zlib\zlib1.dll"
-!else
-    File "..\curl-nossl\libcurl.dll"
-!endif
 SectionEnd
 
 Section "Korax Plugin" SecPluginsKorax
