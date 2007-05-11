@@ -32,8 +32,8 @@ public:
     size_t Write(JSContext *cx, char *buffer, size_t size);
     JSBool Seek(JSContext *cx, size_t off, int whence);
     size_t Tell(JSContext *cx);
-    JSBool File::Flush(JSContext *cx);
-    JSBool File::Close(JSContext *cx);
+    JSBool Flush(JSContext *cx);
+    JSBool Close(JSContext *cx);
     JSBool isValid(JSContext *cx) { return (this->fd != NULL); }
 private:
     char *filename;
