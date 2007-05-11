@@ -103,7 +103,7 @@ static JSBool GetDataAt(const char *filename, off_t offset, void *dest, int len)
     {
         perror("Error opening file");
         goto end_fun;
-    } 
+    }
 
     if (fseek(fd, offset, SEEK_SET))
     {

@@ -118,9 +118,9 @@ JSBool initPlugin(const char *plugin, JSContext *cx)
     {
         JS_ReportError(cx, "initPlugin PluginInit failed for %s", plug.name);
         dlclose(plug.handle);
-        return JS_FALSE; 
+        return JS_FALSE;
     }
-    
+
     plug.build = plug.PluginBuild();
     setVersion(cx, plug.name, plug.PluginVersion());
     plugins.push_back(plug);

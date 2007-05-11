@@ -21,7 +21,7 @@
  * @page builtins
  * @since version 1.0
  */
- 
+
 #include <sjs.h>
 
 /* Globals */
@@ -328,7 +328,7 @@ static JSBool Pause(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval
  */
 static JSBool Verbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-    JS_ValueToBoolean(cx, argv[0], &rtd.verbose);     
+    JS_ValueToBoolean(cx, argv[0], &rtd.verbose);
     return JS_TRUE;
 }
 
@@ -388,7 +388,7 @@ static void initScriptArgs(JSContext *cx, int argc, char *argv[])
     scriptArgs = JS_NewArrayObject(cx, argc, NULL);
     for (int i = 0; i < argc; i++)
     {
-        str = JS_NewStringCopyZ(cx, argv[i]); 
+        str = JS_NewStringCopyZ(cx, argv[i]);
         val = STRING_TO_JSVAL(str);
         JS_SetElement(cx, scriptArgs, i, &val);
     }
