@@ -24,15 +24,12 @@
  *  </ul>
  *
  * @subsection file File Object
+ *  File Class @ref fileClass
  *  <ul>
- *   <li>File Class @ref file</li>
- *    <ul>
- *     <li>@ref read</li>
- *     <li>@ref write</li>
- *     <li>@ref flush</li>
- *     <li>@ref close</li>
- *    </ul>
- *   </li>
+ *   <li>@ref read</li>
+ *   <li>@ref write</li>
+ *   <li>@ref flush</li>
+ *   <li>@ref close</li>
  *  </ul>
  *
  * @subsection builtins Builtins

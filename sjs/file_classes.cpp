@@ -112,10 +112,11 @@ JSBool File::Close(JSContext *cx)
 
 /**
  * @page file
- * @section file fileClass
+ * @section fileClass fileClass
  *  Class file(string filename, string mode)
  *
  * File class to handle read/write ops on files
+ * @include fileop.sjs
  */
 
 JSFunctionSpec JSFile::file_methods[] =
