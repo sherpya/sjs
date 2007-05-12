@@ -22,7 +22,7 @@ BEGIN
             VALUE "FileDescription", "Sherpya JavaScript Shell"
             VALUE "FileVersion", "1, 0, 0, 0"
             VALUE "InternalName", "sjs"
-            VALUE "LegalCopyright", "Copyright © 2005 Gianluigi Tiesi"
+            VALUE "LegalCopyright", "Copyright © 2005-2007 Gianluigi Tiesi"
             VALUE "OriginalFilename", "sjs.exe"
             VALUE "ProductName", "Sherpya JavaScript Shell"
             VALUE "ProductVersion", "1, 0, 0, 0"
