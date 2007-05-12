@@ -111,7 +111,7 @@ VIProductVersion "1.0.0.0"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductName" "${APPNAME}"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "Comments" "${APPNAME}"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "CompanyName" "Netfarm"
-VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "© 2005 Gianluigi Tiesi"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "© 2005-2007 Gianluigi Tiesi"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "FileDescription" "${APPNAME}"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "FileVersion" "1.0"
 
