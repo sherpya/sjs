@@ -214,12 +214,12 @@ JSBool JSFile::JsFileWrite(JSContext *cx, JSObject *obj, uintN argc, jsval *argv
  */
 JSBool JSFile::JsFileSeek(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-    uint32 position, whence;
+    uint32 position = 0, whence = 0;
     if (argc != 2) R_FALSE;
     GET_FILE_OBJECT;
     FALSE_IF_INVALID;
-    if (!(JS_ValueToECMAUint32(cx, argv[0], &position)) && JS_ValueToECMAUint32(cx, argv[0], &whence))
-        R_FALSE;
+    if (!JS_ValueToECMAUint32(cx, argv[0], &position)) R_FALSE;
+    if (!JS_ValueToECMAUint32(cx, argv[1], &whence)) R_FALSE;
     R_FUNC(p->getFile()->Seek(cx, position, whence));
 }
 
