@@ -28,6 +28,8 @@
  *  <ul>
  *   <li>@ref read</li>
  *   <li>@ref write</li>
+ *   <li>@ref seek</li>
+ *   <li>@ref tell</li>
  *   <li>@ref flush</li>
  *   <li>@ref close</li>
  *  </ul>
