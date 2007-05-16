@@ -4,3 +4,4 @@ f.close();
 
 f = new file("hello_from_js.txt", "r");
 print(f.read());
+f.close()
