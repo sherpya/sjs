@@ -60,6 +60,8 @@ public:
     /* JS Members */
     static JSBool JsFileRead(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JsFileWrite(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JsFileSeek(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
+    static JSBool JsFileTell(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JsFileFlush(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
     static JSBool JsFileClose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval);
 

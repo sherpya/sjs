@@ -115,6 +115,8 @@ JSFunctionSpec JSFile::file_methods[] =
 {
     { "read",   JsFileRead,     0, 0, 0 },
     { "write",  JsFileWrite,    1, 0, 0 },
+    { "seek",   JsFileSeek,     2, 0, 0 },
+    { "tell",   JsFileTell,     0, 0, 0 },
     { "flush",  JsFileFlush,    0, 0, 0 },
     { "close",  JsFileClose,    0, 0, 0 },
     { 0,        0,              0, 0, 0 },
@@ -193,6 +195,40 @@ JSBool JSFile::JsFileWrite(JSContext *cx, JSObject *obj, uintN argc, jsval *argv
     JSString *data = JS_ValueToString(cx, argv[0]);
     size_t byteswrite = p->getFile()->Write(cx, JS_GetStringBytes(data), JS_GetStringLength(data));
     *rval = INT_TO_JSVAL(byteswrite);
+    return JS_TRUE;
+}
+
+/**
+ * @page file
+ * @subsection seek
+ *  bool seek(int position, whence)
+ *
+ * Seek on the current file descriptor
+ */
+JSBool JSFile::JsFileSeek(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    uint32 position, whence;
+    if (argc != 2) R_FALSE;
+    GET_FILE_OBJECT;
+    FALSE_IF_INVALID;
+    if (!(JS_ValueToECMAUint32(cx, argv[0], &position)) && JS_ValueToECMAUint32(cx, argv[0], &whence))
+        R_FALSE;
+    R_FUNC(p->getFile()->Seek(cx, position, whence));
+}
+
+/**
+ * @page file
+ * @subsection tell
+ *  int tell()
+ *
+ * Returns the fd position
+ */
+JSBool JSFile::JsFileTell(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+    GET_FILE_OBJECT;
+    FALSE_IF_INVALID;
+    size_t position = p->getFile()->Tell(cx);
+    *rval = INT_TO_JSVAL(position);
     return JS_TRUE;
 }
 
