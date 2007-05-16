@@ -490,7 +490,8 @@ int main(int argc, char *argv[])
     JS_SetErrorReporter(cx, ErrorReporter);
 
     JS_DefineFunctions(cx, global, sjs_functions);
-    file = JSFile::JSInit(cx, JS_GetGlobalObject(cx), NULL); /* File Class */
+    /* File Class */
+    file = JSFile::JSInit(cx, JS_GetGlobalObject(cx), NULL);
 
     JS_SetVersion(cx, JSVERSION_DEFAULT);
 
