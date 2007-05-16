@@ -137,6 +137,12 @@ JSObject *JSFile::JSInit(JSContext *cx, JSObject *obj, JSObject *proto)
                                     JSFile::JSConstructor, 0,
                                     NULL, JSFile::file_methods,
                                     NULL, NULL);
+
+    /* Add SEEK_SET, SEEK_CUR, or SEEK_END to namespace */
+    jsval val;
+    val = INT_TO_JSVAL(SEEK_SET); JS_SetProperty(cx, obj, "SEEK_SET", &val);
+    val = INT_TO_JSVAL(SEEK_CUR); JS_SetProperty(cx, obj, "SEEK_CUR", &val);
+    val = INT_TO_JSVAL(SEEK_END); JS_SetProperty(cx, obj, "SEEK_END", &val);
     return newObj;
 }
 
@@ -204,6 +210,7 @@ JSBool JSFile::JsFileWrite(JSContext *cx, JSObject *obj, uintN argc, jsval *argv
  *  bool seek(int position, whence)
  *
  * Seek on the current file descriptor
+ * whence: SEEK_SET, SEEK_CUR, or SEEK_END
  */
 JSBool JSFile::JsFileSeek(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
