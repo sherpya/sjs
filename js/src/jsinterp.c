@@ -2143,7 +2143,6 @@ js_Interpret(JSContext *cx, jsbytecode *pc, jsval *result)
     JSAtom **atoms;
     JSObject *obj, *obj2, *parent;
     JSVersion currentVersion, originalVersion;
-    JSBranchCallback onbranch;
     JSBool ok, cond;
     JSTrapHandler interruptHandler;
     jsint depth, len;
@@ -2258,17 +2257,13 @@ js_Interpret(JSContext *cx, jsbytecode *pc, jsval *result)
 
     /*
      * Prepare to call a user-supplied branch handler, and abort the script
-     * if it returns false.  We reload onbranch after calling out to native
-     * functions (but not to getters, setters, or other native hooks).
+     * if it returns false.
      */
-#define LOAD_BRANCH_CALLBACK(cx)    (onbranch = (cx)->branchCallback)
-
-    LOAD_BRANCH_CALLBACK(cx);
 #define CHECK_BRANCH(len)                                                     \
     JS_BEGIN_MACRO                                                            \
-        if (len <= 0 && onbranch) {                                           \
+        if (len <= 0 && cx->branchCallback) {                                 \
             SAVE_SP_AND_PC(fp);                                               \
-            if (!(ok = (*onbranch)(cx, script)))                              \
+            if (!(ok = cx->branchCallback(cx, script)))                       \
                 goto out;                                                     \
         }                                                                     \
     JS_END_MACRO
@@ -2455,9 +2450,29 @@ interrupt:
             sp--;
           END_CASE(JSOP_POP)
 
-          BEGIN_CASE(JSOP_POP2)
-            sp -= 2;
-          END_CASE(JSOP_POP2)
+          BEGIN_CASE(JSOP_POPN)
+            sp -= GET_UINT16(pc);
+#ifdef DEBUG
+            JS_ASSERT(fp->spbase <= sp);
+            obj = fp->blockChain;
+            JS_ASSERT(!obj ||
+                      fp->spbase + OBJ_BLOCK_DEPTH(cx, obj)
+                                 + OBJ_BLOCK_COUNT(cx, obj)
+                      <= sp);
+            for (obj = fp->scopeChain; obj; obj = OBJ_GET_PARENT(cx, obj)) {
+                clasp = OBJ_GET_CLASS(cx, obj);
+                if (clasp != &js_BlockClass && clasp != &js_WithClass)
+                    continue;
+                if (JS_GetPrivate(cx, obj) != fp)
+                    break;
+                JS_ASSERT(fp->spbase + OBJ_BLOCK_DEPTH(cx, obj)
+                                     + ((clasp == &js_BlockClass)
+                                         ? OBJ_BLOCK_COUNT(cx, obj)
+                                         : 1)
+                          <= sp);
+            }
+#endif
+          END_CASE(JSOP_POPN)
 
           BEGIN_CASE(JSOP_SWAP)
             vp = sp - depth;    /* swap generating pc's for the decompiler */
@@ -3434,7 +3449,6 @@ interrupt:
             if (!ok)
                 goto out;
             RESTORE_SP(fp);
-            LOAD_BRANCH_CALLBACK(cx);
             LOAD_INTERRUPT_HANDLER(rt);
             obj = JSVAL_TO_OBJECT(*vp);
             len = js_CodeSpec[op].length;
@@ -4010,7 +4024,6 @@ interrupt:
 
             ok = js_Invoke(cx, argc, 0);
             RESTORE_SP(fp);
-            LOAD_BRANCH_CALLBACK(cx);
             LOAD_INTERRUPT_HANDLER(rt);
             if (!ok)
                 goto out;
@@ -4047,7 +4060,6 @@ interrupt:
             SAVE_SP_AND_PC(fp);
             ok = js_Invoke(cx, argc, 0);
             RESTORE_SP(fp);
-            LOAD_BRANCH_CALLBACK(cx);
             LOAD_INTERRUPT_HANDLER(rt);
             if (!ok)
                 goto out;
@@ -5285,10 +5297,8 @@ interrupt:
 
             for (obj = fp->blockChain; obj; obj = OBJ_GET_PARENT(cx, obj)) {
                 JS_ASSERT(OBJ_GET_CLASS(cx, obj) == &js_BlockClass);
-                if (OBJ_BLOCK_DEPTH(cx, obj) + (jsint)OBJ_BLOCK_COUNT(cx, obj) <= i) {
-                    JS_ASSERT(OBJ_BLOCK_DEPTH(cx, obj) < i || OBJ_BLOCK_COUNT(cx, obj) == 0);
+                if (OBJ_BLOCK_DEPTH(cx, obj) < i)
                     break;
-                }
             }
             fp->blockChain = obj;
 

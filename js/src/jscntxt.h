@@ -196,7 +196,12 @@ struct JSRuntime {
      */
     JSPackedBool        gcPoke;
     JSPackedBool        gcRunning;
+#ifdef JS_GC_ZEAL
+    uint8               gcZeal;
+    uint8               gcPadding;
+#else
     uint16              gcPadding;
+#endif
 
     JSGCCallback        gcCallback;
     JSGCThingCallback   gcThingCallback;
@@ -221,6 +226,13 @@ struct JSRuntime {
 #ifdef JS_GCMETER
     JSGCStats           gcStats;
 #endif
+
+    /*
+     * The trace operation and its data argument to trace embedding-specific
+     * GC roots.
+     */
+    JSTraceDataOp       gcExtraRootsTraceOp;
+    void                *gcExtraRootsData;
 
     /* Literal table maintained by jsatom.c functions. */
     JSAtomState         atomState;

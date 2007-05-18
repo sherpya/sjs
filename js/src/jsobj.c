@@ -719,6 +719,7 @@ js_obj_toSource(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
     uintN attrs;
 #endif
     jsval *val;
+    JSString *gsopold[2];
     JSString *gsop[2];
     JSAtom *atom;
     JSString *idstr, *valstr, *str;
@@ -835,14 +836,37 @@ js_obj_toSource(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
     val = argv + 2;
 
     for (i = 0, length = ida->length; i < length; i++) {
+        JSBool idIsLexicalIdentifier, needOldStyleGetterSetter;
+
         /* Get strings for id and value and GC-root them via argv. */
         id = ida->vector[i];
 
 #if JS_HAS_GETTER_SETTER
-
         ok = OBJ_LOOKUP_PROPERTY(cx, obj, id, &obj2, &prop);
         if (!ok)
             goto error;
+#endif
+
+        /*
+         * Convert id to a jsval and then to a string.  Decide early whether we
+         * prefer get/set or old getter/setter syntax.
+         */
+        atom = JSID_IS_ATOM(id) ? JSID_TO_ATOM(id) : NULL;
+        idstr = js_ValueToString(cx, ID_TO_VALUE(id));
+        if (!idstr) {
+            ok = JS_FALSE;
+            OBJ_DROP_PROPERTY(cx, obj2, prop);
+            goto error;
+        }
+        *rval = STRING_TO_JSVAL(idstr);         /* local root */
+        idIsLexicalIdentifier = js_IsIdentifier(idstr);
+        needOldStyleGetterSetter = 
+            !idIsLexicalIdentifier ||
+            js_CheckKeyword(JSSTRING_CHARS(idstr),
+                            JSSTRING_LENGTH(idstr)) != TOK_EOF;
+
+#if JS_HAS_GETTER_SETTER
+
         valcnt = 0;
         if (prop) {
             ok = OBJ_GET_ATTRIBUTES(cx, obj2, id, prop, &attrs);
@@ -854,29 +878,23 @@ js_obj_toSource(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
                 (attrs & (JSPROP_GETTER | JSPROP_SETTER))) {
                 if (attrs & JSPROP_GETTER) {
                     val[valcnt] = (jsval) ((JSScopeProperty *)prop)->getter;
-#ifdef OLD_GETTER_SETTER
-                    gsop[valcnt] =
+                    gsopold[valcnt] =
                         ATOM_TO_STRING(cx->runtime->atomState.getterAtom);
-#else
                     gsop[valcnt] =
                         ATOM_TO_STRING(cx->runtime->atomState.getAtom);
-#endif
-                    valcnt++;
                 }
                 if (attrs & JSPROP_SETTER) {
                     val[valcnt] = (jsval) ((JSScopeProperty *)prop)->setter;
-#ifdef OLD_GETTER_SETTER
-                    gsop[valcnt] =
+                    gsopold[valcnt] =
                         ATOM_TO_STRING(cx->runtime->atomState.setterAtom);
-#else
                     gsop[valcnt] =
                         ATOM_TO_STRING(cx->runtime->atomState.setAtom);
-#endif
-                    valcnt++;
                 }
+                valcnt++;
             } else {
                 valcnt = 1;
                 gsop[0] = NULL;
+                gsopold[0] = NULL;
                 ok = OBJ_GET_PROPERTY(cx, obj, id, &val[0]);
             }
             OBJ_DROP_PROPERTY(cx, obj2, prop);
@@ -884,8 +902,15 @@ js_obj_toSource(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
 
 #else  /* !JS_HAS_GETTER_SETTER */
 
+        /*
+         * We simplify the source code at the price of minor dead code bloat in
+         * the ECMA version (for testing only, see jsconfig.h).  The null
+         * default values in gsop[j] suffice to disable non-ECMA getter and
+         * setter code.
+         */
         valcnt = 1;
         gsop[0] = NULL;
+        gsopold[0] = NULL;
         ok = OBJ_GET_PROPERTY(cx, obj, id, &val[0]);
 
 #endif /* !JS_HAS_GETTER_SETTER */
@@ -893,22 +918,12 @@ js_obj_toSource(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
         if (!ok)
             goto error;
 
-        /* Convert id to a jsval and then to a string. */
-        atom = JSID_IS_ATOM(id) ? JSID_TO_ATOM(id) : NULL;
-        id = ID_TO_VALUE(id);
-        idstr = js_ValueToString(cx, id);
-        if (!idstr) {
-            ok = JS_FALSE;
-            goto error;
-        }
-        *rval = STRING_TO_JSVAL(idstr);         /* local root */
-
         /*
          * If id is a string that's not an identifier, then it needs to be
          * quoted.  Also, negative integer ids must be quoted.
          */
         if (atom
-            ? !js_IsIdentifier(idstr)
+            ? !idIsLexicalIdentifier
             : (JSID_IS_OBJECT(id) || JSID_TO_INT(id) < 0)) {
             idstr = js_QuoteString(cx, idstr, (jschar)'\'');
             if (!idstr) {
@@ -931,17 +946,27 @@ js_obj_toSource(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
             vchars = JSSTRING_CHARS(valstr);
             vlength = JSSTRING_LENGTH(valstr);
 
+            if (vchars[0] == '#')
+                needOldStyleGetterSetter = JS_TRUE;
+
+            if (needOldStyleGetterSetter)
+                gsop[j] = gsopold[j];
+
 #ifndef OLD_GETTER_SETTER
             /*
              * Remove '(function ' from the beginning of valstr and ')' from the
              * end so that we can put "get" in front of the function definition.
              */
-            if (gsop[j] && VALUE_IS_FUNCTION(cx, val[j])) {
+            if (gsop[j] && VALUE_IS_FUNCTION(cx, val[j]) &&
+                !needOldStyleGetterSetter) {
                 size_t n = strlen(js_function_str) + 2;
                 JS_ASSERT(vlength > n);
                 vchars += n;
                 vlength -= n + 1;
             }
+#else
+            needOldStyleGetterSetter = JS_TRUE;
+            gsop[j] = gsopold[j];
 #endif
 
             /* If val[j] is a non-sharp object, consider sharpening it. */
@@ -958,10 +983,14 @@ js_obj_toSource(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
                 if (IS_SHARP(he)) {
                     vchars = vsharp;
                     vlength = js_strlen(vchars);
+                    needOldStyleGetterSetter = JS_TRUE;
+                    gsop[j] = gsopold[j];
                 } else {
                     if (vsharp) {
                         vsharplength = js_strlen(vsharp);
                         MAKE_SHARP(he);
+                        needOldStyleGetterSetter = JS_TRUE;
+                        gsop[j] = gsopold[j];
                     }
                     js_LeaveSharpObject(cx, NULL);
                 }
@@ -1007,27 +1036,31 @@ js_obj_toSource(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
             }
             comma = ", ";
 
-#ifdef OLD_GETTER_SETTER
-            js_strncpy(&chars[nchars], idstrchars, idstrlength);
-            nchars += idstrlength;
-            if (gsop[j]) {
-                chars[nchars++] = ' ';
-                gsoplength = JSSTRING_LENGTH(gsop[j]);
-                js_strncpy(&chars[nchars], JSSTRING_CHARS(gsop[j]), gsoplength);
-                nchars += gsoplength;
+            if (needOldStyleGetterSetter) {
+                js_strncpy(&chars[nchars], idstrchars, idstrlength);
+                nchars += idstrlength;
+                if (gsop[j]) {
+                    chars[nchars++] = ' ';
+                    gsoplength = JSSTRING_LENGTH(gsop[j]);
+                    js_strncpy(&chars[nchars], JSSTRING_CHARS(gsop[j]),
+                               gsoplength);
+                    nchars += gsoplength;
+                }
+                chars[nchars++] = ':';
+            } else {  /* New style "decompilation" */
+                if (gsop[j]) {
+                    gsoplength = JSSTRING_LENGTH(gsop[j]);
+                    js_strncpy(&chars[nchars], JSSTRING_CHARS(gsop[j]),
+                               gsoplength);
+                    nchars += gsoplength;
+                    chars[nchars++] = ' ';
+                }
+                js_strncpy(&chars[nchars], idstrchars, idstrlength);
+                nchars += idstrlength;
+                /* Extraneous space after id here will be extracted later */
+                chars[nchars++] = gsop[j] ? ' ' : ':';
             }
-            chars[nchars++] = ':';
-#else
-            if (gsop[j]) {
-                gsoplength = JSSTRING_LENGTH(gsop[j]);
-                js_strncpy(&chars[nchars], JSSTRING_CHARS(gsop[j]), gsoplength);
-                nchars += gsoplength;
-                chars[nchars++] = ' ';
-            }
-            js_strncpy(&chars[nchars], idstrchars, idstrlength);
-            nchars += idstrlength;
-            chars[nchars++] = gsop[j] ? ' ' : ':';
-#endif
+
             if (vsharplength) {
                 js_strncpy(&chars[nchars], vsharp, vsharplength);
                 nchars += vsharplength;
@@ -2781,9 +2814,8 @@ js_AllocSlot(JSContext *cx, JSObject *obj, uint32 *slotp)
         return JS_FALSE;
     }
 
-#ifdef TOO_MUCH_GC
-    STOBJ_SET_SLOT(obj, map->freeslot, JSVAL_VOID);
-#endif
+    /* ReallocSlots or js_FreeSlot should set the free slots to void. */   
+    JS_ASSERT(STOBJ_GET_SLOT(obj, map->freeslot) == JSVAL_VOID);
     *slotp = map->freeslot++;
     return JS_TRUE;
 }

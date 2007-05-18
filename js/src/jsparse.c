@@ -2030,7 +2030,7 @@ static JSParseNode *
 FindPropertyValue(JSParseNode *pn, JSParseNode *pnid, FindPropValData *data)
 {
     FindPropValEntry *entry;
-    JSParseNode *pnhit, *pnprop, *pnkey;
+    JSParseNode *pnhit, *pnhead, *pnprop, *pnkey;
     uint32 step;
 
     /* If we have a hash table, use it as the sole source of truth. */
@@ -2051,8 +2051,11 @@ FindPropertyValue(JSParseNode *pn, JSParseNode *pnid, FindPropValData *data)
     pnhit = NULL;
     step = 0;
     ASSERT_VALID_PROPERTY_KEY(pnid);
+    pnhead = pn->pn_head;
+    if (pnhead && pnhead->pn_type == TOK_DEFSHARP)
+        pnhead = pnhead->pn_next;
     if (pnid->pn_type == TOK_NUMBER) {
-        for (pnprop = pn->pn_head; pnprop; pnprop = pnprop->pn_next) {
+        for (pnprop = pnhead; pnprop; pnprop = pnprop->pn_next) {
             JS_ASSERT(pnprop->pn_type == TOK_COLON);
             if (pnprop->pn_op == JSOP_NOP) {
                 pnkey = pnprop->pn_left;
@@ -2065,7 +2068,7 @@ FindPropertyValue(JSParseNode *pn, JSParseNode *pnid, FindPropValData *data)
             }
         }
     } else {
-        for (pnprop = pn->pn_head; pnprop; pnprop = pnprop->pn_next) {
+        for (pnprop = pnhead; pnprop; pnprop = pnprop->pn_next) {
             JS_ASSERT(pnprop->pn_type == TOK_COLON);
             if (pnprop->pn_op == JSOP_NOP) {
                 pnkey = pnprop->pn_left;
@@ -2092,7 +2095,8 @@ FindPropertyValue(JSParseNode *pn, JSParseNode *pnid, FindPropValData *data)
                               sizeof(FindPropValEntry),
                               JS_DHASH_DEFAULT_CAPACITY(pn->pn_count)))
         {
-            for (pn = pn->pn_head; pn; pn = pn->pn_next) {
+            for (pn = pnhead; pn; pn = pn->pn_next) {
+                JS_ASSERT(pnprop->pn_type == TOK_COLON);
                 ASSERT_VALID_PROPERTY_KEY(pn->pn_left);
                 entry = (FindPropValEntry *)
                         JS_DHashTableOperate(&data->table, pn->pn_left,
@@ -5479,34 +5483,38 @@ PrimaryExpr(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
 #if JS_HAS_GETTER_SETTER
                 {
                     JSAtom *atom;
-                    JSRuntime *rt;
 
                     atom = CURRENT_TOKEN(ts).t_atom;
-                    rt = cx->runtime;
-                    if (atom == rt->atomState.getAtom ||
-                        atom == rt->atomState.setAtom) {
-                        op = (atom == rt->atomState.getAtom)
-                            ? JSOP_GETTER
-                            : JSOP_SETTER;
-                        if (js_MatchToken(cx, ts, TOK_NAME)) {
-                            pn3 = NewParseNode(cx, ts, PN_NAME, tc);
-                            if (!pn3)
-                                return NULL;
-                            pn3->pn_atom = CURRENT_TOKEN(ts).t_atom;
-                            pn3->pn_expr = NULL;
-                            pn3->pn_slot = -1;
-                            pn3->pn_attrs = 0;
-
-                            /* We have to fake a 'function' token here. */
-                            CURRENT_TOKEN(ts).t_op = JSOP_NOP;
-                            CURRENT_TOKEN(ts).type = TOK_FUNCTION;
-                            pn2 = FunctionExpr(cx, ts, tc);
-                            pn2 = NewBinary(cx, TOK_COLON, op, pn3, pn2, tc);
-                            goto skip;
-                        }
+                    if (atom == cx->runtime->atomState.getAtom)
+                        op = JSOP_GETTER;
+                    else if (atom == cx->runtime->atomState.setAtom)
+                        op = JSOP_SETTER;
+                    else
+                        goto property_name;
+                        
+                    ts->flags |= TSF_KEYWORD_IS_NAME;
+                    tt = js_GetToken(cx, ts);
+                    ts->flags &= ~TSF_KEYWORD_IS_NAME;
+                    if (tt != TOK_NAME) {
+                        js_UngetToken(ts);
+                        goto property_name;
                     }
-                    /* else fall thru ... */
+                    pn3 = NewParseNode(cx, ts, PN_NAME, tc);
+                    if (!pn3)
+                        return NULL;
+                    pn3->pn_atom = CURRENT_TOKEN(ts).t_atom;
+                    pn3->pn_expr = NULL;
+                    pn3->pn_slot = -1;
+                    pn3->pn_attrs = 0;
+                    
+                    /* We have to fake a 'function' token here. */
+                    CURRENT_TOKEN(ts).t_op = JSOP_NOP;
+                    CURRENT_TOKEN(ts).type = TOK_FUNCTION;
+                    pn2 = FunctionExpr(cx, ts, tc);
+                    pn2 = NewBinary(cx, TOK_COLON, op, pn3, pn2, tc);
+                    goto skip;
                 }
+              property_name:
 #endif
               case TOK_STRING:
                 pn3 = NewParseNode(cx, ts, PN_NULLARY, tc);

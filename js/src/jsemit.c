@@ -147,14 +147,29 @@ static void
 UpdateDepth(JSContext *cx, JSCodeGenerator *cg, ptrdiff_t target)
 {
     jsbytecode *pc;
+    JSOp op;
     const JSCodeSpec *cs;
     intN nuses;
 
     pc = CG_CODE(cg, target);
-    cs = &js_CodeSpec[pc[0]];
+    op = (JSOp) *pc;
+    cs = &js_CodeSpec[op];
     nuses = cs->nuses;
-    if (nuses < 0)
-        nuses = 2 + GET_ARGC(pc);       /* stack: fun, this, [argc arguments] */
+    if (nuses < 0) {
+        switch (op) {
+          case JSOP_POPN:
+            nuses = GET_UINT16(pc);
+            break;
+          case JSOP_NEW:
+          case JSOP_CALL:
+          case JSOP_SETCALL:
+          case JSOP_EVAL:
+            nuses = 2 + GET_ARGC(pc);   /* stack: fun, this, [argc arguments] */
+            break;
+          default:
+            JS_ASSERT(0);
+        }
+    }
     cg->stackDepth -= nuses;
     JS_ASSERT(cg->stackDepth >= 0);
     if (cg->stackDepth < 0) {
@@ -1296,12 +1311,27 @@ EmitBackPatchOp(JSContext *cx, JSCodeGenerator *cg, JSOp op, ptrdiff_t *lastp)
             return JS_FALSE;                                                  \
     JS_END_MACRO
 
-/* Emit additional bytecode(s) for non-local jumps. */
+static JSBool
+FlushPops(JSContext *cx, JSCodeGenerator *cg, intN *npops)
+{
+    JS_ASSERT(*npops != 0);
+    if (js_NewSrcNote(cx, cg, SRC_HIDDEN) < 0)
+        return JS_FALSE;
+    EMIT_UINT16_IMM_OP(JSOP_POPN, *npops);
+    *npops = 0;
+    return JS_TRUE;
+}
+
+/*
+ * Emit additional bytecode(s) for non-local jumps.
+ *
+ * FIXME: https://bugzilla.mozilla.org/show_bug.cgi?id=379758
+ */
 static JSBool
 EmitNonLocalJumpFixup(JSContext *cx, JSCodeGenerator *cg, JSStmtInfo *toStmt,
                       JSOp *returnop)
 {
-    intN depth;
+    intN depth, npops;
     JSStmtInfo *stmt;
     ptrdiff_t jmp;
 
@@ -1350,9 +1380,14 @@ EmitNonLocalJumpFixup(JSContext *cx, JSCodeGenerator *cg, JSStmtInfo *toStmt,
      * just before a successful return.
      */
     depth = cg->stackDepth;
+    npops = 0;
+
+#define FLUSH_POPS() if (npops && !FlushPops(cx, cg, &npops)) return JS_FALSE
+
     for (stmt = cg->treeContext.topStmt; stmt != toStmt; stmt = stmt->down) {
         switch (stmt->type) {
           case STMT_FINALLY:
+            FLUSH_POPS();
             if (js_NewSrcNote(cx, cg, SRC_HIDDEN) < 0)
                 return JS_FALSE;
             jmp = EmitBackPatchOp(cx, cg, JSOP_BACKPATCH, &GOSUBS(*stmt));
@@ -1362,6 +1397,7 @@ EmitNonLocalJumpFixup(JSContext *cx, JSCodeGenerator *cg, JSStmtInfo *toStmt,
 
           case STMT_WITH:
             /* There's a With object on the stack that we need to pop. */
+            FLUSH_POPS();
             if (js_NewSrcNote(cx, cg, SRC_HIDDEN) < 0)
                 return JS_FALSE;
             if (js_Emit1(cx, cg, JSOP_LEAVEWITH) < 0)
@@ -1372,6 +1408,7 @@ EmitNonLocalJumpFixup(JSContext *cx, JSCodeGenerator *cg, JSStmtInfo *toStmt,
             /*
              * The iterator and the object being iterated need to be popped.
              */
+            FLUSH_POPS();
             if (js_NewSrcNote(cx, cg, SRC_HIDDEN) < 0)
                 return JS_FALSE;
             if (js_Emit1(cx, cg, JSOP_ENDITER) < 0)
@@ -1383,10 +1420,7 @@ EmitNonLocalJumpFixup(JSContext *cx, JSCodeGenerator *cg, JSStmtInfo *toStmt,
              * There's a [exception or hole, retsub pc-index] pair on the
              * stack that we need to pop.
              */
-            if (js_NewSrcNote(cx, cg, SRC_HIDDEN) < 0)
-                return JS_FALSE;
-            if (js_Emit1(cx, cg, JSOP_POP2) < 0)
-                return JS_FALSE;
+            npops += 2;
             break;
 
           default:;
@@ -1396,6 +1430,7 @@ EmitNonLocalJumpFixup(JSContext *cx, JSCodeGenerator *cg, JSStmtInfo *toStmt,
             uintN i;
 
             /* There is a Block object with locals on the stack to pop. */
+            FLUSH_POPS();
             if (js_NewSrcNote(cx, cg, SRC_HIDDEN) < 0)
                 return JS_FALSE;
             i = OBJ_BLOCK_COUNT(cx, ATOM_TO_OBJECT(stmt->atom));
@@ -1403,8 +1438,11 @@ EmitNonLocalJumpFixup(JSContext *cx, JSCodeGenerator *cg, JSStmtInfo *toStmt,
         }
     }
 
+    FLUSH_POPS();
     cg->stackDepth = depth;
     return JS_TRUE;
+
+#undef FLUSH_POPS
 }
 
 static ptrdiff_t
@@ -3368,8 +3406,7 @@ static JSBool
 EmitDestructuringOpsHelper(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn);
 
 static JSBool
-EmitDestructuringLHS(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn,
-                     JSBool wantpop)
+EmitDestructuringLHS(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
 {
     jsuint slot;
 
@@ -3386,7 +3423,7 @@ EmitDestructuringLHS(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn,
     if (pn->pn_type == TOK_RB || pn->pn_type == TOK_RC) {
         if (!EmitDestructuringOpsHelper(cx, cg, pn))
             return JS_FALSE;
-        if (wantpop && js_Emit1(cx, cg, JSOP_POP) < 0)
+        if (js_Emit1(cx, cg, JSOP_POP) < 0)
             return JS_FALSE;
     } else {
         if (pn->pn_type == TOK_NAME &&
@@ -3411,19 +3448,16 @@ EmitDestructuringLHS(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn,
             break;
 
           case JSOP_SETLOCAL:
-            if (wantpop) {
-                slot = (jsuint) pn->pn_slot;
-                EMIT_UINT16_IMM_OP(JSOP_SETLOCALPOP, slot);
-                break;
-            }
-            /* FALL THROUGH */
+            slot = (jsuint) pn->pn_slot;
+            EMIT_UINT16_IMM_OP(JSOP_SETLOCALPOP, slot);
+            break;
 
           case JSOP_SETARG:
           case JSOP_SETVAR:
           case JSOP_SETGVAR:
             slot = (jsuint) pn->pn_slot;
             EMIT_UINT16_IMM_OP(pn->pn_op, slot);
-            if (wantpop && js_Emit1(cx, cg, JSOP_POP) < 0)
+            if (js_Emit1(cx, cg, JSOP_POP) < 0)
                 return JS_FALSE;
             break;
 
@@ -3538,7 +3572,7 @@ EmitDestructuringOpsHelper(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
             if (js_Emit1(cx, cg, JSOP_POP) < 0)
                 return JS_FALSE;
         } else {
-            if (!EmitDestructuringLHS(cx, cg, pn3, JS_TRUE))
+            if (!EmitDestructuringLHS(cx, cg, pn3))
                 return JS_FALSE;
         }
 
@@ -3588,7 +3622,7 @@ static JSBool
 EmitGroupAssignment(JSContext *cx, JSCodeGenerator *cg, JSOp declOp,
                     JSParseNode *lhs, JSParseNode *rhs)
 {
-    jsuint depth, limit, slot;
+    jsuint depth, limit, slot, nslots;
     JSParseNode *pn;
 
     depth = limit = (uintN) cg->stackDepth;
@@ -3626,13 +3660,14 @@ EmitGroupAssignment(JSContext *cx, JSCodeGenerator *cg, JSOp declOp,
             if (js_Emit1(cx, cg, JSOP_POP) < 0)
                 return JS_FALSE;
         } else {
-            if (!EmitDestructuringLHS(cx, cg, pn, pn->pn_next != NULL))
+            if (!EmitDestructuringLHS(cx, cg, pn))
                 return JS_FALSE;
         }
         ++slot;
     }
 
-    EMIT_UINT16_IMM_OP(JSOP_SETSP, (jsatomid)depth);
+    nslots = limit - depth;
+    EMIT_UINT16_IMM_OP(JSOP_POPN, nslots);
     cg->stackDepth = (uintN) depth;
     return JS_TRUE;
 }
@@ -5089,12 +5124,8 @@ js_EmitTree(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
          * Dup the exception object if there is a guard for rethrowing to use
          * it later when rethrowing or in other catches.
          */
-        if (pn->pn_kid2) {
-            if (js_NewSrcNote(cx, cg, SRC_HIDDEN) < 0 ||
-                js_Emit1(cx, cg, JSOP_DUP) < 0) {
-                return JS_FALSE;
-            }
-        }
+        if (pn->pn_kid2 && js_Emit1(cx, cg, JSOP_DUP) < 0)
+            return JS_FALSE;
 
         pn2 = pn->pn_kid1;
         switch (pn2->pn_type) {
@@ -5133,10 +5164,8 @@ js_EmitTree(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
             GUARDJUMP(*stmt) = guardJump;
 
             /* Pop duplicated exception object as we no longer need it. */
-            if (js_NewSrcNote(cx, cg, SRC_HIDDEN) < 0 ||
-                js_Emit1(cx, cg, JSOP_POP) < 0) {
+            if (js_Emit1(cx, cg, JSOP_POP) < 0)
                 return JS_FALSE;
-            }
         }
 
         /* Emit the catch body. */

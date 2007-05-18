@@ -2419,10 +2419,14 @@ ProcessCharSet(REGlobalData *gData, RECharSet *charSet)
         }
         if (inRange) {
             if (gData->regexp->flags & JSREG_FOLD) {
-                AddCharacterRangeToCharSet(charSet, upcase(rangeStart),
-                                                    upcase(thisCh));
-                AddCharacterRangeToCharSet(charSet, downcase(rangeStart),
-                                                    downcase(thisCh));
+                if (upcase(rangeStart) < upcase(thisCh)) {
+                    AddCharacterRangeToCharSet(charSet, upcase(rangeStart),
+                                                        upcase(thisCh));
+                }
+                if (downcase(rangeStart) < downcase(thisCh)) {
+                    AddCharacterRangeToCharSet(charSet, downcase(rangeStart),
+                                                        downcase(thisCh));
+                }
             } else {
                 AddCharacterRangeToCharSet(charSet, rangeStart, thisCh);
             }
@@ -2557,13 +2561,13 @@ SimpleMatch(REGlobalData *gData, REMatchState *x, REOp op,
         }
         break;
       case REOP_DIGIT:
-        if (x->cp != gData->cpend && JS_ISDIGIT(*x->cp)) {
+        if (x->cp != gData->cpend && JS7_ISDEC(*x->cp)) {
             result = x;
             result->cp++;
         }
         break;
       case REOP_NONDIGIT:
-        if (x->cp != gData->cpend && !JS_ISDIGIT(*x->cp)) {
+        if (x->cp != gData->cpend && !JS7_ISDEC(*x->cp)) {
             result = x;
             result->cp++;
         }
