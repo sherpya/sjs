@@ -77,7 +77,7 @@ static int c_progress_fun(void *clientp, double dltotal, double dlnow, double ul
         return -1;
     }
 
-    JS_ValueToECMAInt32(cx, rval, &result); 
+    JS_ValueToECMAInt32(cx, rval, &result);
     return result;
 }
 
@@ -152,7 +152,7 @@ static JSBool SetProxy(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, js
     proxy = JS_ValueToString(cx, argv[0]);
     if (grtd->verbose) printf("Setting proxy: %s\n", JS_GetStringBytes(proxy));
     curl_easy_setopt(curl, CURLOPT_PROXY, JS_GetStringBytes(proxy));
-    R_TRUE; 
+    R_TRUE;
 }
 
 /**
@@ -166,9 +166,9 @@ static JSBool CurlVerbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
 {
     JSBool curl_verbose = JS_FALSE;
     if (argc != 1) R_FALSE;
-    JS_ValueToBoolean(cx, argv[0], &curl_verbose);    
+    JS_ValueToBoolean(cx, argv[0], &curl_verbose);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, curl_verbose);
-    R_TRUE; 
+    R_TRUE;
 }
 
 static JSFunctionSpec curl_functions[] =

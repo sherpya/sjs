@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -136,8 +136,8 @@ namespace util {
 		// uncomment following line and comment throw and return statement
 		// You must also uncomment lines at the begining of this file.
 		// WARNING : read comments on the top of this file carefully
-		/* 
-		return (TryEnterCriticalSection(&handler_) != 0); 
+		/*
+		return (TryEnterCriticalSection(&handler_) != 0);
 		//*/
 		throw ::std::logic_error ("CCriticalSection::TryLock() not supported");
 		return false;

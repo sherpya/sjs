@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 This file is NOT part of koraX's utils. It is example of using koraXs utils
 Example on using CPar class
@@ -32,7 +32,7 @@ int main (int /*argc*/, char* /*argv[]*/)
 		std::cin.ignore (::std::numeric_limits<int>::max(), '\n');
 		return 0;
 	}
-	
+
 	// list xml
 	par.List (clog);
 

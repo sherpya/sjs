@@ -180,7 +180,7 @@ private:
 
 JSObject *JSRegistry::JSInit(JSContext *cx, JSObject *obj, JSObject *proto)
 {
-    JSObject *newObj = JS_InitClass(cx, obj, proto, &registryClass, 
+    JSObject *newObj = JS_InitClass(cx, obj, proto, &registryClass,
                                     JSRegistry::JSConstructor, 0,
                                     NULL, JSRegistry::registry_methods,
                                     NULL, NULL);
@@ -377,7 +377,7 @@ JSBool JSRegistry::JSSetValue(JSContext *cx, JSObject *obj, uintN argc, jsval *a
 
     R_FUNC(p->getRegistry()->SetValue(cx,
         JS_GetStringBytes(subkey), (LPBYTE) JS_GetStringBytes(value), (DWORD) size, type));
-    
+
     R_TRUE;
 }
 
@@ -406,12 +406,12 @@ JSFunctionSpec JSRegistry::registry_methods[] =
     { 0,            0,            0, 0, 0 },
 };
 
-JSClass JSRegistry::registryClass = 
+JSClass JSRegistry::registryClass =
 {
     "registry", JSCLASS_HAS_PRIVATE,
     JS_PropertyStub, JS_PropertyStub,
     JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, 
+    JS_EnumerateStub, JS_ResolveStub,
     JS_ConvertStub, JSRegistry::JSDestructor
 };
 

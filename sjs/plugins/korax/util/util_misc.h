@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -152,7 +152,7 @@ namespace util {
 		if (!(i >> x))
 			// output type should support 0 as a value
 			// compiler will tell you if it does not
-			return 0;	
+			return 0;
 		return x;
 	}
 
@@ -181,7 +181,7 @@ namespace util {
 	//-------------------------------------------------------------------------------
 
 	// some conversion stuff
-	inline uint16 FixedUnsigned16 (float value, float scale = 1.0f) 
+	inline uint16 FixedUnsigned16 (float value, float scale = 1.0f)
 	{
 		int output = static_cast<int>(value * scale);
 		if (output < 0)
@@ -191,7 +191,7 @@ namespace util {
 		return static_cast<uint16>(output);
 	}
 
-	inline int16 FixedSigned16 (float value, float scale = 1.0f) 
+	inline int16 FixedSigned16 (float value, float scale = 1.0f)
 	{
 		int output = static_cast<int>(value * scale);
 		if (output > 32767)
@@ -207,7 +207,7 @@ namespace util {
 	extern long idum_;
 
 	// Numerical Recipes in C - The Art of Scientific Computing - Second Edition
-	// http://www.ma.utexas.edu/documentation/nr/bookcpdf.html 
+	// http://www.ma.utexas.edu/documentation/nr/bookcpdf.html
 	// Chapter 7-1, page 279, ran0() function
 	inline float RandomFloat (long &idum = idum_)
 	{

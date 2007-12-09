@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 This file is NOT part of koraX's utils. It is example of using koraXs utils
 Example on using CVector class

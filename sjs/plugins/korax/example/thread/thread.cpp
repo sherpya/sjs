@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 This file is NOT part of koraX's utils. It is example of using koraXs utils
 Example on using CThread class
@@ -99,7 +99,7 @@ int main (int /*argc*/, char* /*argv[]*/)
 	data.salary_	= 12000;
 	data.money_		= 302500;
 
-	// run normal Threads	
+	// run normal Threads
 	clog << "\nStarting normal thread..." << ::std::endl;
 	SampleThread normalThread;
 	normalThread.Start (&data);
@@ -117,7 +117,7 @@ int main (int /*argc*/, char* /*argv[]*/)
 
 	//--------------------------------------------------------------------
 
-	// run independent Threads	
+	// run independent Threads
 	clog << "\nNow we start 2 Independent thread and then wait for 1 second ..." << ::std::endl;
 	data.name_		= "Poor Bill";
 	data.age_		= 74;

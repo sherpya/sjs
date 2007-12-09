@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -52,7 +52,7 @@ namespace util {
 CVector& CVector::Normalize ()
 {
 	float length = Length();
-	if (length == 0) 
+	if (length == 0)
 		throw ::std::range_error("zero vector");
 	length = 1 / length;
 	x_ *= length;
@@ -72,7 +72,7 @@ float CVector::Angle (const CVector &v) const
 		return 180;
 	if (normalizedDotProduct > 1)
 		return 0;
-	
+
 	return CAngle::FixYaw (::util::toDegrees (::std::acos (normalizedDotProduct)));
 }
 
@@ -88,9 +88,9 @@ CAngle CVector::toAngles () const
 	}
 
 	// compute individually the pitch and yaw corresponding to this vector
-	CAngle angle(-::util::toDegrees (::std::atan2 (z_, ::std::sqrt (x_ * x_ + y_ * y_))), 
+	CAngle angle(-::util::toDegrees (::std::atan2 (z_, ::std::sqrt (x_ * x_ + y_ * y_))),
 				  ::util::toDegrees (::std::atan2 (y_, x_)), 0);
-	return angle.FixPitch().FixYaw(); 
+	return angle.FixPitch().FixYaw();
 }
 
 float CAngle::FixPitch (float pitch, bool isBodyAngles)

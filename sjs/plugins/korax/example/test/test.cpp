@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -621,7 +621,7 @@ void TestThreads (::std::ostream &output)
 			sleep (5);
 #endif
 
-// check normal Threads	
+// check normal Threads
 	TestThreadData testData;
 	testData.count_ = 0;
 	::std::vector<TestThread> threads;

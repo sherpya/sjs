@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -62,7 +62,7 @@ CSys &sys = CSys::getInstance();
 // constructors execution takes at least :
 // 200ms under Windows
 // 400ms under Linux
-// we need some time to compute CPU speed. 
+// we need some time to compute CPU speed.
 // SUS (POSIX) timer is somewhat less precise so more time is needed
 CSys::CSys ()
 :cpuFrequency_(0),overhead_(0)
@@ -101,9 +101,9 @@ string CSys::getDate (::std::time_t cas)
 	if (cas == 0)
 		cas = ::std::time (0);
 	::std::tm *lDate = ::std::localtime (&cas);
-	::std::ostringstream a; 
-	a 	<< lDate->tm_year + 1900 << "-" 
-		<< ::std::setw (2) << ::std::setfill ('0') << lDate->tm_mon + 1 << "-" 
+	::std::ostringstream a;
+	a 	<< lDate->tm_year + 1900 << "-"
+		<< ::std::setw (2) << ::std::setfill ('0') << lDate->tm_mon + 1 << "-"
 		<< ::std::setw (2) << ::std::setfill ('0') << lDate->tm_mday;
 	return a.str();
 }
@@ -115,8 +115,8 @@ string CSys::getTime (::std::time_t cas)
 		cas = ::std::time (0);
 	::std::tm *lDate = ::std::localtime (&cas);
 	::std::ostringstream a;
-	a	<< ::std::setw (2) << ::std::setfill ('0') << lDate->tm_hour << ":" 
-		<< ::std::setw (2) << ::std::setfill ('0') << lDate->tm_min  << ":" 
+	a	<< ::std::setw (2) << ::std::setfill ('0') << lDate->tm_hour << ":"
+		<< ::std::setw (2) << ::std::setfill ('0') << lDate->tm_min  << ":"
 		<< ::std::setw (2) << ::std::setfill ('0') << lDate->tm_sec;
 	return a.str();
 }
@@ -135,7 +135,7 @@ uint64 CSys::getCycles ()
 	// because this function is for measuring long periods, o_O
 
 	// using something else than local variable could be faster
-	// (like class member or passing it as paramter by reference), but 
+	// (like class member or passing it as paramter by reference), but
 	// my asm skills are not enough for this task :)
 
 	// With local variable, overhead is 30 instructions (WXP, AMD 2GHz, MSVC 2003 .NET)
@@ -150,12 +150,12 @@ uint64 CSys::getCycles ()
 #endif
 
 #if defined _WIN32 && !defined __GNUG__
-	__asm { 
+	__asm {
 		push eax
 		push edx
-		rdtsc 
-		mov dword ptr [cycles],eax 
-		mov dword ptr [cycles + 4],edx 
+		rdtsc
+		mov dword ptr [cycles],eax
+		mov dword ptr [cycles + 4],edx
 		pop edx
 		pop eax
 	}
@@ -181,7 +181,7 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 	// see if we have cpuid instruction
 	int isCpuidPresent;
 	__asm__ __volatile__ (
-#if defined PIC			
+#if defined PIC
 		"push %%ebx\n\t"
 #endif
 		"pushfl\n\t"
@@ -337,7 +337,7 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 		pop eax
 		xor eax,ebx
 		je NO_CPUID
-		mov isCpuidPresent, 1 
+		mov isCpuidPresent, 1
 		jmp DONE_CPUID
 		NO_CPUID:
 		mov isCpuidPresent, 0
@@ -353,7 +353,7 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 		pushad
 		mov  eax, 1
 		cpuid
-		test edx, 0x10	
+		test edx, 0x10
 		jz NO_RDTSC
 		mov isRdtscPresent, 1
 		jmp DONE_RDTSC
@@ -374,45 +374,45 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 			::QueryPerformanceCounter (&beginTime);
 			endTime.QuadPart = beginTime.QuadPart + qpcFrequency.QuadPart / speed;
 			// warming up and measure
-			__asm 
-			{ 
+			__asm
+			{
 				pushad
 				xor eax, eax
 				cpuid
-				rdtsc 
-				mov beginCycles.LowPart, eax 
-				mov beginCycles.HighPart, edx 
+				rdtsc
+				mov beginCycles.LowPart, eax
+				mov beginCycles.HighPart, edx
 				xor eax,eax
 				cpuid
-				rdtsc 
-				mov beginCycles.LowPart, eax 
-				mov beginCycles.HighPart, edx 
+				rdtsc
+				mov beginCycles.LowPart, eax
+				mov beginCycles.HighPart, edx
 				xor eax, eax
 				cpuid
-				rdtsc 
-				mov overhead.LowPart, eax 
-				mov overhead.HighPart, edx 
+				rdtsc
+				mov overhead.LowPart, eax
+				mov overhead.HighPart, edx
 				popad
 				pushad
 				xor eax, eax
 				cpuid
-				rdtsc 
-				mov beginCycles.LowPart, eax 
-				mov beginCycles.HighPart, edx 
+				rdtsc
+				mov beginCycles.LowPart, eax
+				mov beginCycles.HighPart, edx
 				popad
 			}
 			// wait loop, freeeeeze everything, he he he
 			do
 				::QueryPerformanceCounter (&beginTime);
 			while (beginTime.QuadPart < endTime.QuadPart);
-			__asm 
-			{ 
+			__asm
+			{
 				pushad
 				xor eax,eax
 				cpuid
-				rdtsc 
-				mov endCycles.LowPart, eax 
-				mov endCycles.HighPart, edx 
+				rdtsc
+				mov endCycles.LowPart, eax
+				mov endCycles.HighPart, edx
 				popad
 			}
 			// compute frequency
@@ -430,7 +430,7 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 	}
 #endif // MSVC
 
-	
+
 #if defined _WIN32 && defined __GNUG__ // MinGW
 	// see if we have cpuid instruction
 	int isCpuidPresent;
@@ -452,7 +452,7 @@ uint64 CSys::DetectCpuSpeed (const char speed)
 		"movl $0,%0 \n\t"
 		"DONE_CPUID%=:"
 		"popfl\n\t"
-		: "=g" (isCpuidPresent): : "%eax", "%ebx"); 
+		: "=g" (isCpuidPresent): : "%eax", "%ebx");
 	if (isCpuidPresent == 0)
 		return 0;
 

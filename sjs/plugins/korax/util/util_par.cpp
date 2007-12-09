@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -54,7 +54,7 @@ See header file for more information
 
 // default 100, bigger value -> faster but more memory, smaller value -> less memory usage but slower
 // 0 for leting STL manage capacity. It should reserve space quadratically
-#define KORAX_UTIL_PAR_RESERVE_ELEMENTS 0 
+#define KORAX_UTIL_PAR_RESERVE_ELEMENTS 0
 
 // don't use these macros
 #define KORAX_UTIL_PAR_SAVE_TABS(TABS) if (delimiters.size() > 0) for (int j__ = 0; j__ < TABS; ++j__) output << delimiters[0]; else ;
@@ -142,13 +142,13 @@ bool CElement::operator== (const CElement& rv) const
 		equal = false;
 		if (name_ == rv.name_)
 			equal = true;
-	} 
+	}
 	if (!rv.value_.empty()) {
 //		::std::cout << "CElement::operator==() : " << uid_ << " : " << value_ << " <-> " << rv.value_ << endl;
 		equal = false;
 		if (value_ == rv.value_)
 			equal = true;
-	} 
+	}
 	if (!rv.comment_.empty()) {
 //		::std::cout << "CElement::operator==() : " << uid_ << " : " << comment_ << " <-> " << rv.comment_ << endl;
 		equal = false;
@@ -161,12 +161,12 @@ bool CElement::operator== (const CElement& rv) const
 //		::std::cout << "CElement::operator==() : " << uid_ << " : " << name_ << " <-> " << rv.name_ << endl;
 		if (name_ == rv.name_)
 			return true;
-	} 
+	}
 	if (!rv.value_.empty()) {
 //		::std::cout << "CElement::operator==() : " << uid_ << " : " << value_ << " <-> " << rv.value_ << endl;
 		if (value_ == rv.value_)
 			return true;
-	} 
+	}
 	if (!rv.comment_.empty()) {
 //		::std::cout << "CElement::operator==() : " << uid_ << " : " << comment_ << " <-> " << rv.comment_ << endl;
 		if (comment_ == rv.comment_)
@@ -236,9 +236,9 @@ bool CElement::Consistency () const
 	for(i = child_.begin(); i < child_.end(); ++i) {
 		if ((*i).parentElement_ != this) {
 /*			::std::ostringstream a;
-			a << "element : '"						<< (*i).name_ 
-			  << "' '"								<< (*i).value_ 
-			  << "' '"								<< (*i).comment_ 
+			a << "element : '"						<< (*i).name_
+			  << "' '"								<< (*i).value_
+			  << "' '"								<< (*i).comment_
 			  << "' has bad parent, should be : '"	<< name_
 			  << "'"								<< endl;
 			LOG_ERROR (a.str());*/
@@ -251,9 +251,9 @@ bool CElement::Consistency () const
 	for(i = attributes_.begin(); i < attributes_.end(); ++i) {
 		if ((*i).parentElement_ != this) {
 /*			::std::ostringstream a;
-			a << "element : '"						<< (*i).name_ 
-			  << "' '"								<< (*i).value_ 
-			  << "' '"								<< (*i).comment_ 
+			a << "element : '"						<< (*i).name_
+			  << "' '"								<< (*i).value_
+			  << "' '"								<< (*i).comment_
 			  << "' has bad parent, should be : '"	<< name_
 			  << "'"								<< endl;
 			LOG_ERROR (a.str());*/
@@ -328,10 +328,10 @@ bool CPar::Consistency () const
 // Lists all elements. Default output is cout ('screen')
 int CPar::List (::std::ostream &output) const
 {
-	output	<< "Listing  elements :\n'" << root_.name_ 
-			<< "' '"					<< root_.value_ 
-			<< "' '"					<< root_.comment_ 
-//			<< "' "						<< root_.getUid() 
+	output	<< "Listing  elements :\n'" << root_.name_
+			<< "' '"					<< root_.value_
+			<< "' '"					<< root_.comment_
+//			<< "' "						<< root_.getUid()
 			<< "'\n";
 
 	int elementCount = List (output, root_.attributes_, 1, 1); // list root attributes
@@ -339,9 +339,9 @@ int CPar::List (::std::ostream &output) const
 	output << "Total    elements : " << elementCount << endl;
 
 	if(startingPosition_ != &root_)
-		output << "Warning, on hold  : '"	<< startingPosition_->name_ 
+		output << "Warning, on hold  : '"	<< startingPosition_->name_
 			   << '\''
-//			   << " "						<< startingPosition_->getUid() 
+//			   << " "						<< startingPosition_->getUid()
 			   << endl;
 
 	return elementCount;
@@ -353,18 +353,18 @@ int CPar::List (::std::ostream& output, const ::std::vector<CElement>& list, int
 		if (list[i].type_ == CElement::eetAttribute) {
 			for (int j = 0; j < tabulators; ++j)
 				output << "  ";
-			output << ":'"	<< list[i].name_ 
-				   << "' '" << list[i].value_ 
-				   << "' '" << list[i].comment_ 
-//				   << "' "	<< list[i].getUid() 
+			output << ":'"	<< list[i].name_
+				   << "' '" << list[i].value_
+				   << "' '" << list[i].comment_
+//				   << "' "	<< list[i].getUid()
 				   << "'\n"; //Parent : \"" << list[i].parentElement_->name_ << "\"(" <<  list[i].parentElement_->getUid() << ")\n";
 		} else {
 			for (int j = 0; j < tabulators; ++j)
 				output << "  ";
-			output << "'"	<< list[i].name_ 
-				   << "' '" << list[i].value_ 
-				   << "' '" << list[i].comment_ 
-//				   << "' "	<< list[i].getUid() 
+			output << "'"	<< list[i].name_
+				   << "' '" << list[i].value_
+				   << "' '" << list[i].comment_
+//				   << "' "	<< list[i].getUid()
 				   << "'\n"; // Parent : \"" << list[i].parentElement_->name_ << "\"(" <<  list[i].parentElement_->getUid() << ")\n";
 		}
 		++elementCount;
@@ -726,7 +726,7 @@ void CPar::SaveIni (::std::ostream &output, const CElement &element, const strin
 			}
 			output << delimiters[1];
 			// write comment
-			if (!element.comment_.empty()) { 
+			if (!element.comment_.empty()) {
 				output << " // ";
 				KORAX_UTIL_PAR_SAVE_NEWLINE (element.comment_,output <<);
 			}
@@ -734,7 +734,7 @@ void CPar::SaveIni (::std::ostream &output, const CElement &element, const strin
 			// element has value
 			if (!element.value_.empty()) {
 				if ((element.name_[0] == ';') || (element.name_[0] == '#') || (element.name_[0] == delimiters[0]) || (directories[0] == delimiters[4]))
-					output << ' ';				
+					output << ' ';
 				if (element.name_.empty())
 					output << "no_name";
 				else {
@@ -772,7 +772,7 @@ void CPar::SaveIni (::std::ostream &output, const CElement &element, const strin
 				KORAX_UTIL_PAR_SAVE_NEWLINE (element.value_,output <<);
 			}
 			// write comment
-			if (!element.comment_.empty()) { 
+			if (!element.comment_.empty()) {
 				output << " // ";
 				KORAX_UTIL_PAR_SAVE_NEWLINE (element.comment_,output <<);
 			}
@@ -1046,7 +1046,7 @@ bool CPar::loadXml (::std::istream &input)
 					find_.value_ = "";
 					y = z;
 					while ((z = static_cast<char>(input.get())) != y) {
-						if (z == '<') 
+						if (z == '<')
 							throw "root : wrong character in attributes value, use &lt;";
 						if (z == '&') { // special character
 							// read its content into a string
@@ -1090,7 +1090,7 @@ bool CPar::loadXml (::std::istream &input)
 								}
 							} else
 								z = fromStringEx<char>(line, true);
-						} 
+						}
 						find_.value_ += z;
 					}
 					// create new attribute
@@ -1344,7 +1344,7 @@ void CPar::xmlLoadElement (::std::istream &input, CElement &element)
 					find_.value_ = "";
 					y = z;
 					while ((z = static_cast<char>(input.get())) != y) {
-						if (z == '<') 
+						if (z == '<')
 							throw "wrong character in attributes value, use &lt;";
 						if (z == '&') { // special character
 							// read its content into a string
@@ -1388,7 +1388,7 @@ void CPar::xmlLoadElement (::std::istream &input, CElement &element)
 								}
 							} else
 								z = fromStringEx<char>(line, true);
-						} 
+						}
 						find_.value_ += z;
 					}
 					// create new attribute
@@ -1769,7 +1769,7 @@ bool CPar::loadIni (::std::istream &input, const string &delimiters, const strin
 		if (temp > line.size())
 			temp = line.size();
 		for (j = temp; j > 0; --j) {if (line[j - 1] > ' ') break; --temp;}
-	
+
 		// there is no name
 		if (temp <= begin)
 			find_.name_ = "no_name";
@@ -1839,8 +1839,8 @@ CElement * CPar::moveFront (CElement *victim)
 			find_.parentElement_->Refresh();
 			return lastFound_ = &parent->front();
 		}
-	return 0; 
-//*/ 
+	return 0;
+//*/
 }
 
 bool CPar::moveBack (const string &query, const string &delimiters)
@@ -1888,8 +1888,8 @@ CElement * CPar::moveBack (CElement *victim)
 			parent->back().parentElement_->Refresh();
 			return lastFound_ = &parent->back();
 		}
-	return 0; 
-//*/ 
+	return 0;
+//*/
 }
 
 bool CPar::moveUp (const string &query, const string &delimiters)
@@ -2208,7 +2208,7 @@ CElement *CPar::get (const string &query, const string &delimiters, CElement &di
 	// warning : we are not checking size of delimiters. delimiters must contain 8 characters
 	// warning : first character in string must be main delimiter. Main delimiters are the first 5 ones
 
-	if (query.empty()) { 
+	if (query.empty()) {
 		// solution has been found
 		// we will return attribute, not element if in doubt
 		lastFound_ = &element;
@@ -2236,7 +2236,7 @@ CElement *CPar::get (const string &query, const string &delimiters, CElement &di
 	} else
 		rest = query.substr (endPosition_);
 	string content = query.substr (1, endPosition_ - 1);
-	
+
 	if (query[0] == delimiters[0]) { // "/"
 		// find entity with name equal to 'content', set it as actual_ and recurse
 		::std::vector<CElement>::iterator findIterator = directory.child_.begin();

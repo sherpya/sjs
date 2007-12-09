@@ -33,12 +33,12 @@
  *
  * ZipInfo class to handle zip files informations
  */
-JSClass zipInfoClass = 
+JSClass zipInfoClass =
 {
     "zipinfo", 0,
     JS_PropertyStub, JS_PropertyStub,
     JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, 
+    JS_EnumerateStub, JS_ResolveStub,
     JS_ConvertStub, JS_FinalizeStub
 };
 
@@ -150,12 +150,12 @@ JSFunctionSpec JSZip::zip_methods[] =
     { 0,                    0,                  0,  0,  0 },
 };
 
-JSClass JSZip::zipClass = 
+JSClass JSZip::zipClass =
 {
     "zip", JSCLASS_HAS_PRIVATE,
     JS_PropertyStub, JS_PropertyStub,
     JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, 
+    JS_EnumerateStub, JS_ResolveStub,
     JS_ConvertStub, JSZip::JSDestructor
 };
 

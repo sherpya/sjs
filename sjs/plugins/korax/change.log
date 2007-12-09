@@ -53,6 +53,6 @@ util_par.*    - OPEN
                 However you must change some class declarations from private to public
                 and remove constness somewhere
               - advanced editing (such as moving) is maybe slow and maybe buggy
-              ! loading/saving/querying is recurrent so 
+              ! loading/saving/querying is recurrent so
                 POSSIBLE STACK OVERFLOW for large .xml. Haven't tested it yet
               - new paredit

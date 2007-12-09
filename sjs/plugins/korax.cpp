@@ -137,11 +137,11 @@ static JSBool ParserClass_GetValue(JSContext *cx, JSObject *obj, uintN argc, jsv
     if (argc != 1) return JS_TRUE;
     if (!par) return JS_TRUE;
 
-    query = JS_ValueToString(cx, argv[0]); 
+    query = JS_ValueToString(cx, argv[0]);
 
     result = JS_NewStringCopyZ(cx, par->getValue(JS_GetStringBytes(query)).c_str());
     *rval = STRING_TO_JSVAL(result);
-    return JS_TRUE; 
+    return JS_TRUE;
 }
 
 /**
@@ -169,7 +169,7 @@ static JSClass parser_class =
 {
     "parser", JSCLASS_HAS_PRIVATE,
     JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, ParserClass_finalize, 
+    JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, ParserClass_finalize,
 };
 
 static JSFunctionSpec parser_methods[] =

@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -78,7 +78,7 @@ CLog::CLog ()
 	// force create CSys object
 	CSys &lSys = CSys::getInstance();
 
-	// turn off synchronization, for better performance	
+	// turn off synchronization, for better performance
 	::std::ios_base::sync_with_stdio (false);
 
 	// save standard stream buffers
@@ -123,27 +123,27 @@ CLog::CLog ()
 		if (log_.rdbuf()->pubsetbuf (0, 4096) == false)
 			::std::cerr << "::util::CLog::CLog() - cannot resize file buffer for log" << ::std::endl;
 		log_ << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n<log>\n"
-			 << "\t<info>\n\t\t<cpu unit=\""					<< lSys.getCpuUnits().c_str() 
-			 << "\">"											<< lSys.getCpuFrequency() 
-			 << "</cpu>\n\t\t<overhead unit=\""					<< lSys.getOverheadUnits().c_str() 
-			 << "\">"											<< lSys.getOverhead() 
-			 << "</overhead>\n\t\t<date format=\""				<< lSys.getDateFormat().c_str() 
-			 << "\">"											<< lSys.getDate().c_str() 
-			 << "</date>\n\t\t<time format=\""					<< lSys.getTimeFormat().c_str() 
-			 << "\">"											<< lSys.getTime().c_str() 
-			 << "</time>\n\t\t<pid>"							<< processId_ 
-			 << "</pid>\n\t\t<tid>"								<< threadId_ 
+			 << "\t<info>\n\t\t<cpu unit=\""					<< lSys.getCpuUnits().c_str()
+			 << "\">"											<< lSys.getCpuFrequency()
+			 << "</cpu>\n\t\t<overhead unit=\""					<< lSys.getOverheadUnits().c_str()
+			 << "\">"											<< lSys.getOverhead()
+			 << "</overhead>\n\t\t<date format=\""				<< lSys.getDateFormat().c_str()
+			 << "\">"											<< lSys.getDate().c_str()
+			 << "</date>\n\t\t<time format=\""					<< lSys.getTimeFormat().c_str()
+			 << "\">"											<< lSys.getTime().c_str()
+			 << "</time>\n\t\t<pid>"							<< processId_
+			 << "</pid>\n\t\t<tid>"								<< threadId_
 			 << "</tid>"
 #ifdef H_KORAX_UTIL_BUILD
-			 << "\n\t\t<build>\n\t\t\t"							<< KORAX_UTIL_BUILD_NUMBER 
-			 << "\n\t\t\t<date format=\""						<< KORAX_UTIL_BUILD_DATE_FORMAT 
-			 << "\">"											<< KORAX_UTIL_BUILD_DATE 
-			 << "</date>\n\t\t\t<time format=\""				<< KORAX_UTIL_BUILD_TIME_FORMAT 
-			 << "\">"											<< KORAX_UTIL_BUILD_TIME 
+			 << "\n\t\t<build>\n\t\t\t"							<< KORAX_UTIL_BUILD_NUMBER
+			 << "\n\t\t\t<date format=\""						<< KORAX_UTIL_BUILD_DATE_FORMAT
+			 << "\">"											<< KORAX_UTIL_BUILD_DATE
+			 << "</date>\n\t\t\t<time format=\""				<< KORAX_UTIL_BUILD_TIME_FORMAT
+			 << "\">"											<< KORAX_UTIL_BUILD_TIME
 			 << "</time>\n\t\t</build>"
 #endif
-			 << "\n\t</info>\n\t<start>"	<< CSys::getCycles() 
-			 << "</start>\n\t<entries>" 
+			 << "\n\t</info>\n\t<start>"	<< CSys::getCycles()
+			 << "</start>\n\t<entries>"
 			 << ::std::endl;
 	}
 
@@ -164,7 +164,7 @@ CLog::~CLog ()
 
 	// close files
 	if (log_) {
-		log_ << "\t</entries>\n\t<end  >" << CSys::getCycles() 
+		log_ << "\t</entries>\n\t<end  >" << CSys::getCycles()
 			 << "</end>\n</log>"
 			 << ::std::endl;
 		log_.close();
@@ -181,18 +181,18 @@ void CLog::Report (const ::std::string &message, const ::std::string &file, unsi
 
 	// if error or warning, send it also to cerr
 	if (type == eltError) {
-		::std::cerr << "ERROR in file \""	<< file.c_str() 
-					<< "\", line "			<< line 
-					<< ", function \""		<< function.c_str() 
-					<< "\" : "				<< message.c_str() 
+		::std::cerr << "ERROR in file \""	<< file.c_str()
+					<< "\", line "			<< line
+					<< ", function \""		<< function.c_str()
+					<< "\" : "				<< message.c_str()
 					<< ::std::endl;
 	}
 
 	if (type == eltWarning) {
-		::std::cerr << "WARNING in file \""	<< file.c_str() 
-					<< "\", line "			<< line 
-					<< ", function \""		<< function.c_str() 
-					<< "\" : "				<< message.c_str() 
+		::std::cerr << "WARNING in file \""	<< file.c_str()
+					<< "\", line "			<< line
+					<< ", function \""		<< function.c_str()
+					<< "\" : "				<< message.c_str()
 					<< ::std::endl;
 	}
 
@@ -203,17 +203,17 @@ void CLog::Report (const ::std::string &message, const ::std::string &file, unsi
 		log_ << "\" pid=\"" << tempInt;
 	tempInt = CSys::getThreadId();
 	if (tempInt != threadId_)
-		log_ << "\" tid=\"" << tempInt; 
+		log_ << "\" tid=\"" << tempInt;
 
-	log_ << "\" cycles=\""		<< CSys::getCycles() 
+	log_ << "\" cycles=\""		<< CSys::getCycles()
 //		 << "\" date=\""		<< CSys::getDate().c_str() // don't need, will compute from cycles
 //		 << "\" time=\""		<< CSys::getTime().c_str() // don't need, will compute from cycles
-		 << "\" file=\""		<< file.c_str() 
-		 << "\" line=\""		<< line 
-		 << "\" function=\""	<< function.c_str() 
-		 << "\" type=\""		<< type 
-		 << "\">"				<< message.c_str() 
-		 << "</entry>\n"; 
+		 << "\" file=\""		<< file.c_str()
+		 << "\" line=\""		<< line
+		 << "\" function=\""	<< function.c_str()
+		 << "\" type=\""		<< type
+		 << "\">"				<< message.c_str()
+		 << "</entry>\n";
 
 	++id_;
 }

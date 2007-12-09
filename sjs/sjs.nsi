@@ -89,8 +89,8 @@ Var STARTMENU_FOLDER
 !define MUI_ABORTWARNING
 
 ; Start Menu Folder Page Configuration
-!define MUI_STARTMENUPAGE_REGISTRY_ROOT "HKLM" 
-!define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\Netfarm\${APPNAME}" 
+!define MUI_STARTMENUPAGE_REGISTRY_ROOT "HKLM"
+!define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\Netfarm\${APPNAME}"
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "Start Menu Folder"
 
 !insertmacro MUI_PAGE_LICENSE "COPYING"
@@ -166,7 +166,7 @@ Section "Sample Scripts" Scripts
     SetOutPath "$INSTDIR\scripts\"
     File "scripts\*.sjs"
 SectionEnd
-    
+
 Section -FinishSection
     WriteRegExpandStr HKCR "SJSFile\DefaultIcon" "" "$SYSDIR\sjs.exe,0"
 

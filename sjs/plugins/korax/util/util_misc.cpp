@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -59,7 +59,7 @@ namespace util {
 	{
 		static CCriticalSection criticalSection;
 		SCOPE_LOCK (criticalSection);
-	
+
 		const static string empty("");
 		return empty;
 	}

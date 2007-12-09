@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU Library General Public
 License along with this library; if not, write to the
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
- 
+
 In addition, as a special exception, the author gives permission to
 link the code of this program with the Half-Life Game Engine ("HL
 Engine") and Modified Game Libraries ("MODs") developed by Valve,
@@ -55,10 +55,10 @@ License    : OSI Certified Open Source, The GNU General Public License (GPL)
 #ifdef _WIN32			// Windows API (Microsoft © Platform SDK)
 #	include <windows.h>		// GetCurrentProcessId(), GetCurrentThreadId()
 //#	include <process.h>		// _getpid()
-// why not _getpid() ? There is no _get___() replacement for GetCurrentThreadId() 
+// why not _getpid() ? There is no _get___() replacement for GetCurrentThreadId()
 // and GetCurrentProcessId() is subjectively faster
 #elif defined __unix__	// UNIX (The Single UNIX Specification Version 3)
-#	include <pthread.h>		// pthread_self() 
+#	include <pthread.h>		// pthread_self()
 #	include <sys/types.h>	// pthread_t, pid_t, useconds_t
 #	include <unistd.h>		// getpid(), usleep(), sleep()
 #endif

@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -67,7 +67,7 @@ namespace util {
 	// CPar is the class you are looking for
 
 	// you won't need to use this class most of time
-	class CElement 
+	class CElement
 	{
 	public: // Interface
 		enum eEntryType {
@@ -126,7 +126,7 @@ namespace util {
 	extern const CElement& getEmptyElement();	// use this if you need emptyElement in static function
 
 	//-------------------------------------------------------------------------------
-	
+
 	// THIS IS THE CLASS YOU WANT
 	// WARNING : do not use this class in static functions
 	//           change emptyElement to getEmptyElement() if you want to use this CPar in static functions
@@ -162,11 +162,11 @@ namespace util {
 		const ::std::string&	getName		(const ::std::string &query, const ::std::string &delimiters = KORAX_UTIL_PAR_DELIMITERS) const;
 		const ::std::string&	getValue	(const ::std::string &query, const ::std::string &delimiters = KORAX_UTIL_PAR_DELIMITERS) const;
 		const ::std::string&	getComment	(const ::std::string &query, const ::std::string &delimiters = KORAX_UTIL_PAR_DELIMITERS) const;
-		template <typename T> 
+		template <typename T>
 		T					getValueEx	(const ::std::string &query, const ::std::string &delimiters = KORAX_UTIL_PAR_DELIMITERS) const;
 
 		//- set something to loaded file -------------------------------------
-		template <typename T> 
+		template <typename T>
 		bool				setValue	(const ::std::string &query, const T &value,				const ::std::string &delimiters = KORAX_UTIL_PAR_DELIMITERS);
 		bool				setName		(const ::std::string &query, const ::std::string &name,		const ::std::string &delimiters = KORAX_UTIL_PAR_DELIMITERS);
 		bool				setComment	(const ::std::string &query, const ::std::string &comment,	const ::std::string &delimiters = KORAX_UTIL_PAR_DELIMITERS);
@@ -246,7 +246,7 @@ namespace util {
 	{
 		return uid_;
 	} //*/
-	
+
 	inline const ::std::vector<CElement>& CElement::getChild() const
 	{
 		return child_;
@@ -377,7 +377,7 @@ namespace util {
 		SCOPE_LOCK (criticalSection_);
 
 		CElement *element = get (query, delimiters);
-		if (element == 0) 
+		if (element == 0)
 			return false;
 		element->name_ = name;
 		return true;
@@ -388,7 +388,7 @@ namespace util {
 		SCOPE_LOCK (criticalSection_);
 
 		CElement *element = get (query, delimiters);
-		if (element == 0) 
+		if (element == 0)
 			return false;
 		::std::ostringstream a;
 		if (!(a << value))
@@ -402,7 +402,7 @@ namespace util {
 		SCOPE_LOCK (criticalSection_);
 
 		CElement *element = get (query, delimiters);
-		if (element == 0) 
+		if (element == 0)
 			return false;
 		element->comment_ = comment;
 		return true;

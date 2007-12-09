@@ -1,4 +1,4 @@
-/* 
+/*
 
 Copyright (C) 2005 Jozef Wagner, http://www.wagjo.com , wagjo@wagjo.com
 
@@ -145,12 +145,12 @@ namespace util {
 
 	inline CBaseVector::operator float *()
 	{
-		return &x_; 
+		return &x_;
 	}
 
 	inline CBaseVector::operator const float *() const
 	{
-		return &x_; 
+		return &x_;
 	}
 #endif
 
@@ -183,7 +183,7 @@ namespace util {
 		float			getX			()							const;
 		float			getY			()							const;
 		float			getZ			()							const;
-	
+
 		//-- set functions --------------------------------------------------------------
 		void			setX			(float value);
 		void			setY			(float value);
@@ -346,9 +346,9 @@ namespace util {
 	{
 		if (type == -1)
 			return ::util::max (::std::fabs(x_), ::std::fabs(y_), ::std::fabs(z_));
-		if (type == 1) 
+		if (type == 1)
 			return ::std::fabs(x_) + ::std::fabs(y_) + ::std::fabs(z_);
-		if (type == 2) 
+		if (type == 2)
 			return ::std::sqrt ((x_ * x_) + (y_ * y_) + (z_ * z_));
 		return ::std::pow (::std::pow (::std::fabs(x_), type) + ::std::pow (::std::fabs(y_), type) + ::std::pow (::std::fabs(z_), type), 1.0f / type);
 	}
@@ -406,7 +406,7 @@ namespace util {
 	}
 
 	inline float CVector::DotProduct (const CVector &b) const
-	{ 
+	{
 		return (x_ * b.x_) + (y_ * b.y_) + (z_ * b.z_);
 	}
 
@@ -608,7 +608,7 @@ namespace util {
 		float			getX			()						const;
 		float			getY			()						const;
 		float			getZ			()						const;
-	
+
 		//-- set functions --------------------------------------------------------------
 		void			setX			(float value);
 		void			setY			(float value);
